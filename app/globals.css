@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Tokens do design system Perfecting — ver docs/design-guidelines.md.
+ * Raios (§4), cores (§1), sombras (§6), tipografia (§2).
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+
+  /* Estilo orgânico: containers com raio generoso; controles são pill (rounded-full). */
+  --radius-sm: 16px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+
+  --color-primary: #2e63cd;
+  --color-primary-hover: #3a71db;
+  --color-primary-link-hover: #1e4a9e;
+
+  --color-trend-positive: #0f9f2e;
+  --color-trend-negative: #9f0f0f;
+  --color-trend-neutral: #94a3b8;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 16px -4px rgba(15, 23, 42, 0.12),
+    0 2px 6px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 18px 36px -12px rgba(46, 99, 205, 0.18),
+    0 6px 14px -6px rgba(15, 23, 42, 0.1);
+
+  --animate-page-fade-in: page-fade-in 300ms ease-out both;
+  --animate-fade-in-up: fade-in-up 400ms ease-out both;
 }
 
-@media (prefers-color-scheme: dark) {
+:root {
+  /* Camadas (§10) — consumir via z-(--z-*) */
+  --z-shell: 30;
+  --z-header: 40;
+  --z-modal: 70;
+  --z-overlay: 80;
+  --z-tooltip: 90;
+
+  /* Espaçamento fluido (§3) */
+  --space-xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
+  --space-sm: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);
+  --space-md: clamp(0.75rem, 0.6rem + 0.75vw, 1.25rem);
+  --space-lg: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+  --space-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
+
+  /* Números grandes / KPIs (§2) */
+  --text-score-lg: clamp(2.25rem, 1.75rem + 2.5vw, 3rem);
+  --text-score-md: clamp(1.75rem, 1.5rem + 1.25vw, 2.25rem);
+
+  /* Conteúdo abaixo do header fixo (§11) */
+  --page-content-pt-below-header: 1rem;
+}
+
+@media (min-width: 640px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --page-content-pt-below-header: 2.5rem;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f9f9f9;
+  color: #0f172a;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 0.875rem; /* base 14px (§2) */
+}
+
+/* Movimento (§9) */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-fade-in {
+  animation: page-fade-in 300ms ease-out both;
+}
+
+.fade-in-up {
+  animation: fade-in-up 400ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-in,
+  .fade-in-up {
+    animation: none;
+  }
 }
