@@ -25,6 +25,8 @@ async function requireUploader(clientId: string) {
 function revalidateFilePaths(clientId: string) {
   revalidatePath(`/clientes/${clientId}`);
   revalidatePath("/perfil");
+  // Drawer do Kanban lê os arquivos do cliente — atualiza após upload/exclusão.
+  revalidatePath("/workflow");
 }
 
 // O binário sobe do browser direto para o Storage (RLS de storage protege);

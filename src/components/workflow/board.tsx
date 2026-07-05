@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  useId,
   useMemo,
   useOptimistic,
   useState,
@@ -24,7 +25,11 @@ import { STAGE_ORDER, STAGES, type WorkflowStage } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
 import { BoardColumn } from "./board-column";
-import { CardContent, type BoardClient } from "./client-card";
+import {
+  CardContent,
+  type ActivityAssignee,
+  type BoardClient,
+} from "./client-card";
 import { ClientSheet } from "./client-sheet";
 
 type Move = { id: string; stage: WorkflowStage };
@@ -33,7 +38,16 @@ function stageLabel(stage: WorkflowStage) {
   return STAGES[stage].label;
 }
 
-export function Board({ initialClients }: { initialClients: BoardClient[] }) {
+export function Board({
+  initialClients,
+  members,
+}: {
+  initialClients: BoardClient[];
+  members: ActivityAssignee[];
+}) {
+  // id estável (SSR-safe) p/ o DndContext — evita mismatch de hidratação nos
+  // aria-describedby que o dnd-kit gera por contador de módulo.
+  const dndContextId = useId();
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -117,14 +131,15 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
     clients.find((client) => client.id === String(id))?.name ?? "cliente";
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
+      {/* Header do board: limitado ao max-w-7xl (alinhado à esquerda). */}
+      <div className="flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Workflow</h1>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Filtrar clientes"
+            placeholder="Buscar cliente"
             size="sm"
             className="sm:w-64"
           />
@@ -150,6 +165,7 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
       ) : null}
 
       <DndContext
+        id={dndContextId}
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
@@ -176,7 +192,10 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
           },
         }}
       >
-        <div className="flex snap-x gap-4 overflow-x-auto pb-2">
+        {/* Esquerda: margem respeitada (alinha com o header). Direita: sangra até a
+            borda da viewport, então o corte fica na beirada da tela, não num limite
+            interno com padding sobrando. pr interno dá respiro no fim do scroll. */}
+        <div className="scrollbar-thin -mr-4 flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-4 pr-4 sm:-mr-12 sm:pr-12 lg:-mr-24 lg:pr-24">
           {STAGE_ORDER.map((stage) => (
             <BoardColumn
               key={stage}
@@ -193,7 +212,11 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
       </DndContext>
 
       {openClient ? (
-        <ClientSheet client={openClient} onClose={() => setOpenId(null)} />
+        <ClientSheet
+          client={openClient}
+          members={members}
+          onClose={() => setOpenId(null)}
+        />
       ) : null}
     </div>
   );

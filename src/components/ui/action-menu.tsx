@@ -36,12 +36,14 @@ export function DropdownMenu({
   triggerClassName,
   ariaLabel,
   align = "right",
+  header,
 }: {
   items: MenuItem[];
   trigger: ReactNode;
   triggerClassName?: string;
   ariaLabel: string;
   align?: "right" | "left";
+  header?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,11 @@ export function DropdownMenu({
             align === "right" ? "right-0" : "left-0",
           )}
         >
+          {header ? (
+            <div className="mb-1 border-b border-slate-100 px-3 pb-2 pt-1">
+              {header}
+            </div>
+          ) : null}
           {items.map((item) => {
             const Icon = item.icon;
             const content = (

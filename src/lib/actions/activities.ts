@@ -158,6 +158,59 @@ export async function updateActivityStatus(
   return { ok: true, data: undefined };
 }
 
+// Define (ou remove, com null) o responsável da atividade. assigneeId deve ser
+// um membro interno; a FK garante que referencie um profile válido.
+export async function setActivityAssignee(
+  id: string,
+  assigneeId: string | null,
+): Promise<ActionResult> {
+  const session = await requireInternoActor();
+  if (!session) return { ok: false, error: "Sem permissão." };
+
+  const supabase = await createServerSupabase();
+  const { data: current } = await supabase
+    .from("activities")
+    .select("client_id")
+    .eq("id", id)
+    .single();
+  if (!current) return { ok: false, error: "Atividade não encontrada." };
+
+  const { error } = await supabase
+    .from("activities")
+    .update({ assignee_id: assigneeId })
+    .eq("id", id);
+  if (error) return { ok: false, error: GENERIC_ERROR };
+
+  revalidateActivityPaths(current.client_id);
+  return { ok: true, data: undefined };
+}
+
+// Alterna o responsável entre "ninguém" e o usuário atual (interno): se já há
+// responsável, remove; caso contrário, atribui a quem clicou. Usado no avatar
+// de responsável da drawer do workflow.
+export async function toggleActivityAssignee(id: string): Promise<ActionResult> {
+  const session = await requireInternoActor();
+  if (!session) return { ok: false, error: "Sem permissão." };
+
+  const supabase = await createServerSupabase();
+  const { data: current } = await supabase
+    .from("activities")
+    .select("client_id, assignee_id")
+    .eq("id", id)
+    .single();
+  if (!current) return { ok: false, error: "Atividade não encontrada." };
+
+  const nextAssignee = current.assignee_id ? null : session.userId;
+  const { error } = await supabase
+    .from("activities")
+    .update({ assignee_id: nextAssignee })
+    .eq("id", id);
+  if (error) return { ok: false, error: GENERIC_ERROR };
+
+  revalidateActivityPaths(current.client_id);
+  return { ok: true, data: undefined };
+}
+
 export async function deleteActivity(id: string): Promise<ActionResult> {
   const session = await requireInternoActor();
   if (!session) return { ok: false, error: "Sem permissão." };

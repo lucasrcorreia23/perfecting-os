@@ -14,6 +14,7 @@ export type Database = {
     Tables: {
       activities: {
         Row: {
+          assignee_id: string | null;
           client_id: string;
           created_at: string;
           description: string | null;
@@ -26,6 +27,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          assignee_id?: string | null;
           client_id: string;
           created_at?: string;
           description?: string | null;
@@ -38,6 +40,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          assignee_id?: string | null;
           client_id?: string;
           created_at?: string;
           description?: string | null;
@@ -50,6 +53,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "activities_assignee_id_fkey";
+            columns: ["assignee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "activities_client_id_fkey";
             columns: ["client_id"];

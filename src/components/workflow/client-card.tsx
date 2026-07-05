@@ -8,8 +8,18 @@ import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 import { StatusChip } from "@/components/ui/status-chip";
 
+export type ActivityAssignee = Pick<
+  Tables<"profiles">,
+  "id" | "full_name" | "avatar_url"
+>;
+
+export type BoardActivity = Tables<"activities"> & {
+  assignee: ActivityAssignee | null;
+};
+
 export type BoardClient = Tables<"clients"> & {
-  activities: Tables<"activities">[];
+  activities: BoardActivity[];
+  client_files: Tables<"client_files">[];
 };
 
 export function cardStats(client: BoardClient) {

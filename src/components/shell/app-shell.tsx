@@ -6,8 +6,6 @@ import { useState, useTransition, type ReactNode } from "react";
 import {
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   HomeIcon,
   UserCircleIcon,
   UserGroupIcon,
@@ -33,14 +31,12 @@ function navItems(role: UserRole, clientId: string | null): NavItem[] {
         icon: UserGroupIcon,
       });
     }
-    items.push({ href: "/perfil", label: "Meu Perfil", icon: UserCircleIcon });
     return items;
   }
   return [
     { href: "/", label: "Início", icon: HomeIcon },
     { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
     { href: "/workflow", label: "Workflow", icon: ViewColumnsIcon },
-    { href: "/perfil", label: "Meu Perfil", icon: UserCircleIcon },
   ];
 }
 
@@ -49,16 +45,41 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({
+// Item da barra central (desktop): só texto, pill preenchida quando ativo.
+function TopNavLink({
   item,
   pathname,
-  collapsed,
+}: {
+  item: NavItem;
+  pathname: string;
+}) {
+  const active = isActive(pathname, item.href);
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+        active
+          ? "bg-slate-100/80 text-primary"
+          : "text-slate-500 hover:bg-slate-100/60 hover:text-slate-800",
+      )}
+    >
+      {item.label}
+    </Link>
+  );
+}
+
+// Item do menu mobile: ícone + label, tap target ≥ 44px.
+function MobileNavLink({
+  item,
+  pathname,
   onNavigate,
 }: {
   item: NavItem;
   pathname: string;
-  collapsed: boolean;
-  onNavigate?: () => void;
+  onNavigate: () => void;
 }) {
   const active = isActive(pathname, item.href);
   const Icon = item.icon;
@@ -66,19 +87,17 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
-      title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex min-h-[44px] items-center gap-3 rounded-full px-4 text-sm font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-        collapsed && "justify-center px-0",
         active
           ? "bg-slate-100/75 text-primary"
           : "text-slate-500 hover:bg-slate-100/75 hover:text-slate-700",
       )}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden />
-      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }
@@ -87,36 +106,37 @@ export function AppShell({
   role,
   clientId,
   name,
+  email,
   avatarUrl,
-  initialCollapsed,
   children,
 }: {
   role: UserRole;
   clientId: string | null;
   name: string;
+  email: string;
   avatarUrl: string | null;
-  initialCollapsed: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const items = navItems(role, clientId);
   const homeHref = role === "cliente" && clientId ? `/clientes/${clientId}` : "/";
-
-  function toggleSidebar() {
-    const next = !collapsed;
-    setCollapsed(next);
-    document.cookie = `sidebar=${next ? "collapsed" : "expanded"}; path=/; max-age=31536000; samesite=lax`;
-  }
+  // Full-bleed (altura cheia até o rodapé, largura total) é exclusivo do board.
+  const isWorkflow = pathname === "/workflow";
+  const roleLabel = role === "interno" ? "Equipe Perfecting" : "Cliente";
+  // Secundária do perfil: e-mail (padrão de account menu); cai no papel quando o
+  // nome já é o próprio e-mail (sem full_name) ou não há e-mail.
+  const subtitle = !email || name === email ? roleLabel : email;
 
   return (
     <div className="min-h-[100dvh]">
-      {/* Header fixo (§10: z-header) */}
-      <header className="fixed inset-x-0 top-0 z-(--z-header) flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
-        <div className="flex items-center gap-2">
+      {/* Barra superior flutuante (§10: z-header) — sem barra branca/stroke; fundo
+          cor-da-página (opaco, esconde conteúdo ao rolar) e nav em pill flutuante. */}
+      <header className="fixed inset-x-0 top-0 z-(--z-header) grid py-4 h-11 grid-cols-[1fr_auto_1fr] items-center gap-4 bg-[#f3f6fc] px-4 sm:px-6">
+        {/* Esquerda: menu mobile + logo */}
+        <div className="flex items-center gap-2 justify-self-start">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -131,77 +151,64 @@ export function AppShell({
           </button>
           <Link
             href={homeHref}
-            className="rounded-full text-base font-semibold tracking-tight text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="rounded-full text-base font-semibold tracking-tight text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
           >
-            Perfecting
+           perfectingOS
           </Link>
         </div>
 
-        <DropdownMenu
-          ariaLabel="Menu do usuário"
-          align="right"
-          triggerClassName={cn(
-            "flex cursor-pointer items-center rounded-full",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-          )}
-          trigger={<Avatar name={name} src={avatarUrl} size={32} />}
-          items={[
-            {
-              label: "Meu Perfil",
-              icon: UserCircleIcon,
-              href: "/perfil",
-            },
-            {
-              label: "Sair",
-              icon: ArrowRightStartOnRectangleIcon,
-              destructive: true,
-              onSelect: () => startTransition(() => signOut()),
-            },
-          ]}
-        />
+        {/* Centro: navegação em pill (desktop) */}
+        {items.length > 0 ? (
+          <nav
+            aria-label="Navegação principal"
+            className="hidden items-center gap-1 justify-self-center rounded-full border border-slate-200 bg-white p-1 shadow-[var(--shadow-sm)] md:flex"
+          >
+            {items.map((item) => (
+              <TopNavLink key={item.href} item={item} pathname={pathname} />
+            ))}
+          </nav>
+        ) : (
+          <span aria-hidden />
+        )}
+
+        {/* Direita: perfil → dropdown com Meu Perfil + Sair */}
+        <div className="justify-self-end">
+          <DropdownMenu
+            ariaLabel="Menu do usuário"
+            align="right"
+            header={
+              <div className="flex flex-col gap-0.5">
+                <span className="max-w-[220px] truncate text-sm font-medium text-slate-900">
+                  {name}
+                </span>
+                <span className="max-w-[220px] truncate text-xs text-slate-500">
+                  {subtitle}
+                </span>
+              </div>
+            }
+            triggerClassName={cn(
+              "inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white shadow-[var(--shadow-sm)] transition-colors hover:border-slate-300",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+            )}
+            trigger={<Avatar name={name} src={avatarUrl} size={32} />}
+            items={[
+              {
+                label: "Meu Perfil",
+                icon: UserCircleIcon,
+                href: "/perfil",
+              },
+              {
+                label: "Sair",
+                icon: ArrowRightStartOnRectangleIcon,
+                destructive: true,
+                onSelect: () => startTransition(() => signOut()),
+              },
+            ]}
+          />
+        </div>
       </header>
 
-      {/* Sidebar fixa (§10: z-shell) — desktop */}
-      <aside
-        className={cn(
-          "fixed bottom-0 left-0 top-14 z-(--z-shell) hidden flex-col justify-between border-r border-slate-200 bg-white p-2 md:flex",
-          "transition-[width] duration-200 ease-out",
-          collapsed ? "w-[60px]" : "w-[220px]",
-        )}
-      >
-        <nav className="flex flex-col gap-1" aria-label="Navegação principal">
-          {items.map((item) => (
-            <NavLink
-              key={item.href}
-              item={item}
-              pathname={pathname}
-              collapsed={collapsed}
-            />
-          ))}
-        </nav>
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          className={cn(
-            "flex min-h-[44px] cursor-pointer items-center gap-3 rounded-full px-4 text-sm font-medium text-slate-500",
-            "transition-colors hover:bg-slate-100/75 hover:text-slate-700",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="h-5 w-5 shrink-0" aria-hidden />
-          ) : (
-            <>
-              <ChevronLeftIcon className="h-5 w-5 shrink-0" aria-hidden />
-              <span>Recolher</span>
-            </>
-          )}
-        </button>
-      </aside>
-
-      {/* Menu mobile: overlay z-80 + painel */}
+      {/* Menu mobile: overlay z-80 + painel lateral */}
       {mobileOpen ? (
         <div
           className="fixed inset-0 z-(--z-overlay) bg-slate-900/40 md:hidden"
@@ -227,13 +234,15 @@ export function AppShell({
                 <XMarkIcon className="h-5 w-5" aria-hidden />
               </button>
             </div>
-            <nav className="flex flex-col gap-1" aria-label="Navegação principal">
+            <nav
+              className="flex flex-col gap-1"
+              aria-label="Navegação principal"
+            >
               {items.map((item) => (
-                <NavLink
+                <MobileNavLink
                   key={item.href}
                   item={item}
                   pathname={pathname}
-                  collapsed={false}
                   onNavigate={() => setMobileOpen(false)}
                 />
               ))}
@@ -242,16 +251,22 @@ export function AppShell({
         </div>
       ) : null}
 
-      {/* Conteúdo */}
+      {/* Conteúdo — sem sidebar. Workflow ocupa toda a altura/largura até o rodapé;
+          demais páginas mantêm o padding e a largura máxima padrão. */}
       <main
         className={cn(
-          "px-4 pb-12 sm:px-6 lg:px-8",
-          "pt-[calc(3.5rem+var(--page-content-pt-below-header))]",
-          "transition-[padding] duration-200 ease-out",
-          collapsed ? "md:pl-[calc(60px+1.5rem)]" : "md:pl-[calc(220px+1.5rem)]",
+          "flex flex-col px-4  mx-auto pt-[calc(3.5rem+var(--page-content-pt-below-header))] sm:px-12 lg:px-24",
+          // Workflow trava na altura exata da viewport (scroll só interno ao board,
+          // com a barra sempre visível no rodapé); demais páginas crescem com o conteúdo.
+          isWorkflow ? "h-[100dvh] overflow-hidden pb-2" : "min-h-[100dvh] pb-12",
         )}
       >
-        <div className="page-fade-in mx-auto flex w-full max-w-[1400px] flex-col gap-6">
+        <div
+          className={cn(
+            "page-fade-in mx-auto flex w-full flex-1 flex-col gap-6",
+            isWorkflow ? "max-w-none" : "max-w-[1400px]",
+          )}
+        >
           {children}
         </div>
       </main>

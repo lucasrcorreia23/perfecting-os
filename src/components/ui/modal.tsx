@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +37,11 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal para o body: o overlay fixed cobre a viewport mesmo se algum ancestral
+  // (ex.: o transform de .page-fade-in) criar um containing block.
+  return createPortal(
     <div
       className="fixed inset-0 z-(--z-overlay) flex items-end justify-center bg-slate-900/40 p-4 sm:items-center"
       onMouseDown={(event) => {
@@ -73,6 +76,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
