@@ -4,6 +4,8 @@ export type WorkflowStage = Enums<"workflow_stage">;
 export type ClientStatus = Enums<"client_status">;
 export type ActivityStatus = Enums<"activity_status">;
 export type UserRole = Enums<"user_role">;
+export type Responsavel = Enums<"responsavel_categoria">;
+export type AtividadeTipo = Enums<"atividade_tipo">;
 
 // Paleta categórica do guideline (§1) aplicada às etapas do workflow.
 export const STAGE_ORDER: WorkflowStage[] = [
@@ -32,10 +34,13 @@ export const STATUSES: Record<ClientStatus, { label: string; color: string }> =
     encerrado: { label: "Encerrado", color: "#94A3B8" },
   };
 
-export const ACTIVITY_STATUSES: Record<ActivityStatus, { label: string }> = {
-  pendente: { label: "Pendente" },
-  em_andamento: { label: "Em andamento" },
-  concluida: { label: "Concluída" },
+export const ACTIVITY_STATUSES: Record<
+  ActivityStatus,
+  { label: string; color: string }
+> = {
+  pendente: { label: "Pendente", color: "#475569" },
+  em_andamento: { label: "Em andamento", color: "#2E63CD" },
+  concluida: { label: "Concluída", color: "#0F9F2E" },
 };
 
 export const ACTIVITY_STATUS_ORDER: ActivityStatus[] = [
@@ -43,6 +48,21 @@ export const ACTIVITY_STATUS_ORDER: ActivityStatus[] = [
   "em_andamento",
   "concluida",
 ];
+
+// Responsável (categoria) da planilha da POC — cores da paleta categórica §1.
+export const RESPONSAVEIS: Record<
+  Responsavel,
+  { label: string; color: string }
+> = {
+  cliente: { label: "Cliente", color: "#0891B2" },
+  perfecting: { label: "Perfecting", color: "#2E63CD" },
+  ambos: { label: "Perfecting & Cliente", color: "#7C3AED" },
+};
+
+export const ATIVIDADE_TIPOS: Record<AtividadeTipo, { label: string }> = {
+  sincrono: { label: "Síncrono" },
+  assincrono: { label: "Assíncrono" },
+};
 
 export type EventType =
   | "cliente_criado"
@@ -53,6 +73,9 @@ export type EventType =
   | "arquivo_excluido";
 
 export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+// SLA por etapa (Preferências > Fluxo de trabalho) — fixo para todos os clientes.
+export const DEFAULT_PRAZO_ETAPA_DIAS = 25;
 
 // Padrão de acento do guideline (§1): fundo alpha .08, borda alpha .35,
 // texto/dot na cor cheia.

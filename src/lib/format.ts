@@ -7,10 +7,35 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: TIME_ZONE,
 });
 
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: TIME_ZONE,
+});
+
+const inputDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 // "12 de jun. de 2026" → "12 jun 2026"
 export function formatDate(value: string | Date): string {
   const date = typeof value === "string" ? parseDate(value) : value;
   return dateFormatter
+    .format(date)
+    .replaceAll(" de ", " ")
+    .replaceAll(".", "");
+}
+
+// "12 de jun. de 2026, 14:32" → "12 jun 2026, 14:32"
+export function formatDateTime(value: string | Date): string {
+  const date = typeof value === "string" ? parseDate(value) : value;
+  return dateTimeFormatter
     .format(date)
     .replaceAll(" de ", " ")
     .replaceAll(".", "");
@@ -28,12 +53,18 @@ function parseDate(value: string): Date {
 
 // Data de hoje (YYYY-MM-DD) em São Paulo — para comparar com due_date por string.
 export function todayISO(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return inputDateFormatter.format(new Date());
+}
+
+// Timestamp → "YYYY-MM-DD" em São Paulo, para preencher <input type="date">.
+export function toDateInputValue(iso: string): string {
+  return inputDateFormatter.format(new Date(iso));
+}
+
+// "YYYY-MM-DD" de <input type="date"> → timestamp ISO (meio-dia local, mesma
+// convenção de parseDate, evita o dia voltar por causa do fuso UTC).
+export function dateInputToISO(value: string): string {
+  return parseDate(value).toISOString();
 }
 
 export function isOverdue(dueDate: string | null): boolean {

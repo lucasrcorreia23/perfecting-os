@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { updatePreferences, type Preferences } from "@/lib/actions/profile";
+import { DEFAULT_PRAZO_ETAPA_DIAS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { ActionBar } from "@/components/ui/action-bar";
-import { Field, FormSection } from "@/components/ui/form";
+import { Field, FormSection, Input } from "@/components/ui/form";
 import { Select } from "@/components/ui/select";
 
 function Toggle({
@@ -54,12 +55,15 @@ const DEFAULTS: Values = {
   idioma: "pt-BR",
   resumo_semanal: false,
   alertas_prazo: false,
+  prazo_etapa_dias: DEFAULT_PRAZO_ETAPA_DIAS,
 };
 
 export function PreferencesForm({
   preferences,
+  showSla,
 }: {
   preferences: Preferences | null;
+  showSla: boolean;
 }) {
   const [initial, setInitial] = useState<Values>({
     ...DEFAULTS,
@@ -101,6 +105,33 @@ export function PreferencesForm({
           />
         </Field>
       </FormSection>
+
+      {showSla ? (
+        <FormSection
+          title="Fluxo de trabalho"
+          description="Vale para todos os clientes — não é mais configurável por cliente."
+        >
+          <Field
+            label="Prazo padrão da etapa (dias)"
+            help="SLA usado para calcular quando um cliente está atrasado na etapa atual (KPI do início e lista de clientes)."
+            htmlFor="pref-prazo-etapa"
+          >
+            <Input
+              id="pref-prazo-etapa"
+              type="number"
+              min={1}
+              className="md:w-1/2"
+              value={values.prazo_etapa_dias}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  prazo_etapa_dias: Number(event.target.value),
+                }))
+              }
+            />
+          </Field>
+        </FormSection>
+      ) : null}
 
       <FormSection
         title="Notificações"

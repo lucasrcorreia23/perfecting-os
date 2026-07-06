@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useId,
   useMemo,
@@ -19,17 +18,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { BellAlertIcon } from "@heroicons/react/24/outline";
 import { updateClientStage } from "@/lib/actions/clients";
 import { STAGE_ORDER, STAGES, type WorkflowStage } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
 import { BoardColumn } from "./board-column";
-import {
-  CardContent,
-  type ActivityAssignee,
-  type BoardClient,
-} from "./client-card";
+import { CardContent, type BoardClient } from "./client-card";
 import { ClientSheet } from "./client-sheet";
 
 type Move = { id: string; stage: WorkflowStage };
@@ -38,13 +31,7 @@ function stageLabel(stage: WorkflowStage) {
   return STAGES[stage].label;
 }
 
-export function Board({
-  initialClients,
-  members,
-}: {
-  initialClients: BoardClient[];
-  members: ActivityAssignee[];
-}) {
+export function Board({ initialClients }: { initialClients: BoardClient[] }) {
   // id estável (SSR-safe) p/ o DndContext — evita mismatch de hidratação nos
   // aria-describedby que o dnd-kit gera por contador de módulo.
   const dndContextId = useId();
@@ -106,17 +93,11 @@ export function Board({
     setActiveId(String(event.active.id));
   }
 
-  function onDragEnd(event: DragEndEvent) {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over) return;
-
-    const clientId = String(active.id);
-    const stage = String(over.id) as WorkflowStage;
+  // Caminho único de mudança de etapa — usado tanto pelo drag-and-drop quanto
+  // pelo picker "+" de cada coluna (clique também move, sem duplicar lógica).
+  function moveClient(clientId: string, stage: WorkflowStage) {
     const client = clients.find((item) => item.id === clientId);
-    if (!client || !STAGE_ORDER.includes(stage) || client.stage === stage) {
-      return;
-    }
+    if (!client || client.stage === stage) return;
 
     setError(null);
     startTransition(async () => {
@@ -127,35 +108,31 @@ export function Board({
     });
   }
 
+  function onDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const stage = String(over.id) as WorkflowStage;
+    if (!STAGE_ORDER.includes(stage)) return;
+    moveClient(String(active.id), stage);
+  }
+
   const clientName = (id: string | number) =>
     clients.find((client) => client.id === String(id))?.name ?? "cliente";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       {/* Header do board: limitado ao max-w-7xl (alinhado à esquerda). */}
-      <div className="flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex w-full w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Workflow</h1>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <SearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Buscar cliente"
-            size="sm"
-            className="sm:w-64"
-          />
-          <Link
-            href="/workflow/alertas"
-            className={cn(
-              "inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium sm:h-9",
-              "border border-slate-200 bg-white text-slate-900",
-              "transition-colors hover:border-slate-300 hover:bg-[#f8fafc]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-            )}
-          >
-            <BellAlertIcon className="h-5 w-5" aria-hidden />
-            Alertas
-          </Link>
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Buscar cliente"
+          size="sm"
+          className="sm:w-64"
+        />
       </div>
 
       {error ? (
@@ -192,16 +169,19 @@ export function Board({
           },
         }}
       >
-        {/* Esquerda: margem respeitada (alinha com o header). Direita: sangra até a
-            borda da viewport, então o corte fica na beirada da tela, não num limite
-            interno com padding sobrando. pr interno dá respiro no fim do scroll. */}
-        <div className="scrollbar-thin -mr-4 flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-4 pr-4 sm:-mr-12 sm:pr-12 lg:-mr-24 lg:pr-24">
+        {/* Sangra até as bordas da viewport nos dois lados (margens negativas),
+            então o corte do scroll horizontal fica na beirada da tela — não num
+            limite interno com padding sobrando. O padding interno espelhado
+            devolve o alinhamento inicial com o header e dá respiro no fim. */}
+        <div className="scrollbar-thin -mx-4 flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden px-4 pb-4 sm:-mx-12 sm:px-12 lg:-mx-24 lg:px-24">
           {STAGE_ORDER.map((stage) => (
             <BoardColumn
               key={stage}
               stage={stage}
               clients={byStage.get(stage) ?? []}
+              allClients={clients}
               onOpen={setOpenId}
+              onMoveClient={moveClient}
             />
           ))}
         </div>
@@ -212,11 +192,7 @@ export function Board({
       </DndContext>
 
       {openClient ? (
-        <ClientSheet
-          client={openClient}
-          members={members}
-          onClose={() => setOpenId(null)}
-        />
+        <ClientSheet client={openClient} onClose={() => setOpenId(null)} />
       ) : null}
     </div>
   );

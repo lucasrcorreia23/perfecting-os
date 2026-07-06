@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { createActivity, updateActivity } from "@/lib/actions/activities";
-import { STAGE_ORDER, STAGES, type WorkflowStage } from "@/lib/constants";
+import {
+  ATIVIDADE_TIPOS,
+  RESPONSAVEIS,
+  STAGE_ORDER,
+  STAGES,
+  type AtividadeTipo,
+  type Responsavel,
+  type WorkflowStage,
+} from "@/lib/constants";
 import type { Tables } from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
@@ -13,6 +21,23 @@ const STAGE_OPTIONS = STAGE_ORDER.map((stage) => ({
   value: stage,
   label: STAGES[stage].label,
 }));
+
+// Campos da planilha da POC — opcionais ("—" = sem valor).
+const RESPONSAVEL_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(RESPONSAVEIS) as Responsavel[]).map((value) => ({
+    value,
+    label: RESPONSAVEIS[value].label,
+  })),
+];
+
+const TIPO_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(ATIVIDADE_TIPOS) as AtividadeTipo[]).map((value) => ({
+    value,
+    label: ATIVIDADE_TIPOS[value].label,
+  })),
+];
 
 // Criação (activity = null) e edição usam o mesmo modal.
 export function ActivityModal({
@@ -39,6 +64,8 @@ export function ActivityModal({
       description: String(form.get("description") ?? ""),
       stage: form.get("stage") as WorkflowStage,
       due_date: String(form.get("due_date") ?? ""),
+      responsavel: form.get("responsavel") as Responsavel | "",
+      tipo: form.get("tipo") as AtividadeTipo | "",
     };
     setError(null);
 
@@ -94,6 +121,24 @@ export function ActivityModal({
               name="due_date"
               type="date"
               defaultValue={activity?.due_date ?? ""}
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Responsável" htmlFor="activity-responsavel">
+            <Select
+              id="activity-responsavel"
+              name="responsavel"
+              options={RESPONSAVEL_OPTIONS}
+              defaultValue={activity?.responsavel ?? ""}
+            />
+          </Field>
+          <Field label="Tipo" htmlFor="activity-tipo">
+            <Select
+              id="activity-tipo"
+              name="tipo"
+              options={TIPO_OPTIONS}
+              defaultValue={activity?.tipo ?? ""}
             />
           </Field>
         </div>

@@ -17,9 +17,11 @@ function sanitizeFileName(name: string): string {
 }
 
 // Faz o upload do arquivo para o cliente (Storage + metadados). Client-side.
+// activityId opcional vincula o anexo à atividade (clipe por tarefa do drawer).
 export async function uploadClientFile(
   clientId: string,
   file: File,
+  activityId?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return { ok: false, error: `"${file.name}" excede o limite de 20 MB.` };
@@ -39,6 +41,7 @@ export async function uploadClientFile(
 
   const result = await registerClientFile({
     client_id: clientId,
+    activity_id: activityId ?? null,
     name: file.name,
     storage_path: storagePath,
     size_bytes: file.size,

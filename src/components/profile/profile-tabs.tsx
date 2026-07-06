@@ -36,6 +36,7 @@ export function ProfileTabs({
           return (
             <PreferencesForm
               preferences={(profile?.preferences as Preferences | null) ?? null}
+              showSla={profile?.role === "interno"}
             />
           );
         }

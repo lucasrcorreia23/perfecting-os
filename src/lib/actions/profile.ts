@@ -12,6 +12,7 @@ export type Preferences = {
   idioma?: string;
   resumo_semanal?: boolean;
   alertas_prazo?: boolean;
+  prazo_etapa_dias?: number;
 };
 
 async function requireActor() {
@@ -50,6 +51,13 @@ export async function updatePreferences(
 ): Promise<ActionResult> {
   const session = await requireActor();
   if (!session) return { ok: false, error: "Sem permissão." };
+  if (
+    preferences.prazo_etapa_dias !== undefined &&
+    (!Number.isInteger(preferences.prazo_etapa_dias) ||
+      preferences.prazo_etapa_dias < 1)
+  ) {
+    return { ok: false, error: "O prazo da etapa deve ser de pelo menos 1 dia." };
+  }
 
   const supabase = await createServerSupabase();
   const current =

@@ -24,9 +24,11 @@ import { formatDate, isOverdue } from "@/lib/format";
 import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { ActivityType } from "@/components/ui/activity-type";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ResponsavelChip } from "@/components/ui/responsavel-chip";
 import { Select } from "@/components/ui/select";
 import { ActivityModal } from "./activity-modal";
 
@@ -94,6 +96,17 @@ function ActivityRow({
           </span>
         ) : null}
       </div>
+
+      {/* Cronograma da POC: semana, responsável (categoria) e tipo. */}
+      {activity.week !== null ? (
+        <span className="shrink-0 text-xs tabular-nums text-slate-400">
+          Sem. {activity.week}
+        </span>
+      ) : null}
+      {activity.responsavel ? (
+        <ResponsavelChip responsavel={activity.responsavel} compact />
+      ) : null}
+      {activity.tipo ? <ActivityType tipo={activity.tipo} /> : null}
 
       {activity.due_date ? (
         <span

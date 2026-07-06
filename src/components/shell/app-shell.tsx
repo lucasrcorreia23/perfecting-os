@@ -35,8 +35,8 @@ function navItems(role: UserRole, clientId: string | null): NavItem[] {
   }
   return [
     { href: "/", label: "Início", icon: HomeIcon },
-    { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
     { href: "/workflow", label: "Workflow", icon: ViewColumnsIcon },
+    { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
   ];
 }
 

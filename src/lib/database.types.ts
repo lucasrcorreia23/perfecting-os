@@ -17,40 +17,64 @@ export type Database = {
           assignee_id: string | null;
           client_id: string;
           created_at: string;
+          cumulative_days: number | null;
           description: string | null;
           due_date: string | null;
+          duration_days: number | null;
           id: string;
           position: number;
+          responsavel:
+            | Database["public"]["Enums"]["responsavel_categoria"]
+            | null;
           stage: Database["public"]["Enums"]["workflow_stage"];
           status: Database["public"]["Enums"]["activity_status"];
+          subatividades: Json;
+          tipo: Database["public"]["Enums"]["atividade_tipo"] | null;
           title: string;
           updated_at: string;
+          week: number | null;
         };
         Insert: {
           assignee_id?: string | null;
           client_id: string;
           created_at?: string;
+          cumulative_days?: number | null;
           description?: string | null;
           due_date?: string | null;
+          duration_days?: number | null;
           id?: string;
           position?: number;
+          responsavel?:
+            | Database["public"]["Enums"]["responsavel_categoria"]
+            | null;
           stage: Database["public"]["Enums"]["workflow_stage"];
           status?: Database["public"]["Enums"]["activity_status"];
+          subatividades?: Json;
+          tipo?: Database["public"]["Enums"]["atividade_tipo"] | null;
           title: string;
           updated_at?: string;
+          week?: number | null;
         };
         Update: {
           assignee_id?: string | null;
           client_id?: string;
           created_at?: string;
+          cumulative_days?: number | null;
           description?: string | null;
           due_date?: string | null;
+          duration_days?: number | null;
           id?: string;
           position?: number;
+          responsavel?:
+            | Database["public"]["Enums"]["responsavel_categoria"]
+            | null;
           stage?: Database["public"]["Enums"]["workflow_stage"];
           status?: Database["public"]["Enums"]["activity_status"];
+          subatividades?: Json;
+          tipo?: Database["public"]["Enums"]["atividade_tipo"] | null;
           title?: string;
           updated_at?: string;
+          week?: number | null;
         };
         Relationships: [
           {
@@ -71,6 +95,7 @@ export type Database = {
       };
       client_files: {
         Row: {
+          activity_id: string | null;
           client_id: string;
           created_at: string;
           id: string;
@@ -81,6 +106,7 @@ export type Database = {
           uploaded_by: string | null;
         };
         Insert: {
+          activity_id?: string | null;
           client_id: string;
           created_at?: string;
           id?: string;
@@ -91,6 +117,7 @@ export type Database = {
           uploaded_by?: string | null;
         };
         Update: {
+          activity_id?: string | null;
           client_id?: string;
           created_at?: string;
           id?: string;
@@ -101,6 +128,13 @@ export type Database = {
           uploaded_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "client_files_activity_id_fkey";
+            columns: ["activity_id"];
+            isOneToOne: false;
+            referencedRelation: "activities";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "client_files_client_id_fkey";
             columns: ["client_id"];
@@ -121,7 +155,6 @@ export type Database = {
           notes: string | null;
           phone: string | null;
           stage: Database["public"]["Enums"]["workflow_stage"];
-          stage_deadline_days: number;
           stage_entered_at: string;
           status: Database["public"]["Enums"]["client_status"];
           updated_at: string;
@@ -136,7 +169,6 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           stage?: Database["public"]["Enums"]["workflow_stage"];
-          stage_deadline_days?: number;
           stage_entered_at?: string;
           status?: Database["public"]["Enums"]["client_status"];
           updated_at?: string;
@@ -151,7 +183,6 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           stage?: Database["public"]["Enums"]["workflow_stage"];
-          stage_deadline_days?: number;
           stage_entered_at?: string;
           status?: Database["public"]["Enums"]["client_status"];
           updated_at?: string;
@@ -247,7 +278,9 @@ export type Database = {
     };
     Enums: {
       activity_status: "pendente" | "em_andamento" | "concluida";
+      atividade_tipo: "sincrono" | "assincrono";
       client_status: "ativo" | "em_risco" | "pausado" | "encerrado";
+      responsavel_categoria: "cliente" | "perfecting" | "ambos";
       user_role: "interno" | "cliente";
       workflow_stage:
         | "diagnosticar"

@@ -2,7 +2,12 @@ import { requireInterno } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isoDaysAgo } from "@/lib/format";
 import { computeKpis } from "@/lib/kpis";
-import { STAGE_ORDER, type WorkflowStage } from "@/lib/constants";
+import {
+  DEFAULT_PRAZO_ETAPA_DIAS,
+  STAGE_ORDER,
+  type WorkflowStage,
+} from "@/lib/constants";
+import type { Preferences } from "@/lib/actions/profile";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { StageDistribution } from "@/components/dashboard/stage-distribution";
 import {
@@ -27,19 +32,21 @@ export default async function InicioPage() {
   const session = await requireInterno();
   const firstName = (session.profile?.full_name ?? "").split(" ")[0];
 
+  const stageDeadlineDays =
+    (session.profile?.preferences as Preferences | null)?.prazo_etapa_dias ??
+    DEFAULT_PRAZO_ETAPA_DIAS;
+
   const supabase = await createServerSupabase();
   const sixtyDaysAgo = isoDaysAgo(60);
 
   const [clientsRes, activitiesRes, feedRes, trendRes] = await Promise.all([
-    supabase
-      .from("clients")
-      .select("id, status, stage, stage_entered_at, stage_deadline_days"),
+    supabase.from("clients").select("id, status, stage, stage_entered_at"),
     supabase.from("activities").select("status, due_date"),
     supabase
       .from("events")
       .select("*, clients(name)")
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(50),
     supabase
       .from("events")
       .select("type, client_id, created_at")
@@ -51,6 +58,7 @@ export default async function InicioPage() {
     clients,
     activities: activitiesRes.data ?? [],
     events: trendRes.data ?? [],
+    stageDeadlineDays,
   });
 
   const counts = Object.fromEntries(

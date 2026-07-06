@@ -79,7 +79,7 @@ export function NewClientButton() {
             </Field>
             <Field
               label="Telefone"
-              help="Com DDI — usado para WhatsApp"
+              help=""
               htmlFor="new-client-phone"
             >
               <Input id="new-client-phone" name="phone" type="tel" />

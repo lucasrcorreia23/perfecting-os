@@ -49,7 +49,7 @@ export type ClientInput = {
   phone?: string;
   stage?: WorkflowStage;
   status?: ClientStatus;
-  stage_deadline_days?: number;
+  created_at?: string;
   notes?: string;
 };
 
@@ -59,11 +59,10 @@ function validateClientInput(input: ClientInput): string | null {
   if (input.stage && !(input.stage in STAGES)) return "Etapa inválida.";
   if (input.status && !(input.status in STATUSES)) return "Status inválido.";
   if (
-    input.stage_deadline_days !== undefined &&
-    (!Number.isInteger(input.stage_deadline_days) ||
-      input.stage_deadline_days < 1)
+    input.created_at !== undefined &&
+    Number.isNaN(new Date(input.created_at).getTime())
   ) {
-    return "O prazo da etapa deve ser de pelo menos 1 dia.";
+    return "Início da POC inválida.";
   }
   return null;
 }
@@ -131,9 +130,7 @@ export async function updateClient(
   };
   if (input.stage) update.stage = input.stage;
   if (input.status) update.status = input.status;
-  if (input.stage_deadline_days !== undefined) {
-    update.stage_deadline_days = input.stage_deadline_days;
-  }
+  if (input.created_at !== undefined) update.created_at = input.created_at;
 
   const { error } = await supabase.from("clients").update(update).eq("id", id);
   if (error) return { ok: false, error: GENERIC_ERROR };

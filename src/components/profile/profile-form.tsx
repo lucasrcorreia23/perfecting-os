@@ -123,7 +123,7 @@ export function ProfileForm({
           </Field>
           <Field
             label="E-mail"
-            help="O e-mail de acesso não pode ser alterado aqui."
+            help=""
             htmlFor="profile-email"
           >
             <Input id="profile-email" value={email ?? ""} disabled readOnly />

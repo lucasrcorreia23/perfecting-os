@@ -9,6 +9,7 @@ import {
   type ClientStatus,
   type WorkflowStage,
 } from "@/lib/constants";
+import { dateInputToISO, toDateInputValue } from "@/lib/format";
 import type { Tables } from "@/lib/database.types";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Field, FormSection, Input, Textarea } from "@/components/ui/form";
@@ -29,7 +30,7 @@ type FormValues = {
   phone: string;
   stage: WorkflowStage;
   status: ClientStatus;
-  stage_deadline_days: string;
+  started_at: string;
   notes: string;
 };
 
@@ -41,7 +42,7 @@ function toValues(client: Tables<"clients">): FormValues {
     phone: client.phone ?? "",
     stage: client.stage,
     status: client.status,
-    stage_deadline_days: String(client.stage_deadline_days),
+    started_at: toDateInputValue(client.created_at),
     notes: client.notes ?? "",
   };
 }
@@ -74,7 +75,7 @@ export function ClientForm({
         phone: values.phone,
         stage: values.stage,
         status: values.status,
-        stage_deadline_days: Number(values.stage_deadline_days),
+        created_at: dateInputToISO(values.started_at),
         notes: values.notes,
       });
       if (result.ok) {
@@ -122,7 +123,7 @@ export function ClientForm({
           </Field>
           <Field
             label="Telefone"
-            help="Com DDI — usado para WhatsApp"
+            help=""
             htmlFor="client-phone"
           >
             <Input
@@ -137,7 +138,7 @@ export function ClientForm({
       </FormSection>
 
       <FormSection title="Workflow">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Field label="Etapa" htmlFor="client-stage">
             <Select
               id="client-stage"
@@ -160,22 +161,20 @@ export function ClientForm({
               disabled={readOnly}
             />
           </Field>
+          <Field
+            label="Início da POC"
+            help=""
+            htmlFor="client-started-at"
+          >
+            <Input
+              id="client-started-at"
+              type="date"
+              value={values.started_at}
+              onChange={(event) => set("started_at", event.target.value)}
+              disabled={readOnly}
+            />
+          </Field>
         </div>
-        <Field
-          label="Prazo da etapa (dias)"
-          help="SLA para o cliente avançar de etapa."
-          htmlFor="client-deadline"
-        >
-          <Input
-            id="client-deadline"
-            type="number"
-            min={1}
-            className="md:w-1/2"
-            value={values.stage_deadline_days}
-            onChange={(event) => set("stage_deadline_days", event.target.value)}
-            disabled={readOnly}
-          />
-        </Field>
       </FormSection>
 
       <FormSection title="Observações">

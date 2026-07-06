@@ -9,7 +9,6 @@ type KpiClient = {
   id: string;
   status: string;
   stage_entered_at: string;
-  stage_deadline_days: number;
 };
 
 type KpiActivity = {
@@ -46,10 +45,12 @@ export function computeKpis({
   clients,
   activities,
   events,
+  stageDeadlineDays,
 }: {
   clients: KpiClient[];
   activities: KpiActivity[];
   events: KpiEvent[];
+  stageDeadlineDays: number;
 }): Kpi[] {
   const windowStart = Date.now() - THIRTY_DAYS_MS;
   const recent = events.filter(
@@ -71,8 +72,7 @@ export function computeKpis({
   // 2. Clientes acima do prazo da etapa (↑ é ruim).
   // 30 dias atrás: quem trocou de etapa na janela contava como dentro do prazo.
   const overDeadline = clients.filter(
-    (client) =>
-      daysSince(client.stage_entered_at) > client.stage_deadline_days,
+    (client) => daysSince(client.stage_entered_at) > stageDeadlineDays,
   ).length;
   const changedStage = new Set(
     recent
@@ -82,7 +82,7 @@ export function computeKpis({
   const overDeadline30dAgo = clients.filter((client) => {
     if (changedStage.has(client.id)) return false;
     const daysAgo = daysSince(client.stage_entered_at) - 30;
-    return daysAgo > client.stage_deadline_days;
+    return daysAgo > stageDeadlineDays;
   }).length;
   const overTrend = trendFromDelta(overDeadline - overDeadline30dAgo);
 

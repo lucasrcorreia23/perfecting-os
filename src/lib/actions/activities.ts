@@ -6,8 +6,12 @@ import { getSessionProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
   ACTIVITY_STATUSES,
+  ATIVIDADE_TIPOS,
+  RESPONSAVEIS,
   STAGES,
   type ActivityStatus,
+  type AtividadeTipo,
+  type Responsavel,
   type WorkflowStage,
 } from "@/lib/constants";
 import type { ActionResult } from "./clients";
@@ -33,6 +37,8 @@ export type ActivityInput = {
   description?: string;
   stage: WorkflowStage;
   due_date?: string; // YYYY-MM-DD
+  responsavel?: Responsavel | ""; // "" = sem categoria
+  tipo?: AtividadeTipo | ""; // "" = sem tipo
 };
 
 function validateActivityInput(input: ActivityInput): string | null {
@@ -40,6 +46,12 @@ function validateActivityInput(input: ActivityInput): string | null {
   if (!(input.stage in STAGES)) return "Etapa inválida.";
   if (input.due_date && !/^\d{4}-\d{2}-\d{2}$/.test(input.due_date)) {
     return "Prazo inválido.";
+  }
+  if (input.responsavel && !(input.responsavel in RESPONSAVEIS)) {
+    return "Responsável inválido.";
+  }
+  if (input.tipo && !(input.tipo in ATIVIDADE_TIPOS)) {
+    return "Tipo inválido.";
   }
   return null;
 }
@@ -73,6 +85,8 @@ export async function createActivity(
       title: input.title.trim(),
       description: input.description?.trim() || null,
       due_date: input.due_date || null,
+      responsavel: input.responsavel || null,
+      tipo: input.tipo || null,
       position: (last?.position ?? -1) + 1,
     })
     .select("title")
@@ -109,6 +123,8 @@ export async function updateActivity(
       description: input.description?.trim() || null,
       stage: input.stage,
       due_date: input.due_date || null,
+      responsavel: input.responsavel || null,
+      tipo: input.tipo || null,
     })
     .eq("id", id)
     .select("client_id")

@@ -34,9 +34,15 @@ function activityCounts(client: ClientRow) {
   return { done, total };
 }
 
-function DaysInStage({ client }: { client: ClientRow }) {
+function DaysInStage({
+  client,
+  stageDeadlineDays,
+}: {
+  client: ClientRow;
+  stageDeadlineDays: number;
+}) {
   const days = daysSince(client.stage_entered_at);
-  const over = days > client.stage_deadline_days;
+  const over = days > stageDeadlineDays;
   return (
     <span
       className={cn(
@@ -44,12 +50,18 @@ function DaysInStage({ client }: { client: ClientRow }) {
         over ? "font-semibold text-trend-negative" : "text-slate-600",
       )}
     >
-      {days}/{client.stage_deadline_days}
+      {days}/{stageDeadlineDays}
     </span>
   );
 }
 
-export function ClientsView({ clients }: { clients: ClientRow[] }) {
+export function ClientsView({
+  clients,
+  stageDeadlineDays,
+}: {
+  clients: ClientRow[];
+  stageDeadlineDays: number;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState<ClientRow | null>(null);
@@ -137,7 +149,9 @@ export function ClientsView({ clients }: { clients: ClientRow[] }) {
     {
       key: "dias",
       header: "Dias na etapa",
-      render: (client) => <DaysInStage client={client} />,
+      render: (client) => (
+        <DaysInStage client={client} stageDeadlineDays={stageDeadlineDays} />
+      ),
     },
     {
       key: "acoes",
@@ -234,7 +248,10 @@ export function ClientsView({ clients }: { clients: ClientRow[] }) {
                 <span className="tabular-nums">
                   {done}/{total} atividades
                 </span>
-                <DaysInStage client={client} />
+                <DaysInStage
+                  client={client}
+                  stageDeadlineDays={stageDeadlineDays}
+                />
               </div>
             </div>
           );

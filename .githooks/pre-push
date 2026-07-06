@@ -1,0 +1,9 @@
+#!/bin/sh
+# Roda os testes unitários (Vitest) antes de cada push.
+# Push é bloqueado se algum teste falhar. Para pular em emergência: git push --no-verify
+echo "▶ Rodando testes unitários antes do push (npm test)…"
+npm test || {
+  echo "✗ Testes falharam — push cancelado. Corrija ou use --no-verify para forçar."
+  exit 1
+}
+echo "✓ Testes passaram — seguindo com o push."

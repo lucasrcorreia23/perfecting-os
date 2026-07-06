@@ -33,6 +33,7 @@ function revalidateFilePaths(clientId: string) {
 // esta action só registra os metadados.
 export async function registerClientFile(input: {
   client_id: string;
+  activity_id?: string | null;
   name: string;
   storage_path: string;
   size_bytes: number;
@@ -52,6 +53,7 @@ export async function registerClientFile(input: {
   const supabase = await createServerSupabase();
   const { error } = await supabase.from("client_files").insert({
     client_id: input.client_id,
+    activity_id: input.activity_id ?? null,
     name: input.name.trim(),
     storage_path: input.storage_path,
     size_bytes: input.size_bytes,

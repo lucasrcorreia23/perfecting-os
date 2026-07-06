@@ -11,6 +11,13 @@ Gestão de clientes com workflow de Customer Success. UI **100% pt-BR**.
 - Supabase (Postgres + Auth + Storage) via `@supabase/ssr`. Migrations em `supabase/migrations/`, seed em `supabase/seed.sql`.
 - Ícones: somente Heroicons 2 (`@heroicons/react/24/outline` padrão).
 - Kanban: `@dnd-kit/core` (isolado em `src/components/workflow/board.tsx`).
+- Testes: **Vitest** (`vitest run`). Specs `*.test.ts(x)` co-localizadas em `src/`; alias `@/*` resolvido em `vitest.config.ts`.
+
+## Testes antes do push (obrigatório)
+
+- **Sempre rode `npm test` e garanta verde antes de qualquer `git push`.**
+- Enforcement: hook `.githooks/pre-push` (versionado; `git config core.hooksPath .githooks` é aplicado pelo script `prepare` no `npm install`) roda `npm test` e cancela o push se falhar. Pular só em emergência com `git push --no-verify`.
+- Ao mexer em lógica pura de `src/lib/*` (format, kpis, utils…), adicione/atualize as specs correspondentes.
 
 ## Design
 
