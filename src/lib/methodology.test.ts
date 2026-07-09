@@ -4,6 +4,7 @@ import {
   METHODOLOGY,
   PROGRAM_TOTAL_DAYS,
   stageSchedule,
+  stageSteps,
   weekRangeLabel,
   weekRangeShortLabel,
 } from "@/lib/methodology";
@@ -81,6 +82,28 @@ describe("stageSchedule", () => {
     for (const stage of STAGE_ORDER) {
       expect(stageSchedule(stage)).not.toBeNull();
     }
+  });
+});
+
+describe("stageSteps", () => {
+  it("retorna os passos da etapa na ordem do programa", () => {
+    const steps = stageSteps("diagnosticar");
+    expect(steps.map((step) => step.order)).toEqual([1, 2, 3, 4, 5]);
+    expect(steps.every((step) => step.stage === "diagnosticar")).toBe(true);
+  });
+
+  it("bate com a contagem de stageSchedule para cada etapa", () => {
+    for (const stage of STAGE_ORDER) {
+      expect(stageSteps(stage)).toHaveLength(stageSchedule(stage)!.count);
+    }
+  });
+
+  it("cobre todos os 21 passos somando as etapas", () => {
+    const total = STAGE_ORDER.reduce(
+      (sum, stage) => sum + stageSteps(stage).length,
+      0,
+    );
+    expect(total).toBe(METHODOLOGY.length);
   });
 });
 

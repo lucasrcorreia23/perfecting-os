@@ -52,13 +52,49 @@ const ICON_BTN = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 disabled:opacity-50",
 );
 
+// Placeholder enquanto as atividades da nova etapa são geradas/recarregadas
+// (após mover o cliente de coluna). Espelha o layout das linhas de atividade.
+function ActivitiesSkeleton() {
+  return (
+    <div
+      className="flex animate-pulse flex-col divide-y divide-slate-100"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <span className="sr-only">Carregando atividades…</span>
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex items-center gap-3 py-3">
+          <span
+            className="h-5 w-5 shrink-0 rounded-full bg-slate-200"
+            aria-hidden
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="h-3.5 w-2/3 rounded-full bg-slate-200" aria-hidden />
+            <span className="h-3 w-24 rounded-full bg-slate-100" aria-hidden />
+          </div>
+          <span
+            className="h-5 w-5 shrink-0 rounded-full bg-slate-100"
+            aria-hidden
+          />
+          <span
+            className="h-9 w-44 shrink-0 rounded-full bg-slate-100"
+            aria-hidden
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Drawer flutuante do Kanban (não-modal): abas Atividades/Arquivos, upload por
 // tarefa e lista simples de arquivos do cliente (detalhe completo no perfil).
 export function ClientSheet({
   client,
+  activitiesLoading = false,
   onClose,
 }: {
   client: BoardClient;
+  activitiesLoading?: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -129,34 +165,45 @@ export function ClientSheet({
     >
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Avatar name={client.name} size={48} />
-          <div className="flex flex-col items-start gap-1.5">
-            <span className="text-base font-semibold text-slate-900">
-              {client.name}
-            </span>
+          <div className="flex min-w-0 flex-col items-start gap-1.5">
+            {/* Nome + Editar lado a lado; o Fechar fica sozinho no canto.
+                O nome é clicável e leva ao perfil completo do cliente. */}
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                title="Abrir perfil do cliente"
+                onClick={() => router.push(`/clientes/${client.id}`)}
+                className={cn(
+                  "min-w-0 cursor-pointer truncate rounded-sm text-left text-base font-semibold text-slate-900",
+                  "transition-colors hover:text-slate-600",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                )}
+              >
+                {client.name}
+              </button>
+              <button
+                type="button"
+                aria-label={`Editar dados de ${client.name}`}
+                title="Editar dados"
+                onClick={() => setEditing(true)}
+                className={cn(ICON_BTN, "-my-1.5 h-11 w-11")}
+              >
+                <PencilSquareIcon className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
             <StageBadge stage={client.stage} variant="tag" />
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            aria-label={`Editar dados de ${client.name}`}
-            title="Editar dados"
-            onClick={() => setEditing(true)}
-            className={cn(ICON_BTN, "-m-2 h-11 w-11")}
-          >
-            <PencilSquareIcon className="h-5 w-5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Fechar painel"
-            onClick={onClose}
-            className={cn(ICON_BTN, "-m-2 h-11 w-11")}
-          >
-            <XMarkIcon className="h-5 w-5" aria-hidden />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Fechar painel"
+          onClick={onClose}
+          className={cn(ICON_BTN, "-m-2 h-11 w-11")}
+        >
+          <XMarkIcon className="h-5 w-5" aria-hidden />
+        </button>
       </div>
 
       {/* Abas */}
@@ -206,7 +253,9 @@ export function ClientSheet({
 
       {tab === "atividades" ? (
         <div className="flex flex-col gap-2">
-          {stageActivities.length === 0 ? (
+          {activitiesLoading ? (
+            <ActivitiesSkeleton />
+          ) : stageActivities.length === 0 ? (
             <p className="py-2 text-xs text-slate-400">
               Nenhuma atividade nesta etapa.
             </p>

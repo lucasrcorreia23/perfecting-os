@@ -1,14 +1,14 @@
 import {
-  PaperAirplaneIcon,
+  EnvelopeIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import { ATIVIDADE_TIPOS, type AtividadeTipo } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 // Tipo da atividade (planilha da POC): síncrono = reunião ao vivo (câmera),
-// assíncrono = entrega no seu tempo (avião de papel) — sem relógio, que
-// remeteria a prazo/data. Ícone com rótulo acessível; `withLabel` mostra o
-// texto ao lado (drawer), sem ele só o ícone + title (card).
+// assíncrono = no seu tempo (envelope/e-mail) — sem relógio, que remeteria a
+// prazo/data. Ícone com rótulo acessível; `withLabel` mostra o texto ao lado
+// (drawer), sem ele só o ícone + title (card).
 export function ActivityType({
   tipo,
   withLabel = false,
@@ -19,7 +19,7 @@ export function ActivityType({
   className?: string;
 }) {
   const { label } = ATIVIDADE_TIPOS[tipo];
-  const Icon = tipo === "sincrono" ? VideoCameraIcon : PaperAirplaneIcon;
+  const Icon = tipo === "sincrono" ? VideoCameraIcon : EnvelopeIcon;
 
   return (
     <span

@@ -10,7 +10,8 @@ import {
   type ClientStatus,
   type WorkflowStage,
 } from "@/lib/constants";
-import type { Json, TablesUpdate } from "@/lib/database.types";
+import { stageSteps } from "@/lib/methodology";
+import type { Json, TablesInsert, TablesUpdate } from "@/lib/database.types";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -40,6 +41,43 @@ async function logEvent(
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Gera as atividades padrão da etapa a partir do cronograma canônico
+// (src/lib/methodology.ts, mesma lista do seed). Idempotente: se o cliente já
+// tem atividades nesta etapa, não faz nada — assim mover de etapa e voltar não
+// duplica nem apaga o que já foi cumprido. Falha no seed não bloqueia a ação.
+async function seedStageActivities(
+  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
+  clientId: string,
+  stage: WorkflowStage,
+) {
+  const steps = stageSteps(stage);
+  if (steps.length === 0) return;
+
+  const { data: existing } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("stage", stage)
+    .limit(1);
+  if (existing && existing.length > 0) return;
+
+  const rows: TablesInsert<"activities">[] = steps.map((step, index) => ({
+    client_id: clientId,
+    stage: step.stage,
+    title: step.activity,
+    status: "pendente",
+    position: index,
+    week: step.week,
+    duration_days: step.durationDays,
+    cumulative_days: step.cumulativeDays,
+    responsavel: step.responsavel,
+    tipo: step.tipo,
+    subatividades: step.subatividades,
+  }));
+
+  await supabase.from("activities").insert(rows);
 }
 
 export type ClientInput = {
@@ -97,6 +135,9 @@ export async function createClient(
     name: data.name,
   });
 
+  // Já entra com o cronograma da etapa inicial (padrão: diagnosticar).
+  await seedStageActivities(supabase, data.id, input.stage ?? "diagnosticar");
+
   revalidatePath("/clientes");
   revalidatePath("/workflow");
   revalidatePath("/");
@@ -140,6 +181,8 @@ export async function updateClient(
       from: current.stage,
       to: input.stage,
     });
+    // Nova etapa traz o cronograma dela (idempotente se já visitada antes).
+    await seedStageActivities(supabase, id, input.stage);
   }
 
   revalidatePath(`/clientes/${id}`);
@@ -177,6 +220,8 @@ export async function updateClientStage(
     from: current.stage,
     to: stage,
   });
+  // Nova etapa traz o cronograma dela (idempotente se já visitada antes).
+  await seedStageActivities(supabase, id, stage);
 
   revalidatePath("/workflow");
   revalidatePath("/clientes");

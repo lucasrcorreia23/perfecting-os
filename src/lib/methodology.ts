@@ -294,6 +294,13 @@ export function stageSchedule(stage: WorkflowStage): StageSchedule | null {
   return STAGE_SCHEDULES.get(stage) ?? null;
 }
 
+// Passos canônicos de uma etapa, na ordem do programa. Base para gerar as
+// atividades padrão de um cliente ao entrar na etapa (createClient / mudança de
+// etapa). METHODOLOGY já está em ordem 1..21, e o filtro preserva essa ordem.
+export function stageSteps(stage: WorkflowStage): MethodologyStep[] {
+  return METHODOLOGY.filter((step) => step.stage === stage);
+}
+
 // Rótulo "Semana X" ou "Semanas X–Y" (travessão sem espaços, pt-BR).
 export function weekRangeLabel(from: number, to: number): string {
   return from === to ? `Semana ${from}` : `Semanas ${from}–${to}`;

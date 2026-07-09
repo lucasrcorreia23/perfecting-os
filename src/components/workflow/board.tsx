@@ -39,6 +39,10 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Cliente cuja mudança de etapa está em voo: enquanto o servidor gera as
+  // atividades da nova etapa e revalida, o drawer mostra skeleton no lugar das
+  // atividades (o estado otimista já trocou o stage, mas a lista ainda é a antiga).
+  const [movingId, setMovingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const [clients, applyMove] = useOptimistic(
@@ -100,11 +104,14 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
     if (!client || client.stage === stage) return;
 
     setError(null);
+    setMovingId(clientId);
     startTransition(async () => {
       applyMove({ id: clientId, stage });
       const result = await updateClientStage(clientId, stage);
       // Em caso de erro, o estado otimista reverte sozinho ao fim da transição.
       if (!result.ok) setError(result.error);
+      // A revalidação já trouxe as atividades da nova etapa nesta transição.
+      setMovingId(null);
     });
   }
 
@@ -192,7 +199,11 @@ export function Board({ initialClients }: { initialClients: BoardClient[] }) {
       </DndContext>
 
       {openClient ? (
-        <ClientSheet client={openClient} onClose={() => setOpenId(null)} />
+        <ClientSheet
+          client={openClient}
+          activitiesLoading={movingId === openClient.id}
+          onClose={() => setOpenId(null)}
+        />
       ) : null}
     </div>
   );
