@@ -1,10 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
 import type { HeroIcon } from "./types";
+
+// useLayoutEffect avisa no SSR; no client precisamos dele para medir/posicionar
+// o popover antes da pintura (sem "flash" na posição errada).
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 // Todo item de menu exige ícone (§8.8).
 export type MenuItem = {
@@ -46,14 +58,58 @@ export function DropdownMenu({
   header?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Posiciona o popover em coordenadas de viewport (position: fixed) via portal,
+  // para que ele escape de qualquer ancestral com overflow-hidden (ex.: a borda
+  // arredondada da DataTable, que antes cortava o menu nas últimas linhas).
+  useIsomorphicLayoutEffect(() => {
+    if (!open) return;
+
+    function place() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const menu = menuRef.current;
+      const menuHeight = menu?.offsetHeight ?? 0;
+      const menuWidth = menu?.offsetWidth ?? 0;
+      const gap = 4; // mt-1
+
+      // Abre pra cima se não couber abaixo e houver mais espaço acima.
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceBelow < menuHeight + gap && rect.top > spaceBelow;
+      const top = openUp ? rect.top - menuHeight - gap : rect.bottom + gap;
+
+      const left =
+        align === "right"
+          ? Math.max(8, rect.right - menuWidth)
+          : Math.min(rect.left, window.innerWidth - menuWidth - 8);
+
+      setCoords({ top, left });
+    }
+
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, align]);
 
   useEffect(() => {
     if (!open) return;
 
     function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target))
+        return;
+      setOpen(false);
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
@@ -79,8 +135,9 @@ export function DropdownMenu({
   }
 
   return (
-    <div ref={rootRef} className="relative inline-flex">
+    <div ref={rootRef} className="inline-flex">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -93,7 +150,8 @@ export function DropdownMenu({
       >
         {trigger}
       </button>
-      {open ? (
+      {open && typeof document !== "undefined"
+        ? createPortal(
         <div
           ref={menuRef}
           role="menu"
@@ -106,10 +164,15 @@ export function DropdownMenu({
               moveFocus(-1);
             }
           }}
+          style={{
+            position: "fixed",
+            top: coords?.top ?? 0,
+            left: coords?.left ?? 0,
+            visibility: coords ? "visible" : "hidden",
+          }}
           className={cn(
-            "absolute top-full z-(--z-tooltip) mt-1 min-w-[12rem] p-1.5",
+            "z-(--z-tooltip) min-w-[12rem] p-1.5",
             "rounded-md border border-slate-200 bg-white shadow-lg",
-            align === "right" ? "right-0" : "left-0",
           )}
         >
           {header ? (
@@ -190,8 +253,10 @@ export function DropdownMenu({
               </button>
             );
           })}
-        </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
