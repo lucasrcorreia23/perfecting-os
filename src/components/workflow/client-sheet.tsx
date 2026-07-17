@@ -20,13 +20,17 @@ import { FILE_ACCEPT, uploadClientFile } from "@/lib/files-upload";
 import {
   ACTIVITY_STATUSES,
   ACTIVITY_STATUS_ORDER,
+  ATIVIDADE_TIPOS,
+  CANAIS,
+  CRITICIDADES,
   type ActivityStatus,
 } from "@/lib/constants";
 import { formatBytes } from "@/lib/format";
+import { parseSubatividades } from "@/lib/methodology";
 import { cn } from "@/lib/utils";
-import { ActivityType } from "@/components/ui/activity-type";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { DeleteNamedModal } from "@/components/ui/delete-named-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
@@ -35,7 +39,9 @@ import { Select } from "@/components/ui/select";
 import { StageBadge } from "@/components/ui/stage-badge";
 import { InfoTooltip, TooltipRow } from "@/components/ui/tooltip";
 import { ActivityModal } from "@/components/activities/activity-modal";
+import { SubactivityChecklist } from "@/components/activities/subactivity-checklist";
 import { EditClientModal } from "@/components/clients/edit-client-modal";
+import { PocOverview } from "@/components/clients/poc-overview";
 import type { BoardActivity, BoardClient } from "./client-card";
 import { ClientHistoryTab } from "./client-history-tab";
 
@@ -44,7 +50,14 @@ const STATUS_OPTIONS = ACTIVITY_STATUS_ORDER.map((status) => ({
   label: ACTIVITY_STATUSES[status].label,
 }));
 
-type Tab = "atividades" | "arquivos" | "historico";
+type Tab = "atividades" | "visao_geral" | "arquivos" | "historico";
+
+const TAB_LABELS: Record<Tab, string> = {
+  atividades: "Atividades",
+  visao_geral: "Visão geral",
+  arquivos: "Arquivos",
+  historico: "Histórico",
+};
 
 const ICON_BTN = cn(
   "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400",
@@ -208,27 +221,27 @@ export function ClientSheet({
 
       {/* Abas */}
       <div className="flex gap-5 border-b border-slate-100">
-        {(["atividades", "arquivos", "historico"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            aria-current={tab === t ? "true" : undefined}
-            className={cn(
-              "-mb-px cursor-pointer border-b-2 px-1 pb-2.5 text-sm font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-              tab === t
-                ? "border-primary text-primary"
-                : "border-transparent text-slate-500 hover:text-slate-700",
-            )}
-          >
-            {t === "atividades"
-              ? "Atividades"
-              : t === "arquivos"
-                ? `Arquivos${files.length ? ` (${files.length})` : ""}`
-                : "Histórico"}
-          </button>
-        ))}
+        {(["atividades", "visao_geral", "arquivos", "historico"] as const).map(
+          (t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              aria-current={tab === t ? "true" : undefined}
+              className={cn(
+                "-mb-px cursor-pointer border-b-2 px-1 pb-2.5 text-sm font-medium transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                tab === t
+                  ? "border-primary text-primary"
+                  : "border-transparent text-slate-500 hover:text-slate-700",
+              )}
+            >
+              {t === "arquivos" && files.length
+                ? `Arquivos (${files.length})`
+                : TAB_LABELS[t]}
+            </button>
+          ),
+        )}
       </div>
 
       {/* Input de arquivo compartilhado (anexar por tarefa e aba Arquivos) */}
@@ -262,23 +275,38 @@ export function ClientSheet({
           ) : (
             <div className="flex flex-col divide-y divide-slate-100">
               {stageActivities.map((activity) => {
-                const hasDeadline =
-                  activity.week !== null || activity.duration_days !== null;
+                // Semana/prazo por `!== null` (0 é valor válido); os campos
+                // novos por truthiness — antes da migration vêm undefined.
+                const hasInfo =
+                  activity.week !== null ||
+                  activity.duration_days !== null ||
+                  Boolean(activity.tipo) ||
+                  Boolean(activity.canal) ||
+                  Boolean(activity.criticidade) ||
+                  Boolean(activity.depends_on_cat) ||
+                  Boolean(activity.parallel_with_cat);
                 const attachmentCount = client.client_files.filter(
                   (file) => file.activity_id === activity.id,
                 ).length;
+                const subatividades = parseSubatividades(
+                  activity.subatividades,
+                );
                 return (
-                  <div key={activity.id} className="flex items-center gap-3 py-3">
-                    {/* Tipo (síncrono/assíncrono) à esquerda do bloco
-                        título+responsável; no extremo direito, anexo e por
-                        fim o status. Prazo (semana/duração) fica num ícone
-                        de info com tooltip, à direita do título — "Dia
-                        X/50" só aparece no card do board. */}
-                    {activity.tipo ? (
-                      <ActivityType tipo={activity.tipo} />
+                  <div key={activity.id} className="flex flex-col py-3">
+                  <div className="flex items-center gap-3">
+                    {/* Nº da atividade (cat) à esquerda do bloco título;
+                        no extremo direito, copiar mensagem, anexo e por fim
+                        o status. Semana/prazo, tipo, canal, criticidade e
+                        dependências ficam no ícone de info com tooltip, à
+                        direita do título — "Dia X/50" só aparece no card
+                        do board. */}
+                    {activity.cat ? (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-500">
+                        {activity.cat}
+                      </span>
                     ) : null}
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <div className="flex min-w-0 items-center gap-1">
+                      <div className="flex min-w-0 items-center gap-1.5">
                         <span
                           className={cn(
                             "truncate text-sm font-medium text-slate-800",
@@ -288,7 +316,7 @@ export function ClientSheet({
                         >
                           {activity.title}
                         </span>
-                        {hasDeadline ? (
+                        {hasInfo ? (
                           <InfoTooltip>
                             {activity.week !== null ? (
                               <TooltipRow
@@ -306,21 +334,59 @@ export function ClientSheet({
                                 }
                               />
                             ) : null}
+                            {activity.tipo ? (
+                              <TooltipRow
+                                label="Tipo"
+                                value={ATIVIDADE_TIPOS[activity.tipo].label}
+                              />
+                            ) : null}
+                            {activity.canal ? (
+                              <TooltipRow
+                                label="Canal"
+                                value={CANAIS[activity.canal].label}
+                              />
+                            ) : null}
+                            {activity.criticidade ? (
+                              <TooltipRow
+                                label="Criticidade"
+                                value={
+                                  CRITICIDADES[activity.criticidade].label
+                                }
+                              />
+                            ) : null}
+                            {activity.depends_on_cat ? (
+                              <TooltipRow
+                                label="Depende de"
+                                value={activity.depends_on_cat}
+                              />
+                            ) : null}
+                            {activity.parallel_with_cat ? (
+                              <TooltipRow
+                                label="Em paralelo com"
+                                value={activity.parallel_with_cat}
+                              />
+                            ) : null}
                           </InfoTooltip>
                         ) : null}
+                        {activity.responsavel ? (
+                          <ResponsavelChip
+                            responsavel={activity.responsavel}
+                            compact
+                          />
+                        ) : null}
                       </div>
-                      {activity.responsavel ? (
-                        <ResponsavelChip
-                          responsavel={activity.responsavel}
-                          compact
-                        />
-                      ) : null}
                       {activity.description ? (
                         <span className="truncate text-xs text-slate-500">
                           {activity.description}
                         </span>
                       ) : null}
                     </div>
+                    {activity.modelo_mensagem ? (
+                      <CopyButton
+                        text={activity.modelo_mensagem}
+                        label={`Copiar modelo de mensagem de ${activity.title}`}
+                      />
+                    ) : null}
                     <div className="relative shrink-0">
                       <button
                         type="button"
@@ -374,11 +440,28 @@ export function ClientSheet({
                       }
                     />
                   </div>
+                  {subatividades.length > 0 ? (
+                    // Recuo aproxima o checklist do título (após o badge do nº).
+                    <div className="pl-6">
+                      <SubactivityChecklist
+                        activityId={activity.id}
+                        subatividades={subatividades}
+                        readOnly={false}
+                        onError={setError}
+                      />
+                    </div>
+                  ) : null}
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
+      ) : tab === "visao_geral" ? (
+        <PocOverview
+          activities={client.activities}
+          createdAt={client.created_at}
+        />
       ) : tab === "arquivos" ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">

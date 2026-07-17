@@ -21,16 +21,22 @@ import {
   type WorkflowStage,
 } from "@/lib/constants";
 import { formatDate, isOverdue } from "@/lib/format";
+import { parseSubatividades } from "@/lib/methodology";
 import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { ActivityType } from "@/components/ui/activity-type";
 import { Button } from "@/components/ui/button";
+import { CanalChip } from "@/components/ui/canal-chip";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { CopyButton } from "@/components/ui/copy-button";
+import { CriticidadeChip } from "@/components/ui/criticidade-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResponsavelChip } from "@/components/ui/responsavel-chip";
 import { Select } from "@/components/ui/select";
+import { InfoTooltip, TooltipRow } from "@/components/ui/tooltip";
 import { ActivityModal } from "./activity-modal";
+import { SubactivityChecklist } from "./subactivity-checklist";
 
 type Activity = Tables<"activities">;
 
@@ -55,83 +61,139 @@ function ActivityRow({
   const [, startTransition] = useTransition();
   const overdue =
     isOverdue(activity.due_date) && activity.status !== "concluida";
+  const subatividades = parseSubatividades(activity.subatividades);
+  // Truthiness (não `!== null`): antes da migration os campos vêm undefined.
+  const hasDeps = Boolean(activity.depends_on_cat || activity.parallel_with_cat);
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-3">
-      {readOnly ? (
-        <span className="w-36 shrink-0 text-xs font-medium text-slate-500">
-          {ACTIVITY_STATUSES[activity.status].label}
-        </span>
-      ) : (
-        <Select
-          size="sm"
-          className="w-40 shrink-0"
-          aria-label={`Status de ${activity.title}`}
-          options={STATUS_OPTIONS}
-          value={activity.status}
-          onChange={(event) =>
-            startTransition(async () => {
-              const result = await updateActivityStatus(
-                activity.id,
-                event.target.value as ActivityStatus,
-              );
-              if (!result.ok) onError(result.error);
-            })
-          }
-        />
-      )}
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          className={cn(
-            "truncate text-sm font-medium text-slate-800",
-            activity.status === "concluida" && "text-slate-400 line-through",
-          )}
-        >
-          {activity.title}
-        </span>
-        {activity.description ? (
-          <span className="truncate text-xs text-slate-500">
-            {activity.description}
+    <div className="flex flex-col gap-1 py-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {readOnly ? (
+          <span className="w-36 shrink-0 text-xs font-medium text-slate-500">
+            {ACTIVITY_STATUSES[activity.status].label}
           </span>
+        ) : (
+          <Select
+            size="sm"
+            className="w-40 shrink-0"
+            color={ACTIVITY_STATUSES[activity.status].color}
+            aria-label={`Status de ${activity.title}`}
+            options={STATUS_OPTIONS}
+            value={activity.status}
+            onChange={(event) =>
+              startTransition(async () => {
+                const result = await updateActivityStatus(
+                  activity.id,
+                  event.target.value as ActivityStatus,
+                );
+                if (!result.ok) onError(result.error);
+              })
+            }
+          />
+        )}
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            {activity.cat ? (
+              <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-500">
+                {activity.cat}
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "truncate text-sm font-medium text-slate-800",
+                activity.status === "concluida" &&
+                  "text-slate-400 line-through",
+              )}
+            >
+              {activity.title}
+            </span>
+            {hasDeps ? (
+              <InfoTooltip>
+                {activity.depends_on_cat ? (
+                  <TooltipRow
+                    label="Depende de"
+                    value={activity.depends_on_cat}
+                  />
+                ) : null}
+                {activity.parallel_with_cat ? (
+                  <TooltipRow
+                    label="Em paralelo com"
+                    value={activity.parallel_with_cat}
+                  />
+                ) : null}
+              </InfoTooltip>
+            ) : null}
+          </span>
+          {activity.description ? (
+            <span className="truncate text-xs text-slate-500">
+              {activity.description}
+            </span>
+          ) : null}
+          {activity.setor_responsavel ? (
+            <span className="truncate text-xs text-slate-400">
+              Setor: {activity.setor_responsavel}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Cronograma da POC: semana, criticidade (só alta), responsável,
+            canal e tipo. */}
+        {activity.week !== null ? (
+          <span className="shrink-0 text-xs tabular-nums text-slate-400">
+            Sem. {activity.week}
+          </span>
+        ) : null}
+        {activity.criticidade === "alta" ? (
+          <CriticidadeChip criticidade={activity.criticidade} />
+        ) : null}
+        {activity.responsavel ? (
+          <ResponsavelChip responsavel={activity.responsavel} compact />
+        ) : null}
+        {activity.canal ? <CanalChip canal={activity.canal} /> : null}
+        {activity.tipo ? <ActivityType tipo={activity.tipo} /> : null}
+
+        {activity.due_date ? (
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 text-xs",
+              overdue ? "font-semibold text-trend-negative" : "text-slate-500",
+            )}
+          >
+            <CalendarDaysIcon className="h-4 w-4" aria-hidden />
+            {formatDate(activity.due_date)}
+          </span>
+        ) : null}
+
+        {activity.modelo_mensagem ? (
+          <CopyButton
+            text={activity.modelo_mensagem}
+            label={`Copiar modelo de mensagem de ${activity.title}`}
+          />
+        ) : null}
+
+        {!readOnly ? (
+          <ActionMenu
+            ariaLabel={`Ações de ${activity.title}`}
+            items={[
+              { label: "Editar", icon: PencilSquareIcon, onSelect: onEdit },
+              {
+                label: "Excluir",
+                icon: TrashIcon,
+                destructive: true,
+                onSelect: onDelete,
+              },
+            ]}
+          />
         ) : null}
       </div>
 
-      {/* Cronograma da POC: semana, responsável (categoria) e tipo. */}
-      {activity.week !== null ? (
-        <span className="shrink-0 text-xs tabular-nums text-slate-400">
-          Sem. {activity.week}
-        </span>
-      ) : null}
-      {activity.responsavel ? (
-        <ResponsavelChip responsavel={activity.responsavel} compact />
-      ) : null}
-      {activity.tipo ? <ActivityType tipo={activity.tipo} /> : null}
-
-      {activity.due_date ? (
-        <span
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 text-xs",
-            overdue ? "font-semibold text-trend-negative" : "text-slate-500",
-          )}
-        >
-          <CalendarDaysIcon className="h-4 w-4" aria-hidden />
-          {formatDate(activity.due_date)}
-        </span>
-      ) : null}
-
-      {!readOnly ? (
-        <ActionMenu
-          ariaLabel={`Ações de ${activity.title}`}
-          items={[
-            { label: "Editar", icon: PencilSquareIcon, onSelect: onEdit },
-            {
-              label: "Excluir",
-              icon: TrashIcon,
-              destructive: true,
-              onSelect: onDelete,
-            },
-          ]}
+      {subatividades.length > 0 ? (
+        <SubactivityChecklist
+          activityId={activity.id}
+          subatividades={subatividades}
+          readOnly={readOnly}
+          onError={onError}
         />
       ) : null}
     </div>

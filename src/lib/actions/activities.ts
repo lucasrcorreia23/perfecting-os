@@ -7,13 +7,18 @@ import { isSupabaseConfigured } from "@/lib/env";
 import {
   ACTIVITY_STATUSES,
   ATIVIDADE_TIPOS,
+  CANAIS,
+  CRITICIDADES,
   RESPONSAVEIS,
   STAGES,
   type ActivityStatus,
   type AtividadeTipo,
+  type Canal,
+  type Criticidade,
   type Responsavel,
   type WorkflowStage,
 } from "@/lib/constants";
+import { parseSubatividades, subatividadesToJson } from "@/lib/methodology";
 import type { ActionResult } from "./clients";
 
 const GENERIC_ERROR = "Algo deu errado. Tente novamente.";
@@ -39,6 +44,12 @@ export type ActivityInput = {
   due_date?: string; // YYYY-MM-DD
   responsavel?: Responsavel | ""; // "" = sem categoria
   tipo?: AtividadeTipo | ""; // "" = sem tipo
+  canal?: Canal | ""; // "" = sem canal
+  criticidade?: Criticidade | ""; // "" = sem criticidade
+  depends_on_cat?: string; // código da atividade da qual depende ("1.1")
+  parallel_with_cat?: string; // código da atividade paralela
+  modelo_mensagem?: string; // template para e-mail/WhatsApp
+  setor_responsavel?: string;
 };
 
 function validateActivityInput(input: ActivityInput): string | null {
@@ -53,7 +64,28 @@ function validateActivityInput(input: ActivityInput): string | null {
   if (input.tipo && !(input.tipo in ATIVIDADE_TIPOS)) {
     return "Tipo inválido.";
   }
+  if (input.canal && !(input.canal in CANAIS)) {
+    return "Canal inválido.";
+  }
+  if (input.criticidade && !(input.criticidade in CRITICIDADES)) {
+    return "Criticidade inválida.";
+  }
   return null;
+}
+
+// Campos opcionais compartilhados entre create/update. `cat` não entra: é o
+// código canônico da planilha, gerado pelo seed da etapa (não editável).
+function optionalActivityFields(input: ActivityInput) {
+  return {
+    responsavel: input.responsavel || null,
+    tipo: input.tipo || null,
+    canal: input.canal || null,
+    criticidade: input.criticidade || null,
+    depends_on_cat: input.depends_on_cat?.trim() || null,
+    parallel_with_cat: input.parallel_with_cat?.trim() || null,
+    modelo_mensagem: input.modelo_mensagem?.trim() || null,
+    setor_responsavel: input.setor_responsavel?.trim() || null,
+  };
 }
 
 export async function createActivity(
@@ -85,9 +117,8 @@ export async function createActivity(
       title: input.title.trim(),
       description: input.description?.trim() || null,
       due_date: input.due_date || null,
-      responsavel: input.responsavel || null,
-      tipo: input.tipo || null,
       position: (last?.position ?? -1) + 1,
+      ...optionalActivityFields(input),
     })
     .select("title")
     .single();
@@ -123,8 +154,7 @@ export async function updateActivity(
       description: input.description?.trim() || null,
       stage: input.stage,
       due_date: input.due_date || null,
-      responsavel: input.responsavel || null,
-      tipo: input.tipo || null,
+      ...optionalActivityFields(input),
     })
     .eq("id", id)
     .select("client_id")
@@ -169,6 +199,43 @@ export async function updateActivityStatus(
       payload: { title: current.title },
     });
   }
+
+  revalidateActivityPaths(current.client_id);
+  return { ok: true, data: undefined };
+}
+
+// Marca/desmarca uma subatividade do checklist. `done` explícito (não flip)
+// para um duplo clique não desfazer a intenção. Regrava o array normalizado
+// inteiro — o que também migra o formato legado (string[]) na primeira
+// marcação. A UI usa o MESMO parseSubatividades, então o índice casa com o
+// array persistido.
+export async function toggleSubatividade(
+  activityId: string,
+  index: number,
+  done: boolean,
+): Promise<ActionResult> {
+  const session = await requireInternoActor();
+  if (!session) return { ok: false, error: "Sem permissão." };
+
+  const supabase = await createServerSupabase();
+  const { data: current } = await supabase
+    .from("activities")
+    .select("client_id, subatividades")
+    .eq("id", activityId)
+    .single();
+  if (!current) return { ok: false, error: "Atividade não encontrada." };
+
+  const subs = parseSubatividades(current.subatividades);
+  if (!Number.isInteger(index) || index < 0 || index >= subs.length) {
+    return { ok: false, error: "Subatividade não encontrada." };
+  }
+  subs[index] = { ...subs[index], done };
+
+  const { error } = await supabase
+    .from("activities")
+    .update({ subatividades: subatividadesToJson(subs) })
+    .eq("id", activityId);
+  if (error) return { ok: false, error: GENERIC_ERROR };
 
   revalidateActivityPaths(current.client_id);
   return { ok: true, data: undefined };

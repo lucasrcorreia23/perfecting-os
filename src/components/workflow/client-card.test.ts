@@ -3,14 +3,21 @@ import { cardStats, type BoardActivity, type BoardClient } from "./client-card";
 
 function activity(overrides: Partial<BoardActivity> & { id: string }): BoardActivity {
   return {
+    canal: null,
+    cat: null,
     client_id: "client-1",
     created_at: "2026-01-01T00:00:00Z",
+    criticidade: null,
     cumulative_days: null,
+    depends_on_cat: null,
     description: null,
     due_date: null,
     duration_days: null,
+    modelo_mensagem: null,
+    parallel_with_cat: null,
     position: 0,
     responsavel: null,
+    setor_responsavel: null,
     stage: "construir",
     status: "pendente",
     subatividades: null,
@@ -74,5 +81,26 @@ describe("cardStats", () => {
     const { current, total } = cardStats(client(activities));
     expect(total).toBe(1);
     expect(current?.id).toBe("2");
+  });
+
+  it("bloqueada conta em blocked, não em done, e não vira current", () => {
+    const activities = [
+      activity({ id: "1", status: "bloqueada", position: 0 }),
+      activity({ id: "2", status: "concluida", position: 1 }),
+      activity({ id: "3", status: "pendente", position: 2 }),
+    ];
+    const { blocked, done, current, total } = cardStats(client(activities));
+    expect(blocked).toBe(1);
+    expect(done).toBe(1);
+    expect(current).toBeNull();
+    expect(total).toBe(3);
+  });
+
+  it("blocked é zero sem atividades bloqueadas", () => {
+    const activities = [
+      activity({ id: "1", status: "pendente" }),
+      activity({ id: "2", status: "em_andamento" }),
+    ];
+    expect(cardStats(client(activities)).blocked).toBe(0);
   });
 });

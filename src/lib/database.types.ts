@@ -15,17 +15,24 @@ export type Database = {
       activities: {
         Row: {
           assignee_id: string | null;
+          canal: Database["public"]["Enums"]["canal_comunicacao"] | null;
+          cat: string | null;
           client_id: string;
           created_at: string;
+          criticidade: Database["public"]["Enums"]["criticidade"] | null;
           cumulative_days: number | null;
+          depends_on_cat: string | null;
           description: string | null;
           due_date: string | null;
           duration_days: number | null;
           id: string;
+          modelo_mensagem: string | null;
+          parallel_with_cat: string | null;
           position: number;
           responsavel:
             | Database["public"]["Enums"]["responsavel_categoria"]
             | null;
+          setor_responsavel: string | null;
           stage: Database["public"]["Enums"]["workflow_stage"];
           status: Database["public"]["Enums"]["activity_status"];
           subatividades: Json;
@@ -36,17 +43,24 @@ export type Database = {
         };
         Insert: {
           assignee_id?: string | null;
+          canal?: Database["public"]["Enums"]["canal_comunicacao"] | null;
+          cat?: string | null;
           client_id: string;
           created_at?: string;
+          criticidade?: Database["public"]["Enums"]["criticidade"] | null;
           cumulative_days?: number | null;
+          depends_on_cat?: string | null;
           description?: string | null;
           due_date?: string | null;
           duration_days?: number | null;
           id?: string;
+          modelo_mensagem?: string | null;
+          parallel_with_cat?: string | null;
           position?: number;
           responsavel?:
             | Database["public"]["Enums"]["responsavel_categoria"]
             | null;
+          setor_responsavel?: string | null;
           stage: Database["public"]["Enums"]["workflow_stage"];
           status?: Database["public"]["Enums"]["activity_status"];
           subatividades?: Json;
@@ -57,17 +71,24 @@ export type Database = {
         };
         Update: {
           assignee_id?: string | null;
+          canal?: Database["public"]["Enums"]["canal_comunicacao"] | null;
+          cat?: string | null;
           client_id?: string;
           created_at?: string;
+          criticidade?: Database["public"]["Enums"]["criticidade"] | null;
           cumulative_days?: number | null;
+          depends_on_cat?: string | null;
           description?: string | null;
           due_date?: string | null;
           duration_days?: number | null;
           id?: string;
+          modelo_mensagem?: string | null;
+          parallel_with_cat?: string | null;
           position?: number;
           responsavel?:
             | Database["public"]["Enums"]["responsavel_categoria"]
             | null;
+          setor_responsavel?: string | null;
           stage?: Database["public"]["Enums"]["workflow_stage"];
           status?: Database["public"]["Enums"]["activity_status"];
           subatividades?: Json;
@@ -277,9 +298,11 @@ export type Database = {
       };
     };
     Enums: {
-      activity_status: "pendente" | "em_andamento" | "concluida";
+      activity_status: "pendente" | "em_andamento" | "bloqueada" | "concluida";
       atividade_tipo: "sincrono" | "assincrono";
+      canal_comunicacao: "email" | "whatsapp" | "os" | "meet" | "presencial";
       client_status: "ativo" | "em_risco" | "pausado" | "encerrado";
+      criticidade: "baixa" | "media" | "alta";
       responsavel_categoria: "cliente" | "perfecting" | "ambos";
       user_role: "interno" | "cliente";
       workflow_stage:

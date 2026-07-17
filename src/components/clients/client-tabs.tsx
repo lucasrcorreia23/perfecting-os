@@ -5,8 +5,10 @@ import { Tabs } from "@/components/ui/tabs";
 import { ActivitiesTab } from "@/components/activities/activities-tab";
 import { FilesTab } from "@/components/files/files-tab";
 import { ClientForm } from "./client-form";
+import { PocOverview } from "./poc-overview";
 
 const TABS = [
+  { id: "visao", label: "Visão geral" },
   { id: "dados", label: "Dados básicos" },
   { id: "atividades", label: "Atividades" },
   { id: "arquivos", label: "Arquivos" },
@@ -28,6 +30,14 @@ export function ClientTabs({
   return (
     <Tabs tabs={TABS} panelClassName="p-4 sm:p-8">
       {(active) => {
+        if (active === "visao") {
+          return (
+            <PocOverview
+              activities={activities}
+              createdAt={client.created_at}
+            />
+          );
+        }
         if (active === "atividades") {
           return (
             <ActivitiesTab

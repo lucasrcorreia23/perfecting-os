@@ -4,10 +4,14 @@ import { useState, useTransition } from "react";
 import { createActivity, updateActivity } from "@/lib/actions/activities";
 import {
   ATIVIDADE_TIPOS,
+  CANAIS,
+  CRITICIDADES,
   RESPONSAVEIS,
   STAGE_ORDER,
   STAGES,
   type AtividadeTipo,
+  type Canal,
+  type Criticidade,
   type Responsavel,
   type WorkflowStage,
 } from "@/lib/constants";
@@ -39,6 +43,22 @@ const TIPO_OPTIONS = [
   })),
 ];
 
+const CANAL_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(CANAIS) as Canal[]).map((value) => ({
+    value,
+    label: CANAIS[value].label,
+  })),
+];
+
+const CRITICIDADE_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(CRITICIDADES) as Criticidade[]).map((value) => ({
+    value,
+    label: CRITICIDADES[value].label,
+  })),
+];
+
 // Criação (activity = null) e edição usam o mesmo modal.
 export function ActivityModal({
   open,
@@ -66,6 +86,12 @@ export function ActivityModal({
       due_date: String(form.get("due_date") ?? ""),
       responsavel: form.get("responsavel") as Responsavel | "",
       tipo: form.get("tipo") as AtividadeTipo | "",
+      canal: form.get("canal") as Canal | "",
+      criticidade: form.get("criticidade") as Criticidade | "",
+      depends_on_cat: String(form.get("depends_on_cat") ?? ""),
+      parallel_with_cat: String(form.get("parallel_with_cat") ?? ""),
+      modelo_mensagem: String(form.get("modelo_mensagem") ?? ""),
+      setor_responsavel: String(form.get("setor_responsavel") ?? ""),
     };
     setError(null);
 
@@ -142,6 +168,67 @@ export function ActivityModal({
             />
           </Field>
         </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Canal" htmlFor="activity-canal">
+            <Select
+              id="activity-canal"
+              name="canal"
+              options={CANAL_OPTIONS}
+              defaultValue={activity?.canal ?? ""}
+            />
+          </Field>
+          <Field label="Criticidade" htmlFor="activity-criticidade">
+            <Select
+              id="activity-criticidade"
+              name="criticidade"
+              options={CRITICIDADE_OPTIONS}
+              defaultValue={activity?.criticidade ?? ""}
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field
+            label="Depende de"
+            help="Código da atividade (ex.: 1.1)"
+            htmlFor="activity-depends-on"
+          >
+            <Input
+              id="activity-depends-on"
+              name="depends_on_cat"
+              defaultValue={activity?.depends_on_cat ?? ""}
+            />
+          </Field>
+          <Field
+            label="Paralela com"
+            help="Código da atividade (ex.: 1.2)"
+            htmlFor="activity-parallel-with"
+          >
+            <Input
+              id="activity-parallel-with"
+              name="parallel_with_cat"
+              defaultValue={activity?.parallel_with_cat ?? ""}
+            />
+          </Field>
+        </div>
+        <Field label="Setor responsável" htmlFor="activity-setor">
+          <Input
+            id="activity-setor"
+            name="setor_responsavel"
+            defaultValue={activity?.setor_responsavel ?? ""}
+          />
+        </Field>
+        <Field
+          label="Modelo de mensagem"
+          help="Template para e-mail/WhatsApp — a atividade ganha um botão de copiar"
+          htmlFor="activity-modelo"
+        >
+          <Textarea
+            id="activity-modelo"
+            name="modelo_mensagem"
+            defaultValue={activity?.modelo_mensagem ?? ""}
+            className="min-h-20"
+          />
+        </Field>
 
         {error ? (
           <p role="alert" className="text-xs text-trend-negative">

@@ -6,6 +6,8 @@ export type ActivityStatus = Enums<"activity_status">;
 export type UserRole = Enums<"user_role">;
 export type Responsavel = Enums<"responsavel_categoria">;
 export type AtividadeTipo = Enums<"atividade_tipo">;
+export type Canal = Enums<"canal_comunicacao">;
+export type Criticidade = Enums<"criticidade">;
 
 // Paleta categórica do guideline (§1) aplicada às etapas do workflow.
 export const STAGE_ORDER: WorkflowStage[] = [
@@ -40,12 +42,15 @@ export const ACTIVITY_STATUSES: Record<
 > = {
   pendente: { label: "Pendente", color: "#475569" },
   em_andamento: { label: "Em andamento", color: "#2E63CD" },
+  // Âmbar, não vermelho: bloqueada é aviso; vermelho já significa "atrasado".
+  bloqueada: { label: "Bloqueada", color: "#D97706" },
   concluida: { label: "Concluída", color: "#0F9F2E" },
 };
 
 export const ACTIVITY_STATUS_ORDER: ActivityStatus[] = [
   "pendente",
   "em_andamento",
+  "bloqueada",
   "concluida",
 ];
 
@@ -62,6 +67,26 @@ export const RESPONSAVEIS: Record<
 export const ATIVIDADE_TIPOS: Record<AtividadeTipo, { label: string }> = {
   sincrono: { label: "Síncrono" },
   assincrono: { label: "Assíncrono" },
+};
+
+// Canal de comunicação da atividade (planilha da POC) — rótulos pt-BR.
+export const CANAIS: Record<Canal, { label: string }> = {
+  email: { label: "E-mail" },
+  whatsapp: { label: "WhatsApp" },
+  os: { label: "OS" },
+  meet: { label: "Meet" },
+  presencial: { label: "Presencial" },
+};
+
+// Criticidade da atividade — alta usa o vermelho de tendência negativa (§1),
+// média âmbar, baixa neutra.
+export const CRITICIDADES: Record<
+  Criticidade,
+  { label: string; color: string }
+> = {
+  baixa: { label: "Baixa", color: "#94A3B8" },
+  media: { label: "Média", color: "#D97706" },
+  alta: { label: "Alta", color: "#9F0F0F" },
 };
 
 export type EventType =

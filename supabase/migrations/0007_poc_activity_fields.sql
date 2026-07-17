@@ -1,199 +1,121 @@
--- Perfecting v1 — seed com os 5 clientes reais (sem mocks).
--- Idempotente: limpa os dados antes de inserir, então pode ser reaplicado a
--- qualquer momento (inclusive por `supabase db reset`). Colunas de ator ficam
--- NULL (o seed não referencia auth.users).
---
--- As atividades espelham o cronograma canônico da POC (planilha "Atividades
--- da POC"; fonte TS: src/lib/methodology.ts — alterar os dois juntos):
--- 21 passos, 8 semanas, 50 dias, com Cat., Semana, Prazo, Dias totais,
--- Responsável (categoria), Tipo (síncrono/assíncrono), Canal e as 53
--- subatividades ({code, title, responsavel, tipo, canal, done}). Cada cliente
--- recebe a jornada completa; um "ponteiro" define o passo atual (anteriores
--- concluídas — com subs done=true —, o atual em andamento, os seguintes
--- pendentes).
+-- Campos da planilha "Atividades da POC" nas atividades: cat (código
+-- hierárquico "1.1"), canal de comunicação, criticidade, dependências
+-- (depende de / paralela com), modelo de mensagem, setor responsável,
+-- status 'bloqueada' e subatividades ricas (objetos, não mais string[]).
+-- Espelha src/lib/methodology.ts e supabase/seed.sql — alterar juntos.
 
-begin;
+create type public.canal_comunicacao as enum
+  ('email', 'whatsapp', 'os', 'meet', 'presencial');
 
--- Limpa dados existentes. O cascade das FKs cobre activities, client_files e
--- events ligados a clientes; a linha seguinte remove eventos órfãos.
-delete from public.clients;
-delete from public.events;
+create type public.criticidade as enum ('baixa', 'media', 'alta');
 
--- 5 clientes, cada um na sua etapa atual do workflow (UUIDs fixos → reaplicável).
-insert into public.clients (id, name, stage, status) values
-  ('00000000-0000-4000-8000-000000000001', 'RD',      'executar',     'ativo'),
-  ('00000000-0000-4000-8000-000000000002', 'Suri',    'priorizar',    'ativo'),
-  ('00000000-0000-4000-8000-000000000003', 'Fiesc',   'medir',        'ativo'),
-  ('00000000-0000-4000-8000-000000000004', 'GM',      'diagnosticar', 'ativo'),
-  ('00000000-0000-4000-8000-000000000005', 'Engenho', 'diagnosticar', 'ativo');
+-- PG >= 12 permite ADD VALUE em transação desde que o novo valor não seja
+-- usado nesta mesma transação (o backfill abaixo não usa 'bloqueada').
+alter type public.activity_status add value if not exists 'bloqueada'
+  before 'concluida';
 
--- Cronograma canônico (21 passos) + ponteiro de passo atual por cliente:
---   RD      → #15 Confecção do relatório de resultados (semana 2)  [executar]
---   Suri    → #7  Testes de roleplay e feedbacks                   [priorizar]
---   Engenho → #4  Criação das trilhas e apresentação               [diagnosticar]
---   Fiesc / GM (sem status informado) → primeiro passo da etapa atual.
-with tpl(ord, stage, week, duration_days, cumulative_days, title, responsavel, tipo, cat, canal, subatividades) as (
+alter table public.activities
+  add column if not exists cat               text,
+  add column if not exists canal             public.canal_comunicacao,
+  add column if not exists criticidade       public.criticidade,
+  add column if not exists depends_on_cat    text,
+  add column if not exists parallel_with_cat text,
+  add column if not exists modelo_mensagem   text,
+  add column if not exists setor_responsavel text;
+
+-- Backfill dos clientes existentes: casa stage+title com o cronograma
+-- canônico e preenche cat/canal/subatividades. Idempotente (`cat is null`).
+-- Subatividades: {code, title, responsavel, tipo, canal, done}; atividades
+-- já concluídas recebem as subs com done=true.
+with tpl(cat, stage, title, canal, subatividades) as (
   values
-    (1, 'diagnosticar'::public.workflow_stage, 1, 1, 1,
-     'Aceite Formal',
-     'ambos'::public.responsavel_categoria, 'assincrono'::public.atividade_tipo,
-     '1.1', 'email'::public.canal_comunicacao,
+    ('1.1', 'diagnosticar'::public.workflow_stage, 'Aceite Formal', 'email'::public.canal_comunicacao,
      '[{"code":"1.1.1","title":"Envio do e-mail de aceite","responsavel":"perfecting","tipo":"assincrono","canal":"email","done":false},
        {"code":"1.1.2","title":"Conferência do aceite","responsavel":"ambos","tipo":"assincrono","canal":"email","done":false}]'::jsonb),
-    (2, 'diagnosticar', 1, 1, 2,
-     'Canal de comunicação (WPP) aberto',
-     'perfecting', 'assincrono', '1.2', 'whatsapp',
+    ('1.2', 'diagnosticar', 'Canal de comunicação (WPP) aberto', 'whatsapp',
      '[{"code":"1.2.1","title":"Criar canal de wpp e adicionar todos os gestores da operação","responsavel":"perfecting","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (3, 'diagnosticar', 1, 2, 4,
-     'Diagnóstico de dores e anamnese realizadas',
-     'cliente', 'assincrono', '1.3', 'os',
+    ('1.3', 'diagnosticar', 'Diagnóstico de dores e anamnese realizadas', 'os',
      '[{"code":"1.3.1","title":"Envio dos formulários de configuração de roleplay e anamnese","responsavel":"perfecting","tipo":"assincrono","canal":"whatsapp","done":false},
        {"code":"1.3.2","title":"Conferência do preenchimento satisfatório das informações necessárias","responsavel":"ambos","tipo":"assincrono","canal":"os","done":false}]'),
-    (4, 'diagnosticar', 1, 2, 6,
-     'Criação das trilhas e apresentação',
-     'perfecting', 'assincrono', '1.4', 'os',
+    ('1.4', 'diagnosticar', 'Criação das trilhas e apresentação', 'os',
      '[{"code":"1.4.1","title":"Definir a(s) trilha(s) necessárias com base nas informações levantadas","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false},
        {"code":"1.4.2","title":"Criar a apresentação das trilhas sugeridas","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false}]'),
-    (5, 'diagnosticar', 2, 1, 7,
-     'Reunião de apresentação das trilhas e validação',
-     'ambos', 'sincrono', '1.5', 'meet',
+    ('1.5', 'diagnosticar', 'Reunião de apresentação das trilhas e validação', 'meet',
      '[{"code":"1.5.1","title":"Apresentar a trilha e pegar validação ou sugestão de ajustes com o cliente","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false}]'),
-    (6, 'priorizar', 2, 0, 7,
-     'Criação da conta e liberação dos acessos',
-     'perfecting', 'assincrono', '2.1', 'os',
+    ('2.1', 'priorizar', 'Criação da conta e liberação dos acessos', 'os',
      '[{"code":"2.1.1","title":"Criar a conta dentro da plataforma","responsavel":"cliente","tipo":"assincrono","canal":"os","done":false},
        {"code":"2.1.2","title":"Incluir time dentro da plataforma","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false},
        {"code":"2.1.3","title":"Criação das trilhas e seus respectivos roleplays dentro da plataforma","responsavel":"perfecting","tipo":"assincrono","canal":"presencial","done":false},
        {"code":"2.1.4","title":"Conferência da ativação de todos os acessos","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (7, 'priorizar', 2, 6, 13,
-     'Testes de roleplay e feedbacks',
-     'cliente', 'assincrono', '2.2', 'os',
+    ('2.2', 'priorizar', 'Testes de roleplay e feedbacks', 'os',
      '[{"code":"2.2.1","title":"Avisar sobre a liberação dos roleplays para testes","responsavel":"perfecting","tipo":"assincrono","canal":"whatsapp","done":false},
        {"code":"2.2.2","title":"Conferência da validação dos roleplays","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (8, 'construir', 3, 1, 14,
-     'Reunião de alinhamentos, definição de cadência de treinamentos e foco do piloto',
-     'ambos', 'sincrono', '3.1', 'meet',
+    ('3.1', 'construir', 'Reunião de alinhamentos, definição de cadência de treinamentos e foco do piloto', 'meet',
      '[{"code":"3.1.1","title":"Coletar feedbacks e sugestão de melhorias dos roleplays","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"3.1.2","title":"Definir cadência de treinamentos","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"3.1.3","title":"Definir KPI''s e OKR''s pretendidos","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"3.1.4","title":"Definir focos da POC","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"3.1.5","title":"Definir datas e horários das reuniões semanais","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false}]'),
-    (9, 'calibrar', 3, 1, 15,
-     'Calibração de roleplays com base nos feedbacks trazidos e no foco definido',
-     'perfecting', 'assincrono', '4.1', 'os',
+    ('4.1', 'calibrar', 'Calibração de roleplays com base nos feedbacks trazidos e no foco definido', 'os',
      '[{"code":"4.1.1","title":"Realizar calibração de roleplays","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false},
        {"code":"4.1.2","title":"Avisar sobre liberação dos roleplays calibrados","responsavel":"perfecting","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (10, 'calibrar', 3, 3, 18,
-     'Validação das melhorias',
-     'cliente', 'assincrono', '4.2', 'os',
+    ('4.2', 'calibrar', 'Validação das melhorias', 'os',
      '[{"code":"4.2.1","title":"Conferência da validação dos roleplays calibrados","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false},
        {"code":"4.2.2","title":"Agendar dia/horário da go-live e definição dos integrantes da reunião","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (11, 'executar', 4, 3, 21,
-     'Go-Live (Apresentação ao operacional)',
-     'ambos', 'sincrono', '5.1', 'meet',
+    ('5.1', 'executar', 'Go-Live (Apresentação ao operacional)', 'meet',
      '[{"code":"5.1.1","title":"Criar apresentação com as rotinas de treinamento e engajamento do operacional","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false},
        {"code":"5.1.2","title":"Coletar percepções, feedbacks, e demais pontos pertinentes da reunião","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false}]'),
-    (12, 'executar', 4, 4, 25,
-     'Reunião de alinhamentos com a gestão: boas práticas, KPIs desejados, cadência mínima e ideal',
-     'ambos', 'sincrono', '5.2', 'meet',
+    ('5.2', 'executar', 'Reunião de alinhamentos com a gestão: boas práticas, KPIs desejados, cadência mínima e ideal', 'meet',
      '[{"code":"5.2.1","title":"Definir data/horário da reunião com a gestão","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false},
        {"code":"5.2.2","title":"Alinhar e validar pontos extraídos da reunião de go-live","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.2.3","title":"Alinhar e validar modelo de relatório semanal","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false}]'),
-    (13, 'executar', 4, 2, 27,
-     'Confecção do relatório de resultados (semana 1)',
-     'perfecting', 'assincrono', '5.3', 'os',
+    ('5.3', 'executar', 'Confecção do relatório de resultados (semana 1)', 'os',
      '[{"code":"5.3.1","title":"Criar relatório semanal de resultados","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false}]'),
-    (14, 'executar', 5, 1, 28,
-     'Reunião semanal 1: apresentação de relatório, prática semanal e encaminhamentos',
-     'ambos', 'sincrono', '5.4', 'meet',
+    ('5.4', 'executar', 'Reunião semanal 1: apresentação de relatório, prática semanal e encaminhamentos', 'meet',
      '[{"code":"5.4.1","title":"Apresentar relatório de resultados semanais","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.4.2","title":"Coletar feedbacks e sugestão de melhorias","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.4.3","title":"Levar feedback e sugestão de melhorias ao time responsável","responsavel":"perfecting","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.4.4","title":"Devolver as melhorias trazidas","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (15, 'executar', 5, 6, 34,
-     'Confecção do relatório de resultados (semana 2)',
-     'perfecting', 'assincrono', '5.5', 'os',
+    ('5.5', 'executar', 'Confecção do relatório de resultados (semana 2)', 'os',
      '[{"code":"5.5.1","title":"Criar relatório semanal de resultados","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false}]'),
-    (16, 'executar', 6, 1, 35,
-     'Reunião semanal 2: apresentação de relatório, prática semanal e encaminhamentos',
-     'ambos', 'sincrono', '5.6', 'meet',
+    ('5.6', 'executar', 'Reunião semanal 2: apresentação de relatório, prática semanal e encaminhamentos', 'meet',
      '[{"code":"5.6.1","title":"Apresentar relatório de resultados semanais","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.6.2","title":"Coletar feedbacks e sugestão de melhorias","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.6.3","title":"Levar feedback e sugestão de melhorias ao time responsável","responsavel":"perfecting","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.6.4","title":"Devolver as melhorias trazidas","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (17, 'executar', 6, 6, 41,
-     'Confecção do relatório de resultados (semana 3)',
-     'perfecting', 'assincrono', '5.7', 'os',
+    ('5.7', 'executar', 'Confecção do relatório de resultados (semana 3)', 'os',
      '[{"code":"5.7.1","title":"Criar relatório semanal de resultados","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false}]'),
-    (18, 'executar', 7, 1, 42,
-     'Reunião semanal 3: apresentação de relatório, prática semanal e encaminhamentos',
-     'ambos', 'sincrono', '5.8', 'meet',
+    ('5.8', 'executar', 'Reunião semanal 3: apresentação de relatório, prática semanal e encaminhamentos', 'meet',
      '[{"code":"5.8.1","title":"Apresentar relatório de resultados semanais","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.8.2","title":"Coletar feedbacks e sugestão de melhorias","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.8.3","title":"Levar feedback e sugestão de melhorias ao time responsável","responsavel":"perfecting","tipo":"sincrono","canal":"meet","done":false},
        {"code":"5.8.4","title":"Devolver as melhorias trazidas","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (19, 'medir', 7, 6, 48,
-     'Relatório final de impacto',
-     'perfecting', 'assincrono', '6.1', 'os',
+    ('6.1', 'medir', 'Relatório final de impacto', 'os',
      '[{"code":"6.1.1","title":"Criar relatório final de resultados","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false}]'),
-    (20, 'medir', 8, 1, 49,
-     'Reunião semanal 4: apresentação do relatório final de impacto',
-     'ambos', 'sincrono', '6.2', 'meet',
+    ('6.2', 'medir', 'Reunião semanal 4: apresentação do relatório final de impacto', 'meet',
      '[{"code":"6.2.1","title":"Apresentar relatório final de impacto","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"6.2.2","title":"Coletar feedbacks finais","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"6.2.3","title":"Levar feedback e sugestão de melhorias ao time responsável","responsavel":"perfecting","tipo":"sincrono","canal":"meet","done":false},
        {"code":"6.2.4","title":"Devolver as melhorias trazidas","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false}]'),
-    (21, 'medir', 8, 1, 50,
-     'O cliente pretende avançar com a solução e realizar negociação para fechar contrato?',
-     'ambos', 'assincrono', '6.3', 'whatsapp',
+    ('6.3', 'medir', 'O cliente pretende avançar com a solução e realizar negociação para fechar contrato?', 'whatsapp',
      '[{"code":"6.3.1","title":"Agendar reunião final de gestão","responsavel":"ambos","tipo":"assincrono","canal":"whatsapp","done":false},
        {"code":"6.3.2","title":"Criar apresentação de vendas","responsavel":"perfecting","tipo":"assincrono","canal":"os","done":false},
        {"code":"6.3.3","title":"Reunião para ressaltar os impactos, alinhar gargalos, e definir próximos passos apresentando a proposta de venda","responsavel":"ambos","tipo":"sincrono","canal":"meet","done":false},
        {"code":"6.3.4","title":"Envio de proposta","responsavel":"perfecting","tipo":"assincrono","canal":"email","done":false},
        {"code":"6.3.5","title":"Conferência sobre retorno da proposta","responsavel":"ambos","tipo":"assincrono","canal":"email","done":false}]')
-),
-pointer(client_id, current_ord) as (
-  values
-    ('00000000-0000-4000-8000-000000000001'::uuid, 15), -- RD
-    ('00000000-0000-4000-8000-000000000002'::uuid, 7),  -- Suri
-    ('00000000-0000-4000-8000-000000000003'::uuid, 19), -- Fiesc
-    ('00000000-0000-4000-8000-000000000004'::uuid, 1),  -- GM
-    ('00000000-0000-4000-8000-000000000005'::uuid, 4)   -- Engenho
 )
-insert into public.activities
-  (client_id, stage, position, title, status,
-   week, duration_days, cumulative_days, responsavel, tipo,
-   cat, canal, subatividades)
-select
-  p.client_id,
-  tpl.stage,
-  row_number() over (partition by p.client_id, tpl.stage order by tpl.ord) - 1,
-  tpl.title,
-  case
-    when tpl.ord < p.current_ord then 'concluida'::public.activity_status
-    when tpl.ord = p.current_ord then 'em_andamento'::public.activity_status
-    else 'pendente'::public.activity_status
-  end,
-  tpl.week,
-  tpl.duration_days,
-  tpl.cumulative_days,
-  tpl.responsavel,
-  tpl.tipo,
-  tpl.cat,
-  tpl.canal,
-  case
-    -- Passos já concluídos entram com as subatividades marcadas.
-    when tpl.ord < p.current_ord then
-      (select coalesce(jsonb_agg(elem || '{"done": true}'::jsonb), '[]'::jsonb)
-         from jsonb_array_elements(tpl.subatividades) elem)
-    else tpl.subatividades
-  end
-from pointer p
-cross join tpl;
-
--- Evento de criação de cada cliente para o feed "Atividades Recentes".
-insert into public.events (client_id, type, payload)
-select id, 'cliente_criado', jsonb_build_object('name', name)
-from public.clients;
-
-commit;
+update public.activities a
+set cat           = tpl.cat,
+    canal         = coalesce(a.canal, tpl.canal),
+    subatividades = case
+      -- Preserva qualquer conteúdo já preenchido manualmente.
+      when a.subatividades <> '[]'::jsonb then a.subatividades
+      when a.status = 'concluida' then
+        (select coalesce(jsonb_agg(elem || '{"done": true}'::jsonb), '[]'::jsonb)
+           from jsonb_array_elements(tpl.subatividades) elem)
+      else tpl.subatividades
+    end
+from tpl
+where a.stage = tpl.stage
+  and a.title = tpl.title
+  and a.cat is null;

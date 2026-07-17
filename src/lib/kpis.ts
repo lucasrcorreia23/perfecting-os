@@ -87,6 +87,7 @@ export function computeKpis({
   const overTrend = trendFromDelta(overDeadline - overDeadline30dAgo);
 
   // 3. Atividades em aberto — prev ≈ atual − criadas + concluídas na janela.
+  // Bloqueadas contam como abertas (status !== concluida).
   const openActivities = activities.filter(
     (activity) => activity.status !== "concluida",
   ).length;
@@ -105,6 +106,12 @@ export function computeKpis({
   const overdueActivities = activities.filter(
     (activity) =>
       activity.status !== "concluida" && isOverdue(activity.due_date),
+  ).length;
+
+  // 5. Atividades bloqueadas (↑ é ruim) — gargalo da planilha da POC; sem
+  // evento de bloqueio no log → tendência "—", como as atrasadas.
+  const blockedActivities = activities.filter(
+    (activity) => activity.status === "bloqueada",
   ).length;
 
   return [
@@ -129,6 +136,13 @@ export function computeKpis({
     {
       label: "Atividades atrasadas",
       value: overdueActivities,
+      goodDirection: "down",
+      direction: "flat",
+      trendLabel: "—",
+    },
+    {
+      label: "Atividades bloqueadas",
+      value: blockedActivities,
       goodDirection: "down",
       direction: "flat",
       trendLabel: "—",

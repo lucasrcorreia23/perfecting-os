@@ -10,7 +10,7 @@ import {
   type ClientStatus,
   type WorkflowStage,
 } from "@/lib/constants";
-import { stageSteps } from "@/lib/methodology";
+import { seedSubatividades, stageSteps } from "@/lib/methodology";
 import type { Json, TablesInsert, TablesUpdate } from "@/lib/database.types";
 
 export type ActionResult<T = undefined> =
@@ -69,12 +69,14 @@ async function seedStageActivities(
     title: step.activity,
     status: "pendente",
     position: index,
+    cat: step.cat,
     week: step.week,
     duration_days: step.durationDays,
     cumulative_days: step.cumulativeDays,
     responsavel: step.responsavel,
     tipo: step.tipo,
-    subatividades: step.subatividades,
+    canal: step.canal,
+    subatividades: seedSubatividades(step.subatividades),
   }));
 
   await supabase.from("activities").insert(rows);

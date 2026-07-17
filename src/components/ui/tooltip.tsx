@@ -27,12 +27,22 @@ export function TooltipRow({
 }
 
 // Ícone de info com balão no hover — cursor padrão (não usa o "?" nativo do
-// cursor:help, que destoa do resto da UI).
-export function InfoTooltip({ children }: { children: ReactNode }) {
+// cursor:help, que destoa do resto da UI). `align="right"` ancora o balão na
+// borda direita do ícone (para gatilhos no extremo direito da linha).
+export function InfoTooltip({
+  children,
+  align = "left",
+}: {
+  children: ReactNode;
+  align?: "left" | "right";
+}) {
   return (
     <div className="group relative flex shrink-0">
       <InformationCircleIcon className="h-4 w-4 text-slate-400" aria-hidden />
-      <div role="tooltip" className={TOOLTIP}>
+      <div
+        role="tooltip"
+        className={cn(TOOLTIP, align === "right" && "left-auto right-0")}
+      >
         {children}
       </div>
     </div>

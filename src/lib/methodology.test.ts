@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { STAGE_ORDER } from "@/lib/constants";
+import {
+  ATIVIDADE_TIPOS,
+  CANAIS,
+  RESPONSAVEIS,
+  STAGE_ORDER,
+  type WorkflowStage,
+} from "@/lib/constants";
 import {
   METHODOLOGY,
   PROGRAM_TOTAL_DAYS,
+  parseSubatividades,
+  seedSubatividades,
   stageSchedule,
   stageSteps,
+  subatividadesToJson,
   weekRangeLabel,
   weekRangeShortLabel,
+  type Subatividade,
 } from "@/lib/methodology";
 
 describe("METHODOLOGY", () => {
@@ -37,6 +47,51 @@ describe("METHODOLOGY", () => {
       lastWeek = step.week;
     }
     expect(lastWeek).toBe(8);
+  });
+
+  it("todo passo tem cat único no formato N.N e canal válido", () => {
+    const cats = new Set<string>();
+    for (const step of METHODOLOGY) {
+      expect(step.cat).toMatch(/^\d+\.\d+$/);
+      expect(cats.has(step.cat)).toBe(false);
+      cats.add(step.cat);
+      expect(step.canal in CANAIS).toBe(true);
+    }
+  });
+
+  it("tem as 53 subatividades da planilha, na distribuição por etapa", () => {
+    const subsByStage: Record<WorkflowStage, number> = {
+      diagnosticar: 8,
+      priorizar: 6,
+      construir: 5,
+      calibrar: 4,
+      executar: 20,
+      medir: 10,
+    };
+    for (const stage of STAGE_ORDER) {
+      const count = stageSteps(stage).reduce(
+        (sum, step) => sum + step.subatividades.length,
+        0,
+      );
+      expect(count).toBe(subsByStage[stage]);
+    }
+    const total = METHODOLOGY.reduce(
+      (sum, step) => sum + step.subatividades.length,
+      0,
+    );
+    expect(total).toBe(53);
+  });
+
+  it("subatividades têm code prefixado pelo cat do pai e enums válidos", () => {
+    for (const step of METHODOLOGY) {
+      step.subatividades.forEach((sub, index) => {
+        expect(sub.code).toBe(`${step.cat}.${index + 1}`);
+        expect(sub.title.length).toBeGreaterThan(0);
+        expect(sub.responsavel in RESPONSAVEIS).toBe(true);
+        expect(sub.tipo in ATIVIDADE_TIPOS).toBe(true);
+        expect(sub.canal in CANAIS).toBe(true);
+      });
+    }
   });
 
   it("aponta os passos atuais de Engenho, Suri e RD", () => {
@@ -118,5 +173,101 @@ describe("weekRangeShortLabel", () => {
   it("singular e intervalo, abreviados", () => {
     expect(weekRangeShortLabel(2, 2)).toBe("S2");
     expect(weekRangeShortLabel(4, 7)).toBe("S4-7");
+  });
+});
+
+describe("parseSubatividades", () => {
+  it("formato legado string[] vira sub sem metadados, não feita", () => {
+    expect(parseSubatividades(["Enviar e-mail", "Conferir aceite"])).toEqual([
+      {
+        code: "",
+        title: "Enviar e-mail",
+        responsavel: null,
+        tipo: null,
+        canal: null,
+        done: false,
+      },
+      {
+        code: "",
+        title: "Conferir aceite",
+        responsavel: null,
+        tipo: null,
+        canal: null,
+        done: false,
+      },
+    ]);
+  });
+
+  it("formato novo passa intacto", () => {
+    const sub: Subatividade = {
+      code: "1.3.1",
+      title: "Envio dos formulários",
+      responsavel: "perfecting",
+      tipo: "assincrono",
+      canal: "whatsapp",
+      done: true,
+    };
+    expect(parseSubatividades([{ ...sub }])).toEqual([sub]);
+  });
+
+  it("enums inválidos viram null e done é coagido com === true", () => {
+    const [sub] = parseSubatividades([
+      {
+        code: 12,
+        title: "Sub",
+        responsavel: "gerente",
+        tipo: "hibrido",
+        canal: "telefone",
+        done: "true",
+      },
+    ]);
+    expect(sub).toEqual({
+      code: "",
+      title: "Sub",
+      responsavel: null,
+      tipo: null,
+      canal: null,
+      done: false,
+    });
+  });
+
+  it("descarta itens sem title e conteúdo fora do formato", () => {
+    expect(
+      parseSubatividades([42, null, { done: true }, ["x"], { title: "Ok" }]),
+    ).toEqual([
+      {
+        code: "",
+        title: "Ok",
+        responsavel: null,
+        tipo: null,
+        canal: null,
+        done: false,
+      },
+    ]);
+  });
+
+  it("retorna [] para não-array", () => {
+    expect(parseSubatividades(null)).toEqual([]);
+    expect(parseSubatividades("[]")).toEqual([]);
+    expect(parseSubatividades({ title: "x" })).toEqual([]);
+  });
+
+  it("ida e volta: subatividadesToJson(parse(x)) preserva o conteúdo", () => {
+    const subs = parseSubatividades(["Legado"]);
+    expect(parseSubatividades(subatividadesToJson(subs))).toEqual(subs);
+  });
+});
+
+describe("seedSubatividades", () => {
+  it("templates canônicos viram subs persistidas com done=false", () => {
+    const json = seedSubatividades(METHODOLOGY[0].subatividades);
+    const subs = parseSubatividades(json);
+    expect(subs).toHaveLength(2);
+    expect(subs[0]).toMatchObject({
+      code: "1.1.1",
+      responsavel: "perfecting",
+      canal: "email",
+      done: false,
+    });
   });
 });
