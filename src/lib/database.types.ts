@@ -245,6 +245,266 @@ export type Database = {
           },
         ];
       };
+      marketing_funnel_versions: {
+        Row: {
+          created_at: string;
+          funnel_id: string;
+          id: string;
+          published_by: string | null;
+          questions: Json;
+          score_max: number;
+          thresholds: Json;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          funnel_id: string;
+          id?: string;
+          published_by?: string | null;
+          questions: Json;
+          score_max?: number;
+          thresholds: Json;
+          version: number;
+        };
+        Update: {
+          created_at?: string;
+          funnel_id?: string;
+          id?: string;
+          published_by?: string | null;
+          questions?: Json;
+          score_max?: number;
+          thresholds?: Json;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketing_funnel_versions_funnel_id_fkey";
+            columns: ["funnel_id"];
+            isOneToOne: false;
+            referencedRelation: "marketing_funnels";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketing_funnels: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+          published_version_id: string | null;
+          questions: Json;
+          redirect_url: string | null;
+          score_thresholds: Json;
+          slug: string;
+          status: Database["public"]["Enums"]["funnel_status"];
+          submit_label: string;
+          success_message: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          name: string;
+          published_version_id?: string | null;
+          questions?: Json;
+          redirect_url?: string | null;
+          score_thresholds?: Json;
+          slug: string;
+          status?: Database["public"]["Enums"]["funnel_status"];
+          submit_label?: string;
+          success_message?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          published_version_id?: string | null;
+          questions?: Json;
+          redirect_url?: string | null;
+          score_thresholds?: Json;
+          slug?: string;
+          status?: Database["public"]["Enums"]["funnel_status"];
+          submit_label?: string;
+          success_message?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketing_funnels_published_version_id_fkey";
+            columns: ["published_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketing_funnel_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketing_leads: {
+        Row: {
+          answers: Json;
+          client_id: string | null;
+          company: string | null;
+          created_at: string;
+          email: string | null;
+          funnel_id: string;
+          funnel_version_id: string | null;
+          id: string;
+          ip_hash: string | null;
+          name: string | null;
+          notes: string | null;
+          phone: string | null;
+          qualificacao: Database["public"]["Enums"]["lead_qualificacao"];
+          role_title: string | null;
+          score: number;
+          score_max: number;
+          score_pct: number;
+          source_url: string | null;
+          status: Database["public"]["Enums"]["lead_status"];
+          updated_at: string;
+          user_agent: string | null;
+          utm: Json;
+        };
+        Insert: {
+          answers?: Json;
+          client_id?: string | null;
+          company?: string | null;
+          created_at?: string;
+          email?: string | null;
+          funnel_id: string;
+          funnel_version_id?: string | null;
+          id?: string;
+          ip_hash?: string | null;
+          name?: string | null;
+          notes?: string | null;
+          phone?: string | null;
+          qualificacao?: Database["public"]["Enums"]["lead_qualificacao"];
+          role_title?: string | null;
+          score?: number;
+          score_max?: number;
+          score_pct?: number;
+          source_url?: string | null;
+          status?: Database["public"]["Enums"]["lead_status"];
+          updated_at?: string;
+          user_agent?: string | null;
+          utm?: Json;
+        };
+        Update: {
+          answers?: Json;
+          client_id?: string | null;
+          company?: string | null;
+          created_at?: string;
+          email?: string | null;
+          funnel_id?: string;
+          funnel_version_id?: string | null;
+          id?: string;
+          ip_hash?: string | null;
+          name?: string | null;
+          notes?: string | null;
+          phone?: string | null;
+          qualificacao?: Database["public"]["Enums"]["lead_qualificacao"];
+          role_title?: string | null;
+          score?: number;
+          score_max?: number;
+          score_pct?: number;
+          source_url?: string | null;
+          status?: Database["public"]["Enums"]["lead_status"];
+          updated_at?: string;
+          user_agent?: string | null;
+          utm?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketing_leads_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketing_leads_funnel_id_fkey";
+            columns: ["funnel_id"];
+            isOneToOne: false;
+            referencedRelation: "marketing_funnels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketing_leads_funnel_version_id_fkey";
+            columns: ["funnel_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketing_funnel_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketing_posts: {
+        Row: {
+          author_id: string | null;
+          body_md: string;
+          canonical_url: string | null;
+          cover_alt: string | null;
+          cover_path: string | null;
+          created_at: string;
+          excerpt: string | null;
+          id: string;
+          noindex: boolean;
+          published_at: string | null;
+          reading_minutes: number;
+          seo_description: string | null;
+          seo_title: string | null;
+          slug: string;
+          status: Database["public"]["Enums"]["post_status"];
+          tags: string[];
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          author_id?: string | null;
+          body_md?: string;
+          canonical_url?: string | null;
+          cover_alt?: string | null;
+          cover_path?: string | null;
+          created_at?: string;
+          excerpt?: string | null;
+          id?: string;
+          noindex?: boolean;
+          published_at?: string | null;
+          reading_minutes?: number;
+          seo_description?: string | null;
+          seo_title?: string | null;
+          slug: string;
+          status?: Database["public"]["Enums"]["post_status"];
+          tags?: string[];
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_id?: string | null;
+          body_md?: string;
+          canonical_url?: string | null;
+          cover_alt?: string | null;
+          cover_path?: string | null;
+          created_at?: string;
+          excerpt?: string | null;
+          id?: string;
+          noindex?: boolean;
+          published_at?: string | null;
+          reading_minutes?: number;
+          seo_description?: string | null;
+          seo_title?: string | null;
+          slug?: string;
+          status?: Database["public"]["Enums"]["post_status"];
+          tags?: string[];
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -303,6 +563,15 @@ export type Database = {
       canal_comunicacao: "email" | "whatsapp" | "os" | "meet" | "presencial";
       client_status: "ativo" | "em_risco" | "pausado" | "encerrado";
       criticidade: "baixa" | "media" | "alta";
+      funnel_status: "rascunho" | "publicado" | "arquivado";
+      lead_qualificacao: "frio" | "morno" | "quente";
+      lead_status:
+        | "novo"
+        | "em_contato"
+        | "qualificado"
+        | "descartado"
+        | "convertido";
+      post_status: "rascunho" | "publicado" | "arquivado";
       responsavel_categoria: "cliente" | "perfecting" | "ambos";
       user_role: "interno" | "cliente";
       workflow_stage:

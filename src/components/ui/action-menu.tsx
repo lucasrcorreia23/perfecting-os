@@ -26,6 +26,8 @@ export type MenuItem = {
   href?: string;
   destructive?: boolean;
   disabled?: boolean;
+  // Chip curto à direita do label — ex.: "Em breve" para placeholders.
+  badge?: string;
 };
 
 const ITEM_CLASSES = cn(
@@ -192,6 +194,14 @@ export function DropdownMenu({
                   aria-hidden
                 />
                 {item.label}
+                {item.badge ? (
+                  <span
+                    className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: "#FFFBEB", color: "#973C00" }}
+                  >
+                    {item.badge}
+                  </span>
+                ) : null}
               </>
             );
 

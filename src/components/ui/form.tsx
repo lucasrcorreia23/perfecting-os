@@ -1,8 +1,4 @@
-import type {
-  InputHTMLAttributes,
-  ReactNode,
-  TextareaHTMLAttributes,
-} from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 // Formulários (§8.10): label → ajuda → input, nessa ordem.
@@ -72,10 +68,10 @@ const INPUT_CLASSES = cn(
   "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
 );
 
-export function Input({
-  className,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+// ComponentProps (e não InputHTMLAttributes) para aceitar `ref` — no React 19
+// ela é uma prop comum e o editor de markdown precisa dela para manipular a
+// seleção do textarea.
+export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(INPUT_CLASSES, "h-12 rounded-full", className)}
@@ -84,10 +80,7 @@ export function Input({
   );
 }
 
-export function Textarea({
-  className,
-  ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (
     <textarea
       className={cn(INPUT_CLASSES, "min-h-28 rounded-sm py-3", className)}

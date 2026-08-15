@@ -4,6 +4,9 @@ import { getSupabaseEnv, isSupabaseConfigured } from "@/lib/env";
 
 const PUBLIC_PATHS = ["/login", "/cadastro", "/recuperar"];
 
+// API consumida pelo site externo: não tem sessão nem cookie.
+const PUBLIC_API_PREFIX = "/api/publico";
+
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -11,6 +14,13 @@ function isPublicPath(pathname: string) {
 }
 
 export async function updateSession(request: NextRequest) {
+  // Precisa vir antes de tudo: é o branch de redirect que transformaria o
+  // preflight OPTIONS num 307 para /login, e o browser reportaria isso como
+  // uma falha de CORS opaca. Também evita um getUser() por request do site.
+  if (request.nextUrl.pathname.startsWith(PUBLIC_API_PREFIX)) {
+    return NextResponse.next({ request });
+  }
+
   // Sem env configurada (ex.: build/preview), não bloqueia nada.
   if (!isSupabaseConfigured()) {
     return NextResponse.next({ request });

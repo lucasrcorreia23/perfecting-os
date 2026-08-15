@@ -37,10 +37,12 @@ export function Avatar({
   }
 
   return (
+    // Fundo escuro (mesmo padrão de gradiente 145deg dos botões) para as
+    // iniciais não sumirem sobre superfícies brancas.
     <span
       role="img"
       aria-label={name}
-      className={`inline-flex shrink-0 select-none items-center justify-center rounded-full bg-slate-100 font-medium text-slate-600 ${FONT_SIZE[size]}`}
+      className={`inline-flex shrink-0 select-none items-center justify-center rounded-full bg-[linear-gradient(145deg,#475569,#1e293b)] font-medium text-white ${FONT_SIZE[size]}`}
       style={{ width: size, height: size }}
     >
       {initials(name)}

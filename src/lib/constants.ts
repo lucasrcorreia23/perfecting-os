@@ -8,6 +8,10 @@ export type Responsavel = Enums<"responsavel_categoria">;
 export type AtividadeTipo = Enums<"atividade_tipo">;
 export type Canal = Enums<"canal_comunicacao">;
 export type Criticidade = Enums<"criticidade">;
+export type PostStatus = Enums<"post_status">;
+export type FunnelStatus = Enums<"funnel_status">;
+export type LeadStatus = Enums<"lead_status">;
+export type LeadQualificacao = Enums<"lead_qualificacao">;
 
 // Paleta categórica do guideline (§1) aplicada às etapas do workflow.
 export const STAGE_ORDER: WorkflowStage[] = [
@@ -96,6 +100,86 @@ export type EventType =
   | "atividade_concluida"
   | "arquivo_enviado"
   | "arquivo_excluido";
+
+// =============================================================================
+// Marketing
+// =============================================================================
+
+// "agendado" não é status no banco: é derivado de publicado + data futura
+// (postState em src/lib/marketing-post.ts). Cores da paleta categórica §1.
+export type PostState = "rascunho" | "agendado" | "publicado" | "arquivado";
+
+export const POST_STATES: Record<PostState, { label: string; color: string }> = {
+  rascunho: { label: "Rascunho", color: "#475569" },
+  agendado: { label: "Agendado", color: "#D97706" },
+  publicado: { label: "Publicado", color: "#0F9F2E" },
+  arquivado: { label: "Arquivado", color: "#94A3B8" },
+};
+
+export const POST_STATE_ORDER: PostState[] = [
+  "rascunho",
+  "agendado",
+  "publicado",
+  "arquivado",
+];
+
+export const FUNNEL_STATUSES: Record<
+  FunnelStatus,
+  { label: string; color: string }
+> = {
+  rascunho: { label: "Rascunho", color: "#475569" },
+  publicado: { label: "Publicado", color: "#0F9F2E" },
+  arquivado: { label: "Arquivado", color: "#94A3B8" },
+};
+
+export const LEAD_STATUSES: Record<
+  LeadStatus,
+  { label: string; color: string }
+> = {
+  novo: { label: "Novo", color: "#2E63CD" },
+  em_contato: { label: "Em contato", color: "#0891B2" },
+  qualificado: { label: "Qualificado", color: "#7C3AED" },
+  descartado: { label: "Descartado", color: "#94A3B8" },
+  convertido: { label: "Convertido", color: "#0F9F2E" },
+};
+
+export const LEAD_STATUS_ORDER: LeadStatus[] = [
+  "novo",
+  "em_contato",
+  "qualificado",
+  "convertido",
+  "descartado",
+];
+
+export const QUALIFICACOES: Record<
+  LeadQualificacao,
+  { label: string; color: string }
+> = {
+  frio: { label: "Frio", color: "#0891B2" },
+  morno: { label: "Morno", color: "#D97706" },
+  quente: { label: "Quente", color: "#E11D48" },
+};
+
+export const QUALIFICACAO_ORDER: LeadQualificacao[] = [
+  "quente",
+  "morno",
+  "frio",
+];
+
+// Limiares de qualificação em % da pontuação máxima do funil.
+export const DEFAULT_SCORE_THRESHOLDS = { morno: 40, quente: 70 };
+
+// Capa de post — espelha o file_size_limit do bucket marketing-media.
+export const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const COVER_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+];
+
+export const MARKETING_MEDIA_BUCKET = "marketing-media";
 
 export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 

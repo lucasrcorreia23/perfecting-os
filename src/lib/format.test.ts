@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   dateInputToISO,
+  dateTimeInputToISO,
   daysSince,
   formatBytes,
   formatDate,
@@ -8,6 +9,7 @@ import {
   formatRelativeTime,
   isOverdue,
   toDateInputValue,
+  toDateTimeInputValue,
   todayISO,
 } from "@/lib/format";
 
@@ -103,5 +105,29 @@ describe("tempo relativo", () => {
     const passado = new Date("2026-07-01T12:00:00Z").toISOString();
     expect(daysSince(futuro)).toBe(0);
     expect(daysSince(passado)).toBe(4);
+  });
+});
+
+describe("toDateTimeInputValue / dateTimeInputToISO", () => {
+  it("converte timestamp para o relógio de parede de São Paulo (UTC−3)", () => {
+    expect(toDateTimeInputValue("2026-08-04T18:00:00Z")).toBe("2026-08-04T15:00");
+  });
+
+  it("volta o relógio de parede para UTC, sem o clássico erro de 3 horas", () => {
+    expect(dateTimeInputToISO("2026-08-04T15:00")).toBe("2026-08-04T18:00:00.000Z");
+  });
+
+  it("faz a ida e a volta sem perder o valor", () => {
+    const iso = "2026-12-31T02:30:00.000Z";
+    expect(dateTimeInputToISO(toDateTimeInputValue(iso))).toBe(iso);
+  });
+
+  it("meia-noite em São Paulo vira 03:00 UTC do mesmo dia", () => {
+    expect(dateTimeInputToISO("2026-08-04T00:00")).toBe("2026-08-04T03:00:00.000Z");
+    expect(toDateTimeInputValue("2026-08-04T03:00:00Z")).toBe("2026-08-04T00:00");
+  });
+
+  it("aceita o valor com segundos que alguns browsers enviam", () => {
+    expect(dateTimeInputToISO("2026-08-04T15:00:00")).toBe("2026-08-04T18:00:00.000Z");
   });
 });

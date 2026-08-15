@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
+  CalculatorIcon,
   ChatBubbleLeftRightIcon,
   ChevronDownIcon,
   EnvelopeIcon,
@@ -43,22 +44,20 @@ export function ClientHeader({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+        {/* Tudo numa linha só: nome, empresa e chips lado a lado (quebra
+            apenas quando falta largura no mobile). */}
+        <div className="flex min-w-0 items-center gap-4">
           {!readOnly ? <BackButton href="/clientes" /> : null}
           <Avatar name={client.name} size={48} />
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-semibold text-slate-900">
-                {client.name}
-              </h1>
-              {client.company ? (
-                <p className="text-sm text-slate-500">{client.company}</p>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusChip status={client.status} />
-              <StageBadge stage={client.stage} />
-            </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-2xl font-semibold text-slate-900">
+              {client.name}
+            </h1>
+            {client.company ? (
+              <span className="text-sm text-slate-500">{client.company}</span>
+            ) : null}
+            <StatusChip status={client.status} />
+            <StageBadge stage={client.stage} />
           </div>
         </div>
 
@@ -107,6 +106,12 @@ export function ClientHeader({
                   label: "Editar dados",
                   icon: PencilSquareIcon,
                   onSelect: goToDadosTab,
+                },
+                {
+                  label: "Criar calculadora",
+                  icon: CalculatorIcon,
+                  disabled: true,
+                  badge: "Em breve",
                 },
                 {
                   label: "Excluir cliente",

@@ -7,6 +7,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
   HomeIcon,
+  MegaphoneIcon,
   UserCircleIcon,
   UserGroupIcon,
   ViewColumnsIcon,
@@ -37,6 +38,7 @@ function navItems(role: UserRole, clientId: string | null): NavItem[] {
     { href: "/", label: "Início", icon: HomeIcon },
     { href: "/workflow", label: "Workflow", icon: ViewColumnsIcon },
     { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
+    { href: "/marketing", label: "Marketing", icon: MegaphoneIcon },
   ];
 }
 

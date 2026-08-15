@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
   ArrowRightIcon,
+  CalculatorIcon,
   PencilSquareIcon,
   TrashIcon,
   UserGroupIcon,
@@ -92,6 +93,12 @@ export function ClientsView({
             label: "Editar",
             icon: PencilSquareIcon,
             href: `/clientes/${client.id}?tab=dados`,
+          },
+          {
+            label: "Criar calculadora",
+            icon: CalculatorIcon,
+            disabled: true,
+            badge: "Em breve",
           },
           {
             label: "Excluir",
