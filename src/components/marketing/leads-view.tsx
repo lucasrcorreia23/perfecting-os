@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
+  ArrowDownTrayIcon,
   EyeIcon,
   TrashIcon,
   UserGroupIcon,
@@ -16,10 +18,14 @@ import {
   type LeadQualificacao,
   type LeadStatus,
 } from "@/lib/constants";
+import { downloadText } from "@/lib/download";
 import { formatRelativeTime } from "@/lib/format";
 import type { AnswerMap } from "@/lib/marketing-answers";
 import type { FunnelQuestion } from "@/lib/marketing-funnel";
+import { csvFilename, leadsToCsv } from "@/lib/marketing-lead-export";
+import { cn } from "@/lib/utils";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,7 +34,6 @@ import { QualificacaoChip } from "@/components/ui/qualificacao-chip";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { ConvertLeadModal } from "./convert-lead-modal";
-import { LeadDetailModal } from "./lead-detail-modal";
 
 export type LeadRow = {
   id: string;
@@ -50,6 +55,7 @@ export type LeadRow = {
   clientId: string | null;
   notes: string | null;
   sourceUrl: string | null;
+  utm: Record<string, string>;
   created_at: string;
 };
 
@@ -126,11 +132,11 @@ export function LeadsView({
   funnels: { id: string; name: string }[];
   initialFunnel: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [funnel, setFunnel] = useState(initialFunnel);
   const [status, setStatus] = useState("todos");
   const [qualificacao, setQualificacao] = useState("todas");
-  const [detail, setDetail] = useState<LeadRow | null>(null);
   const [converting, setConverting] = useState<LeadRow | null>(null);
   const [deleting, setDeleting] = useState<LeadRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +166,7 @@ export function LeadsView({
           {
             label: "Ver respostas",
             icon: EyeIcon,
-            onSelect: () => setDetail(lead),
+            href: `/marketing/leads/${lead.id}`,
           },
           lead.clientId
             ? {
@@ -226,7 +232,23 @@ export function LeadsView({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold text-slate-900">Leads captados</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">Leads captados</h2>
+          {/* Exporta o recorte visível, não a base inteira: o que está na
+              tela é o que vai para a planilha. */}
+          <Button
+            icon={ArrowDownTrayIcon}
+            disabled={filtered.length === 0}
+            onClick={() =>
+              downloadText(
+                csvFilename("leads", new Date().toISOString()),
+                leadsToCsv(filtered),
+              )
+            }
+          >
+            Exportar {filtered.length} {filtered.length === 1 ? "lead" : "leads"}
+          </Button>
+        </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <SearchInput
             value={query}
@@ -269,6 +291,7 @@ export function LeadsView({
         columns={columns}
         rows={filtered}
         rowKey={(lead) => lead.id}
+        rowHref={(lead) => `/marketing/leads/${lead.id}`}
         empty={
           <EmptyState
             icon={UserGroupIcon}
@@ -281,7 +304,23 @@ export function LeadsView({
           />
         }
         mobileCard={(lead) => (
-          <div className="flex flex-col gap-3 rounded-sm border border-slate-200 bg-white p-4">
+          <div
+            role="link"
+            tabIndex={0}
+            onClick={(event) => {
+              const target = event.target as HTMLElement;
+              if (target.closest("a,button,select,input,label")) return;
+              router.push(`/marketing/leads/${lead.id}`);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") router.push(`/marketing/leads/${lead.id}`);
+            }}
+            className={cn(
+              "flex cursor-pointer flex-col gap-3 rounded-sm border border-slate-200 bg-white p-4",
+              "transition-colors hover:border-slate-300",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+            )}
+          >
             <div className="flex items-start justify-between gap-3">
               <LeadIdentity lead={lead} />
               {menuFor(lead)}
@@ -296,15 +335,6 @@ export function LeadsView({
             </div>
           </div>
         )}
-      />
-
-      <LeadDetailModal
-        lead={detail}
-        onClose={() => setDetail(null)}
-        onConvert={(lead) => {
-          setDetail(null);
-          setConverting(lead);
-        }}
       />
 
       <ConvertLeadModal

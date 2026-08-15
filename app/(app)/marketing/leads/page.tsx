@@ -55,6 +55,7 @@ export default async function MarketingLeadsPage({
       clientId: lead.client_id,
       notes: lead.notes,
       sourceUrl: lead.source_url,
+      utm: (lead.utm ?? {}) as Record<string, string>,
       created_at: lead.created_at,
     };
   });

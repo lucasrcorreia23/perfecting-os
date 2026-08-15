@@ -21,6 +21,7 @@ function lead(overrides: Partial<LeadRow> & { id: string }): LeadRow {
     clientId: null,
     notes: null,
     sourceUrl: null,
+    utm: {},
     created_at: "2026-08-01T12:00:00.000Z",
     ...overrides,
   };

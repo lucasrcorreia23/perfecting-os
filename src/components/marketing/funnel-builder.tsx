@@ -184,7 +184,7 @@ export function FunnelBuilder({
             onClick={() => setConfirming("publicar")}
             disabled={acting || dirty || schemaError !== null}
           >
-            {version ? `Publicar v${version + 1}` : "Publicar"}
+            Publicar
           </Button>
         </div>
       </div>
@@ -448,7 +448,7 @@ export function FunnelBuilder({
         open={confirming === "publicar"}
         onClose={() => setConfirming(null)}
         tone="primary"
-        title={version ? `Publicar a versão ${version + 1}?` : "Publicar o funil?"}
+        title="Publicar o funil?"
         description={`Gera uma versão congelada do questionário e o site passa a servir este schema. Leads já recebidos continuam ligados à versão que responderam.`}
         confirmLabel="Publicar"
         loading={acting}

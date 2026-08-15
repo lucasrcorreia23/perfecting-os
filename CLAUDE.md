@@ -57,6 +57,11 @@ CMS de blog + funis de qualificação, 100% interno (`requireInterno` no layout)
 
 **Passo a passo de setup e integração com o site: `docs/marketing-integracao.md`.**
 
+Duas telas fogem do shell/listagem padrão:
+
+- `/marketing/funis/[id]/testar` — quiz em tela cheia (uma pergunta por vez) que simula o visitante. Vive em `app/(quiz)/`, um route group **sem `AppShell`** e com `requireInterno` próprio. Sem `?versao`, testa o rascunho salvo; com `?versao=publicada`, o snapshot que o site serve. Usa o mesmo `validateAnswers`/`scoreSubmission` da API pública e **não grava nada**.
+- `/marketing/leads/[id]` — detalhe do lead (era modal). Respostas em `whitespace-pre-wrap`, pontuação, contato, UTM, status e notas. Exporta CSV pelo `leadsToCsv` de `src/lib/marketing-lead-export.ts`; a listagem exporta o **recorte filtrado** pela mesma função.
+
 **API pública** (`app/api/publico/*`) — o site externo nunca fala com o PostgREST, só com estes handlers:
 
 | Método | Rota | Auth |
@@ -87,3 +92,4 @@ CMS de blog + funis de qualificação, 100% interno (`requireInterno` no layout)
 - Markdown tem **parser próprio** (`marketing-markdown.ts`) que devolve AST tipada, não HTML: zero deps, zero `dangerouslySetInnerHTML`, testável em `environment: "node"`.
 - Anti-spam no envio: honeypot `hp` e `elapsed_ms < 1500` respondem `201` **sem gravar** (bot não recebe sinal). Rate limit em memória é por instância; o throttle que atravessa lambdas é a contagem por `ip_hash` no banco. LGPD: guardamos só o HMAC do IP.
 - Excluir funil com leads é **recusado** (arquive); excluir cliente/post limpa o Storage à mão, porque o cascade não alcança o bucket.
+- CSV de leads usa `;` + BOM: é o único par que o Excel pt-BR abre em colunas e sem mojibake. Uma coluna por pergunta, deduplicada por id — exportar funis diferentes juntos gera matriz esparsa, mas nenhuma resposta troca de coluna.
