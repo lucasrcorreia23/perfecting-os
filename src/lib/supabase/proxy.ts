@@ -7,6 +7,11 @@ const PUBLIC_PATHS = ["/login", "/cadastro", "/recuperar"];
 // API consumida pelo site externo: não tem sessão nem cookie.
 const PUBLIC_API_PREFIX = "/api/publico";
 
+// Calculadora encaminhada ao cliente: o gate é o token da URL (verificado por
+// hash no handler), não a sessão. Bypass cedo também evita um getUser() por
+// request de visitante.
+const PUBLIC_CALC_PREFIX = "/calculadora";
+
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -17,7 +22,11 @@ export async function updateSession(request: NextRequest) {
   // Precisa vir antes de tudo: é o branch de redirect que transformaria o
   // preflight OPTIONS num 307 para /login, e o browser reportaria isso como
   // uma falha de CORS opaca. Também evita um getUser() por request do site.
-  if (request.nextUrl.pathname.startsWith(PUBLIC_API_PREFIX)) {
+  if (
+    request.nextUrl.pathname.startsWith(PUBLIC_API_PREFIX) ||
+    request.nextUrl.pathname === PUBLIC_CALC_PREFIX ||
+    request.nextUrl.pathname.startsWith(`${PUBLIC_CALC_PREFIX}/`)
+  ) {
     return NextResponse.next({ request });
   }
 

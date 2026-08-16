@@ -1,0 +1,102 @@
+"use client";
+
+import { useState } from "react";
+import type { CampoFormato } from "@/lib/calculadora/campos";
+import { cn } from "@/lib/utils";
+
+// Input numérico pt-BR do visitante. Vazio é null — NUNCA zero (P4/P6).
+// Enquanto digita, mostramos o texto cru; no blur, reformatamos.
+
+const AFIXOS: Record<CampoFormato, { prefixo?: string; sufixo?: string }> = {
+  moeda: { prefixo: "R$" },
+  numero: {},
+  percentual: { sufixo: "%" },
+  horas: { sufixo: "h" },
+  dias: { sufixo: "dias" },
+  meses: { sufixo: "meses" },
+};
+
+function parseNumero(texto: string): number | null {
+  const limpo = texto.trim().replace(/\./g, "").replace(",", ".");
+  if (limpo === "") return null;
+  const valor = Number(limpo);
+  if (!Number.isFinite(valor) || valor < 0) return null;
+  return valor;
+}
+
+function formatarDisplay(valor: number | null, formato: CampoFormato): string {
+  if (valor === null) return "";
+  const decimais = formato === "moeda" ? 0 : 2;
+  return valor.toLocaleString("pt-BR", { maximumFractionDigits: decimais });
+}
+
+export function CampoNumero({
+  id,
+  valor,
+  formato,
+  inteiro = false,
+  placeholder,
+  onChange,
+  autoFocus = false,
+}: {
+  id: string;
+  valor: number | null;
+  formato: CampoFormato;
+  inteiro?: boolean;
+  placeholder?: string;
+  onChange: (valor: number | null) => void;
+  autoFocus?: boolean;
+}) {
+  const [texto, setTexto] = useState(() => formatarDisplay(valor, formato));
+  const [focado, setFocado] = useState(false);
+
+  // Sincroniza quando o valor muda por fora (edição pela sidebar/wizard do
+  // mesmo campo) sem atropelar quem está digitando — padrão "adjust state
+  // during render" do React, sem effect.
+  const [valorAnterior, setValorAnterior] = useState(valor);
+  if (valor !== valorAnterior) {
+    setValorAnterior(valor);
+    if (!focado) setTexto(formatarDisplay(valor, formato));
+  }
+
+  const { prefixo, sufixo } = AFIXOS[formato];
+
+  return (
+    <div
+      className={cn(
+        "flex h-12 items-center gap-2 rounded-full border bg-white px-4 transition-colors",
+        "border-slate-200 focus-within:border-[#2E63CD]/40",
+      )}
+    >
+      {prefixo ? (
+        <span className="shrink-0 text-sm text-slate-400">{prefixo}</span>
+      ) : null}
+      <input
+        id={id}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        value={texto}
+        onFocus={() => setFocado(true)}
+        onBlur={() => {
+          setFocado(false);
+          setTexto(formatarDisplay(valor, formato));
+        }}
+        onChange={(event) => {
+          const cru = event.target.value;
+          // Só dígitos, separadores e espaço — o resto nem entra no campo.
+          if (!/^[\d.,\s]*$/.test(cru)) return;
+          setTexto(cru);
+          const parsed = parseNumero(cru);
+          onChange(parsed === null ? null : inteiro ? Math.trunc(parsed) : parsed);
+        }}
+        className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-300"
+      />
+      {sufixo ? (
+        <span className="shrink-0 text-sm text-slate-400">{sufixo}</span>
+      ) : null}
+    </div>
+  );
+}

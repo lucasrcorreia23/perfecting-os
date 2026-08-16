@@ -43,6 +43,21 @@ export function isMarketingApiConfigured(): boolean {
   return Boolean(url && getServiceRoleKey() && apiToken);
 }
 
+export function getCalculatorEnv() {
+  return {
+    // Segredo do HMAC que deriva o token dos links da calculadora (≥ 32 bytes
+    // aleatórios). Só o hash do token vai ao banco; com este segredo o servidor
+    // rederiva o token para "copiar link" sem nunca persisti-lo.
+    linkSecret: process.env.CALCULATOR_LINK_SECRET,
+  };
+}
+
+export function isCalculatorConfigured(): boolean {
+  const { url } = getSupabaseEnv();
+  const { linkSecret } = getCalculatorEnv();
+  return Boolean(url && getServiceRoleKey() && linkSecret);
+}
+
 function parseOrigins(value: string | undefined): string[] {
   if (!value) return [];
   return value

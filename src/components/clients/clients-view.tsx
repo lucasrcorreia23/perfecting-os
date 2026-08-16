@@ -13,8 +13,12 @@ import { deleteClient } from "@/lib/actions/clients";
 import { daysSince } from "@/lib/format";
 import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
+import { EncaminharCalculadoraModal } from "@/components/calculadora/encaminhar-modal";
+import { LinksTable, type LinkRow } from "@/components/calculadora/links-table";
+import type { ClienteOption } from "@/components/calculadora/vincular-modal";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { DeleteNamedModal } from "@/components/ui/delete-named-modal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -59,13 +63,19 @@ function DaysInStage({
 export function ClientsView({
   clients,
   stageDeadlineDays,
+  avulsas = [],
+  clienteOptions = [],
 }: {
   clients: ClientRow[];
   stageDeadlineDays: number;
+  avulsas?: LinkRow[];
+  clienteOptions?: ClienteOption[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState<ClientRow | null>(null);
+  const [encaminhando, setEncaminhando] = useState<ClientRow | null>(null);
+  const [gerandoAvulsa, setGerandoAvulsa] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -95,10 +105,9 @@ export function ClientsView({
             href: `/clientes/${client.id}?tab=dados`,
           },
           {
-            label: "Criar calculadora",
+            label: "Encaminhar calculadora",
             icon: CalculatorIcon,
-            disabled: true,
-            badge: "Em breve",
+            onSelect: () => setEncaminhando(client),
           },
           {
             label: "Excluir",
@@ -180,7 +189,18 @@ export function ClientsView({
             size="lg"
             className="sm:w-72"
           />
-          <NewClientButton />
+          <div className="flex items-center gap-2">
+            {/* Link genérico: quem preencher monta a própria proposta e a
+                calculadora é importada depois para o cliente escolhido. */}
+            <Button
+              variant="secondary"
+              icon={CalculatorIcon}
+              onClick={() => setGerandoAvulsa(true)}
+            >
+              Gerar calculadora
+            </Button>
+            <NewClientButton />
+          </div>
         </div>
       </div>
 
@@ -262,6 +282,43 @@ export function ClientsView({
               </div>
             </div>
           );
+        }}
+      />
+
+      {avulsas.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Calculadoras avulsas
+            </h2>
+            <p className="text-xs text-slate-500">
+              Links gerados sem cliente. Vincule ao perfil de um cliente quando a
+              conversa avançar — o preenchimento e o rastreio vão junto.
+            </p>
+          </div>
+          <LinksTable
+            links={avulsas}
+            detailHrefFor={(link) => `/calculadoras/${link.id}`}
+            clientes={clienteOptions}
+            empty={null}
+          />
+        </section>
+      ) : null}
+
+      <EncaminharCalculadoraModal
+        clientId={encaminhando?.id ?? ""}
+        clientName={encaminhando?.name ?? ""}
+        open={encaminhando !== null}
+        onClose={() => setEncaminhando(null)}
+      />
+
+      <EncaminharCalculadoraModal
+        clientId={null}
+        clientName={null}
+        open={gerandoAvulsa}
+        onClose={() => {
+          setGerandoAvulsa(false);
+          router.refresh();
         }}
       />
 

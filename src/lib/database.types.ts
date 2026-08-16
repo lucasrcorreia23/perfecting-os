@@ -114,6 +114,118 @@ export type Database = {
           },
         ];
       };
+      calculator_link_events: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          id: string;
+          ip_hash: string | null;
+          link_id: string;
+          payload: Json;
+          type: string;
+          user_agent: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          ip_hash?: string | null;
+          link_id: string;
+          payload?: Json;
+          type: string;
+          user_agent?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          ip_hash?: string | null;
+          link_id?: string;
+          payload?: Json;
+          type?: string;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calculator_link_events_link_id_fkey";
+            columns: ["link_id"];
+            isOneToOne: false;
+            referencedRelation: "calculator_links";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      calculator_links: {
+        Row: {
+          access_count: number;
+          client_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          first_access_at: string | null;
+          id: string;
+          label: string | null;
+          last_access_at: string | null;
+          last_saved_at: string | null;
+          result_summary: Json | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          state: Json;
+          submitted_at: string | null;
+          token_hash: string;
+          token_version: number;
+          updated_at: string;
+        };
+        Insert: {
+          access_count?: number;
+          client_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          first_access_at?: string | null;
+          id?: string;
+          label?: string | null;
+          last_access_at?: string | null;
+          last_saved_at?: string | null;
+          result_summary?: Json | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          state?: Json;
+          submitted_at?: string | null;
+          token_hash: string;
+          token_version?: number;
+          updated_at?: string;
+        };
+        Update: {
+          access_count?: number;
+          client_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          first_access_at?: string | null;
+          id?: string;
+          label?: string | null;
+          last_access_at?: string | null;
+          last_saved_at?: string | null;
+          result_summary?: Json | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          state?: Json;
+          submitted_at?: string | null;
+          token_hash?: string;
+          token_version?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calculator_links_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       client_files: {
         Row: {
           activity_id: string | null;

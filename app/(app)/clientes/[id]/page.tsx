@@ -22,19 +22,42 @@ export default async function ClientePage({
   }
 
   const supabase = await createServerSupabase();
-  const [clientRes, activitiesRes, filesRes] = await Promise.all([
-    supabase.from("clients").select("*").eq("id", id).single(),
-    supabase
-      .from("activities")
-      .select("*")
-      .eq("client_id", id)
-      .order("position"),
-    supabase
-      .from("client_files")
-      .select("*")
-      .eq("client_id", id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const interno = role !== "cliente";
+  const [clientRes, activitiesRes, filesRes, linksRes, avulsasRes, clientesRes] =
+    await Promise.all([
+      supabase.from("clients").select("*").eq("id", id).single(),
+      supabase
+        .from("activities")
+        .select("*")
+        .eq("client_id", id)
+        .order("position"),
+      supabase
+        .from("client_files")
+        .select("*")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false }),
+      // Calculadora é interna; para role cliente a RLS devolveria vazio de todo
+      // jeito, mas nem consultamos.
+      interno
+        ? supabase
+            .from("calculator_links")
+            .select("*")
+            .eq("client_id", id)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+      // Avulsas disponíveis para importar neste perfil.
+      interno
+        ? supabase
+            .from("calculator_links")
+            .select("*")
+            .is("client_id", null)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+      // Opções para mover um link para outro cliente.
+      interno
+        ? supabase.from("clients").select("id, name, company").order("name")
+        : Promise.resolve({ data: [] as never[] }),
+    ]);
 
   const client = clientRes.data;
   if (!client) notFound();
@@ -68,6 +91,9 @@ export default async function ClientePage({
         files={files}
         uploaderNames={uploaderNames}
         readOnly={role === "cliente"}
+        calculatorLinks={linksRes.data ?? []}
+        calculatorAvulsas={avulsasRes.data ?? []}
+        clienteOptions={clientesRes.data ?? []}
       />
     </div>
   );

@@ -10,7 +10,9 @@ import { getServiceRoleKey, getSupabaseEnv } from "@/lib/env";
 // decorativos.
 //
 // Regras de uso, não negociáveis:
-//  1. Só src/lib/api/marketing-queries.ts importa este módulo.
+//  1. Só src/lib/api/marketing-queries.ts e src/lib/api/calculator-queries.ts
+//     importam este módulo (o segundo serve a calculadora pública, cujo gate é
+//     o token do link — visitante não tem sessão).
 //  2. A env NÃO tem prefixo NEXT_PUBLIC_ — o Next a compila como `undefined`
 //     em código de cliente, então o vazamento é estruturalmente improvável.
 //     O guard abaixo é cinto e suspensório.

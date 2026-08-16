@@ -17,6 +17,8 @@
   --color-primary-link-hover: #1e4a9e;
 
   --color-trend-positive: #0f9f2e;
+  /* Verde escuro para traço/texto sobre o verde claro (contraste ~5,5:1). */
+  --color-trend-positive-ink: #0b7a24;
   --color-trend-negative: #9f0f0f;
   --color-trend-neutral: #94a3b8;
 
@@ -89,6 +91,18 @@ body {
   }
 }
 
+/* Painel lateral (glossário da calculadora): entra pela direita. */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .page-fade-in {
   animation: page-fade-in 300ms ease-out both;
 }
@@ -97,9 +111,14 @@ body {
   animation: fade-in-up 400ms ease-out both;
 }
 
+.slide-in-right {
+  animation: slide-in-right 260ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-fade-in,
-  .fade-in-up {
+  .fade-in-up,
+  .slide-in-right {
     animation: none;
   }
 }

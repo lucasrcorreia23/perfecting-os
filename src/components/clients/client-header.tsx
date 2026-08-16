@@ -13,6 +13,7 @@ import {
 import { deleteClient } from "@/lib/actions/clients";
 import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
+import { EncaminharCalculadoraModal } from "@/components/calculadora/encaminhar-modal";
 import { ActionMenu, DropdownMenu } from "@/components/ui/action-menu";
 import { Avatar } from "@/components/ui/avatar";
 import { BackButton } from "@/components/ui/back-button";
@@ -30,6 +31,7 @@ export function ClientHeader({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deleting, setDeleting] = useState(false);
+  const [encaminhando, setEncaminhando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -108,10 +110,9 @@ export function ClientHeader({
                   onSelect: goToDadosTab,
                 },
                 {
-                  label: "Criar calculadora",
+                  label: "Encaminhar calculadora",
                   icon: CalculatorIcon,
-                  disabled: true,
-                  badge: "Em breve",
+                  onSelect: () => setEncaminhando(true),
                 },
                 {
                   label: "Excluir cliente",
@@ -130,6 +131,13 @@ export function ClientHeader({
           {error}
         </p>
       ) : null}
+
+      <EncaminharCalculadoraModal
+        clientId={client.id}
+        clientName={client.name}
+        open={encaminhando}
+        onClose={() => setEncaminhando(false)}
+      />
 
       <DeleteNamedModal
         open={deleting}

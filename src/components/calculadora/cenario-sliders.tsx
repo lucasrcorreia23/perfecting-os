@@ -1,0 +1,231 @@
+"use client";
+
+import { ArrowUturnLeftIcon } from "@heroicons/react/24/outline";
+import { deltaConvMax, deltasEfetivos } from "@/lib/calculadora/calc";
+import {
+  CENARIOS,
+  REDUCAO_CICLO_MAX,
+  SLIDER_RAMPA_MAX,
+  SLIDER_TICKET_MAX,
+} from "@/lib/calculadora/constants";
+import { formatNumero, formatPct } from "@/lib/calculadora/format";
+import type {
+  Cenario,
+  CenarioSelecionado,
+  Deltas,
+  EntradasTime,
+} from "@/lib/calculadora/types";
+import { cn } from "@/lib/utils";
+import { SeloEvidencia } from "./selo-evidencia";
+
+// "De onde vem": presets de cenário (§4.8) + sliders de modelagem por
+// alavanca. Mover um slider entra em PARÂMETROS PERSONALIZADOS; os valores
+// passam SEMPRE por deltasEfetivos — os tetos do V5 nunca são relaxados.
+
+const ORDEM: Cenario[] = ["conservador", "realista", "otimista"];
+
+function Slider({
+  id,
+  label,
+  leitura,
+  min,
+  max,
+  step,
+  valor,
+  faixaTexto,
+  onChange,
+  disabled = false,
+}: {
+  id: string;
+  label: string;
+  leitura: string;
+  min: number;
+  max: number;
+  step: number;
+  valor: number;
+  faixaTexto: string;
+  onChange: (valor: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+          {label}
+        </label>
+        <span className="text-sm font-semibold tabular-nums text-slate-900">{leitura}</span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={valor}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className={cn(
+          "h-11 w-full cursor-pointer accent-[#2E63CD]",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 rounded-full",
+        )}
+      />
+      <p className="text-xs text-slate-400">{faixaTexto} · mover recalcula o ROI na hora</p>
+    </div>
+  );
+}
+
+export function CenarioSliders({
+  sel,
+  entradas,
+  onChange,
+}: {
+  sel: CenarioSelecionado;
+  entradas: EntradasTime;
+  onChange: (sel: CenarioSelecionado) => void;
+}) {
+  const deltas = deltasEfetivos(sel, entradas);
+  const conv = entradas.conversaoPct;
+  const convMax = conv !== null && conv > 0 ? deltaConvMax(conv) : 0;
+  const temFunil = entradas.cicloDias !== null && entradas.cicloDias > 0;
+  const cicloMax = temFunil ? Math.floor(entradas.cicloDias! * REDUCAO_CICLO_MAX) : 0;
+
+  function aplicarDelta(patch: Partial<Deltas>) {
+    onChange({
+      modo: "personalizado",
+      base: sel.modo === "preset" ? sel.cenario : sel.base,
+      deltas: { ...deltas, ...patch },
+    });
+  }
+
+  const convNova = conv !== null ? conv + deltas.convPp : null;
+  const cicloNovo = temFunil ? entradas.cicloDias! - deltas.cicloDiasMenos : null;
+
+  return (
+    <section className="flex flex-col gap-5 rounded-sm border border-slate-200 bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* Não repetir o formato do eyebrow da seção ("De onde vem o
+              número"): dois rótulos uppercase quase iguais, empilhados, é
+              ruído. Aqui é título de card, como nos vizinhos. */}
+          <h3 className="text-sm font-semibold text-slate-900">
+            Cenário e parâmetros
+          </h3>
+          {sel.modo === "personalizado" ? <SeloEvidencia selo="personalizado" /> : null}
+        </div>
+        {sel.modo === "personalizado" ? (
+          <button
+            type="button"
+            onClick={() => onChange({ modo: "preset", cenario: sel.base })}
+            className={cn(
+              "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#2E63CD] sm:min-h-0 sm:py-1.5",
+              "transition-colors hover:text-[#1e4a9e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+            )}
+          >
+            <ArrowUturnLeftIcon className="h-4 w-4" aria-hidden />
+            Voltar ao cenário
+          </button>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {ORDEM.map((cenario) => {
+          const ativo = sel.modo === "preset" && sel.cenario === cenario;
+          const base = sel.modo === "personalizado" && sel.base === cenario;
+          return (
+            <button
+              key={cenario}
+              type="button"
+              onClick={() => onChange({ modo: "preset", cenario })}
+              aria-pressed={ativo}
+              className={cn(
+                "flex min-h-[44px] cursor-pointer flex-col gap-0.5 rounded-sm border px-3.5 py-2.5 text-left transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                ativo
+                  ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
+                  : "border-slate-200 bg-white hover:border-slate-300",
+                base && "border-dashed",
+              )}
+            >
+              <span
+                className={cn(
+                  "text-sm font-medium",
+                  ativo ? "text-[#2E63CD]" : "text-slate-800",
+                )}
+              >
+                {CENARIOS[cenario].label}
+                {cenario === "conservador" ? (
+                  <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    Recomendado
+                  </span>
+                ) : null}
+              </span>
+              <span className="text-xs text-slate-500">{CENARIOS[cenario].descricao}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-5">
+        <Slider
+          id="slider-conv"
+          label="Ganho de taxa de conversão"
+          leitura={`+${formatNumero(deltas.convPp, 1)} p.p.`}
+          min={0}
+          max={convMax}
+          step={0.1}
+          valor={deltas.convPp}
+          faixaTexto={
+            conv !== null && convNova !== null
+              ? `${formatPct(conv, 1)} → ${formatPct(convNova, 1)} nas mesmas oportunidades trabalhadas · teto de +${formatNumero(convMax, 1)} p.p.`
+              : "preencha a taxa de conversão para modelar"
+          }
+          onChange={(valor) => aplicarDelta({ convPp: valor })}
+          disabled={convMax === 0}
+        />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Slider
+            id="slider-ticket"
+            label="Quanto o ticket pode subir"
+            leitura={`+${formatNumero(deltas.ticketPct * 100, 0)}%`}
+            min={0}
+            max={SLIDER_TICKET_MAX * 100}
+            step={1}
+            valor={Math.round(deltas.ticketPct * 100)}
+            faixaTexto={`0% a ${SLIDER_TICKET_MAX * 100}%`}
+            onChange={(valor) => aplicarDelta({ ticketPct: valor / 100 })}
+          />
+          <Slider
+            id="slider-rampa"
+            label="Quanto a rampa pode encurtar"
+            leitura={`−${formatNumero(deltas.rampaPct * 100, 0)}%`}
+            min={0}
+            max={SLIDER_RAMPA_MAX * 100}
+            step={5}
+            valor={Math.round(deltas.rampaPct * 100)}
+            faixaTexto={`0% a ${SLIDER_RAMPA_MAX * 100}%`}
+            onChange={(valor) => aplicarDelta({ rampaPct: valor / 100 })}
+          />
+        </div>
+        {temFunil ? (
+          <Slider
+            id="slider-ciclo"
+            label="Quantos dias a menos no ciclo de venda"
+            leitura={`−${deltas.cicloDiasMenos} ${deltas.cicloDiasMenos === 1 ? "dia" : "dias"} · −${formatNumero((deltas.cicloDiasMenos / entradas.cicloDias!) * 100, 0)}%`}
+            min={0}
+            max={cicloMax}
+            step={1}
+            valor={deltas.cicloDiasMenos}
+            faixaTexto={`${cicloNovo} dias em vez de ${entradas.cicloDias} · redução máxima de 30%`}
+            onChange={(valor) => aplicarDelta({ cicloDiasMenos: valor })}
+          />
+        ) : (
+          <p className="text-xs text-slate-400">
+            A alavanca de ciclo aparece quando o passo de funil (ciclo + oportunidades)
+            estiver preenchido.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}

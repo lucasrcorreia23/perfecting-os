@@ -13,6 +13,11 @@ export type FunnelStatus = Enums<"funnel_status">;
 export type LeadStatus = Enums<"lead_status">;
 export type LeadQualificacao = Enums<"lead_qualificacao">;
 
+// Contato público da Perfecting: rodapé da calculadora encaminhada, onde
+// quem preenche não tem login nem canal aberto com o time.
+export const PERFECTING_WHATSAPP_LABEL = "(48) 99918-6496";
+export const PERFECTING_WHATSAPP_URL = "https://wa.me/5548999186496";
+
 // Paleta categórica do guideline (§1) aplicada às etapas do workflow.
 export const STAGE_ORDER: WorkflowStage[] = [
   "diagnosticar",
@@ -168,6 +173,22 @@ export const QUALIFICACAO_ORDER: LeadQualificacao[] = [
 
 // Limiares de qualificação em % da pontuação máxima do funil.
 export const DEFAULT_SCORE_THRESHOLDS = { morno: 40, quente: 70 };
+
+// =============================================================================
+// Calculadora ROI
+// =============================================================================
+
+// Status do link é derivado (linkStatus em src/lib/calculadora/link-status.ts),
+// nunca coluna. Cores da paleta categórica §1.
+export const CALCULATOR_LINK_STATUSES: Record<
+  "ativo" | "concluido" | "expirado" | "revogado",
+  { label: string; color: string }
+> = {
+  ativo: { label: "Ativo", color: "#0F9F2E" },
+  concluido: { label: "Concluído", color: "#2E63CD" },
+  expirado: { label: "Expirado", color: "#94A3B8" },
+  revogado: { label: "Revogado", color: "#475569" },
+};
 
 // Capa de post — espelha o file_size_limit do bucket marketing-media.
 export const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB

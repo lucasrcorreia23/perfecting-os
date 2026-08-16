@@ -14,15 +14,29 @@ export default async function ClientesPage() {
     DEFAULT_PRAZO_ETAPA_DIAS;
 
   const supabase = await createServerSupabase();
-  const { data } = await supabase
-    .from("clients")
-    .select("*, activities(id, status)")
-    .order("name");
+  const [clientsRes, avulsasRes] = await Promise.all([
+    supabase.from("clients").select("*, activities(id, status)").order("name"),
+    // Calculadoras geradas sem cliente ("Gerar calculadora"), à espera de
+    // importação para um perfil.
+    supabase
+      .from("calculator_links")
+      .select("*")
+      .is("client_id", null)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const clients = (clientsRes.data ?? []) as ClientRow[];
 
   return (
     <ClientsView
-      clients={(data ?? []) as ClientRow[]}
+      clients={clients}
       stageDeadlineDays={stageDeadlineDays}
+      avulsas={avulsasRes.data ?? []}
+      clienteOptions={clients.map((client) => ({
+        id: client.id,
+        name: client.name,
+        company: client.company,
+      }))}
     />
   );
 }

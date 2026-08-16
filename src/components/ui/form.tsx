@@ -1,26 +1,45 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { HintTooltip } from "@/components/ui/tooltip";
 
 // Formulários (§8.10): label → ajuda → input, nessa ordem.
 export function Field({
   label,
   help,
+  hint,
   error,
   htmlFor,
   children,
 }: {
   label: string;
   help?: string;
+  // Mesma explicação do `help`, mas guardada num ícone de info ao lado do
+  // label — para formulários longos, onde uma linha de texto por campo
+  // empurra tudo para baixo.
+  hint?: string;
   error?: string;
   htmlFor?: string;
   children: ReactNode;
 }) {
+  const labelEl = (
+    <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">
+      {label}
+    </label>
+  );
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
-        <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">
-          {label}
-        </label>
+        {/* A linha só vira `relative flex` quando há hint — o balão se ancora
+            nela, e os formulários sem hint ficam com o DOM de sempre. */}
+        {hint ? (
+          <div className="relative flex items-center gap-1.5">
+            {labelEl}
+            <HintTooltip text={hint} />
+          </div>
+        ) : (
+          labelEl
+        )}
         {help ? <p className="text-xs text-slate-500">{help}</p> : null}
       </div>
       {children}
