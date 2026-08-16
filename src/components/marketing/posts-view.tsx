@@ -59,22 +59,34 @@ export function filterPosts(
   });
 }
 
-function Tags({ tags }: { tags: string[] }) {
+// `limit` menor e `wrap: false` na tabela: lá as tags dividem a linha com as
+// outras colunas e uma segunda linha empurraria a altura da célula.
+function Tags({
+  tags,
+  limit = 3,
+  wrap = true,
+}: {
+  tags: string[];
+  limit?: number;
+  wrap?: boolean;
+}) {
   if (tags.length === 0) return <span className="text-slate-400">—</span>;
+  const extra = tags.length - limit;
   return (
-    <span className="flex flex-wrap items-center gap-1">
-      {tags.slice(0, 3).map((tag) => (
+    <span
+      className={cn("flex items-center gap-1", wrap ? "flex-wrap" : "flex-nowrap")}
+      title={tags.join(", ")}
+    >
+      {tags.slice(0, limit).map((tag) => (
         <span
           key={tag}
-          className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-normal text-slate-600"
+          className="max-w-28 truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-normal text-slate-600"
         >
           {tag}
         </span>
       ))}
-      {tags.length > 3 ? (
-        <span className="text-[11px] font-normal text-slate-500">
-          +{tags.length - 3}
-        </span>
+      {extra > 0 ? (
+        <span className="text-[11px] font-normal text-slate-500">+{extra}</span>
       ) : null}
     </span>
   );
@@ -118,34 +130,55 @@ export function PostsView({ posts }: { posts: PostRow[] }) {
     {
       key: "titulo",
       header: "Título",
+      // `w-full max-w-0` faz a coluna absorver a sobra e habilita o truncate
+      // dentro da célula — sem isso a tabela cresce em vez de cortar.
+      className: "w-full max-w-0",
       render: (post) => (
         <span className="flex flex-col">
-          <span className="text-sm font-medium text-slate-800">{post.title}</span>
-          <span className="text-xs font-normal text-slate-500">/{post.slug}</span>
+          <span
+            title={post.title}
+            className="truncate text-sm font-medium text-slate-800"
+          >
+            {post.title}
+          </span>
+          <span
+            title={`/${post.slug}`}
+            className="truncate text-xs font-normal text-slate-500"
+          >
+            /{post.slug}
+          </span>
         </span>
       ),
     },
     {
-      key: "estado",
-      header: "Estado",
-      render: (post) => <PostStateChip state={postState(post)} />,
+      key: "tags",
+      header: "Tags",
+      className: "whitespace-nowrap",
+      render: (post) => <Tags tags={post.tags} limit={2} wrap={false} />,
     },
     {
       key: "publicacao",
       header: "Publicação",
+      className: "whitespace-nowrap",
       render: (post) => (
         <span className="tabular-nums text-slate-600">
           {post.published_at ? formatDate(post.published_at) : "—"}
         </span>
       ),
     },
-    { key: "tags", header: "Tags", render: (post) => <Tags tags={post.tags} /> },
     {
       key: "atualizado",
       header: "Atualizado",
+      className: "whitespace-nowrap",
       render: (post) => (
         <span className="text-slate-600">{formatRelativeTime(post.updated_at)}</span>
       ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      className: "whitespace-nowrap",
+      render: (post) => <PostStateChip state={postState(post)} />,
     },
     {
       key: "acoes",
@@ -224,11 +257,11 @@ export function PostsView({ posts }: { posts: PostRow[] }) {
             )}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-slate-800">
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium text-slate-800">
                   {post.title}
                 </span>
-                <span className="text-xs text-slate-500">/{post.slug}</span>
+                <span className="truncate text-xs text-slate-500">/{post.slug}</span>
               </div>
               {menuFor(post)}
             </div>

@@ -58,6 +58,17 @@ export default async function CalculadoraPublicaPage({
 
   const estado = parseEstado(link.state);
 
+  // Data do cálculo, carimbada no servidor: a rota é `force-dynamic`, então o
+  // valor é o mesmo no SSR e na hidratação — `new Date()` dentro do componente
+  // cliente divergiria. Fuso fixo porque o produto é pt-BR e o servidor pode
+  // rodar em UTC.
+  const dataCalculo = new Date().toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Sao_Paulo",
+  });
+
   return (
     <CalculadoraApp
       token={token}
@@ -65,6 +76,7 @@ export default async function CalculadoraPublicaPage({
       clientName={link.clients?.company ?? link.clients?.name ?? null}
       expiresAt={link.expires_at}
       submittedAt={link.submitted_at}
+      dataCalculo={dataCalculo}
     />
   );
 }

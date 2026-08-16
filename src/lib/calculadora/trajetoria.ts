@@ -99,6 +99,55 @@ export function reReconciliar(
   return reconciliar(escalada, GNovo, margemAnualNova);
 }
 
+// Limites do checkpoint mensal em MARGEM DO MÊS (R$/mês), não em delta: é a
+// grandeza que o slider da tela manipula. Derivados de pisoPonto/tetoPonto —
+// nenhum limite novo entra aqui (invariante 15). Como margem_mensal_atual é
+// margem_anual/12, o piso colapsa em 0 e o teto em 3× a média mensal com o
+// programa; escrever esses números à mão seria criar um segundo dono da trava.
+export function limitesMensais(
+  margemMensalAtual: number,
+  G: number,
+): { min: number; max: number } {
+  const margemAnual = margemMensalAtual * TRAJETORIA_MESES;
+  return {
+    min: margemMensalAtual + pisoPonto(margemAnual),
+    max: margemMensalAtual + tetoPonto(margemAnual, G),
+  };
+}
+
+// Quanto os checkpoints do rascunho somam em relação a G. Enquanto a pessoa
+// arrasta os sliders a soma anda livre — é este número que a tela mostra
+// ("somam 149% do total projetado") antes do reajuste proporcional.
+export function somaRelativa(g: number[], G: number): number | null {
+  if (G <= 0) return null;
+  return g.reduce((total, ponto) => total + ponto, 0) / G;
+}
+
+export type SeriesMensal = {
+  semPrograma: PontoMes[]; // margem do mês hoje — constante
+  mediaProjetada: PontoMes[]; // margem do mês + G/12 — a reta, base do ROI
+  suaExpectativa: PontoMes[]; // margem do mês + g_m — a curva desenhada
+};
+
+// Painel mensal: as três séries em R$/MÊS. É a leitura em que a curva
+// desenhada aparece — no acumulado, a soma achata qualquer oscilação. Mesma
+// grandeza nas três séries; a eficiência fica fora, como no painel A.
+export function painelMensal(
+  margemMensalAtual: number,
+  g: number[],
+  G: number,
+): SeriesMensal {
+  const semPrograma: PontoMes[] = [];
+  const mediaProjetada: PontoMes[] = [];
+  const suaExpectativa: PontoMes[] = [];
+  for (let mes = 1; mes <= TRAJETORIA_MESES; mes += 1) {
+    semPrograma.push({ mes, valor: margemMensalAtual });
+    mediaProjetada.push({ mes, valor: margemMensalAtual + G / TRAJETORIA_MESES });
+    suaExpectativa.push({ mes, valor: margemMensalAtual + (g[mes - 1] ?? 0) });
+  }
+  return { semPrograma, mediaProjetada, suaExpectativa };
+}
+
 export type SeriesPainelA = {
   semPrograma: PontoMes[]; // margem atual projetada, acumulada (D-03)
   comPrograma: PontoMes[];

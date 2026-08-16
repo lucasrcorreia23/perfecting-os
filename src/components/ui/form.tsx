@@ -48,7 +48,7 @@ export function Field({
   );
 }
 
-// Seção de formulário: título xs uppercase; seções separadas por border-t.
+// Seção de formulário: título xs em caixa normal; seções separadas por border-t.
 export function FormSection({
   title,
   description,
@@ -68,7 +68,7 @@ export function FormSection({
       )}
     >
       <div className="flex flex-col gap-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h3 className="text-xs font-semibold text-slate-500">
           {title}
         </h3>
         {description ? (

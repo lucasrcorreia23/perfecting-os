@@ -46,7 +46,7 @@ export function DataTable<T>({
                 key={column.key}
                 scope="col"
                 className={cn(
-                  "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600",
+                  "px-4 py-2.5 text-left text-xs font-semibold text-slate-600",
                   column.className,
                 )}
               >

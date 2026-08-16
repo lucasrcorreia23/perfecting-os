@@ -33,7 +33,7 @@ const HEADING_CLASSES: Record<number, string> = {
   3: "text-base font-semibold text-slate-900",
   4: "text-sm font-semibold text-slate-900",
   5: "text-sm font-semibold text-slate-700",
-  6: "text-xs font-semibold uppercase tracking-wide text-slate-500",
+  6: "text-xs font-semibold text-slate-500",
 };
 
 function Block({ block }: { block: MdBlock }) {

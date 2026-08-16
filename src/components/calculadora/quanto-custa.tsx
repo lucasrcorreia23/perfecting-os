@@ -1,6 +1,11 @@
 "use client";
 
-import { PLANOS, PRAZO_COPY, PRAZOS_MESES } from "@/lib/calculadora/constants";
+import {
+  NIVEL_COPY,
+  PLANOS,
+  PRAZO_COPY,
+  PRAZOS_MESES,
+} from "@/lib/calculadora/constants";
 import { formatBRL, formatNumero, formatX } from "@/lib/calculadora/format";
 import type { TimeModelo } from "@/lib/calculadora/modelo";
 import type { PlanoId, PrecoConta } from "@/lib/calculadora/types";
@@ -16,12 +21,6 @@ import { SeloEvidencia } from "./selo-evidencia";
 // que o cliente montou e enviou.
 
 const PLANOS_IDS = Object.keys(PLANOS) as PlanoId[];
-
-const NIVEIS = {
-  essencial: { nome: "Essencial", incluso: "Trilhas padrão · Relatório mensal · Onboarding assíncrono" },
-  avancado: { nome: "Avançado", incluso: "Trilhas padrão · Relatórios quinzenais · Onboarding conduzido" },
-  enterprise: { nome: "Enterprise", incluso: "Atendimento dedicado · Relatórios sob medida" },
-} as const;
 
 export function QuantoCusta({
   times,
@@ -42,7 +41,7 @@ export function QuantoCusta({
 }) {
   const [extratoAberto, setExtratoAberto] = useState(false);
   const multiTime = times.length > 1;
-  const nivel = NIVEIS[preco.nivelServico];
+  const nivel = NIVEL_COPY[preco.nivelServico];
   const interativo = !readOnly && onChangePlano && onChangeAssentos && onChangePrazo;
 
   // Granularidade por vendedor/dia (§4.10) — do primeiro time completo.
@@ -53,11 +52,11 @@ export function QuantoCusta({
       : null;
 
   return (
-    <section className="flex flex-col gap-5 rounded-sm border border-slate-200 bg-white p-5 sm:p-6">
+    <section className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="text-sm font-semibold text-slate-900">
-            {readOnly ? "A proposta que o cliente montou" : "Quanto custa: monte a sua proposta"}
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">
+            {readOnly ? "A proposta que o cliente montou" : "Monte a sua proposta"}
           </h3>
           <SeloEvidencia selo="dado_do_cliente" />
         </div>
@@ -75,10 +74,10 @@ export function QuantoCusta({
           return (
             <div
               key={time.id}
-              className="flex flex-col gap-3 rounded-sm border border-slate-200 bg-slate-50/50 p-4"
+              className="flex flex-col gap-4 rounded-sm bg-slate-50/60 p-5"
             >
               {multiTime ? (
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-semibold text-slate-500">
                   {time.nome}
                 </span>
               ) : null}
@@ -94,7 +93,7 @@ export function QuantoCusta({
                       aria-pressed={ativo}
                       onClick={() => onChangePlano?.(time.id, plano)}
                       className={cn(
-                        "flex min-h-[44px] flex-col gap-0.5 rounded-sm border px-3.5 py-2.5 text-left transition-colors",
+                        "flex min-h-[44px] flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                         interativo ? "cursor-pointer" : "cursor-default",
                         ativo
@@ -121,7 +120,7 @@ export function QuantoCusta({
               </div>
 
               <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label
                     htmlFor={`assentos-${time.id}`}
                     className="text-sm font-medium text-slate-700"
@@ -148,7 +147,7 @@ export function QuantoCusta({
                       : "Você pode começar com um grupo menor e expandir."}
                   </p>
                 </div>
-                <div className="flex flex-col gap-0.5 sm:text-right">
+                <div className="flex flex-col gap-1 sm:text-right">
                   <span className="text-xs text-slate-500">Prática contratada</span>
                   <span className="text-sm font-semibold tabular-nums text-slate-900">
                     {horasTime > 0 ? `${formatNumero(horasTime, 0)} h/mês` : "—"}
@@ -161,13 +160,12 @@ export function QuantoCusta({
       </div>
 
       {/* Investimento */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-4">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-6">
+        <div className="flex flex-col gap-1">
           <span className="text-xs text-slate-500">Investimento</span>
-          <span
-            className="font-semibold tabular-nums leading-none text-slate-900"
-            style={{ fontSize: "var(--text-score-md)" }}
-          >
+          {/* Preço fica slate: custo nunca é verde nem vermelho. Com os ganhos
+              em verde, o contraste já diz qual dos dois é qual. */}
+          <span className="text-(length:--text-score-md) font-semibold leading-9 tabular-nums text-slate-900">
             {preco.horasMes > 0 ? `${formatBRL(preco.mensal)}/mês` : "—"}
           </span>
           {preco.pisoAplicado && preco.horasMes > 0 ? (
@@ -177,11 +175,11 @@ export function QuantoCusta({
           ) : null}
         </div>
         {gran ? (
-          <div className="flex flex-col gap-0.5 text-right">
+          <div className="flex flex-col gap-1 text-right">
             <span className="text-xs text-slate-500">Por vendedor, por dia útil</span>
             <span className="text-sm font-semibold tabular-nums text-slate-900">
               {formatBRL(gran.custoDiaPorVendedor, 2)} investidos ·{" "}
-              <span className="text-[#0F9F2E]">
+              <span className="text-trend-positive">
                 {formatBRL(gran.retornoDiaPorAssento, 2)} de retorno projetado
               </span>
             </span>
@@ -196,45 +194,49 @@ export function QuantoCusta({
       {/* Extrato da escada — detalhe sob demanda: o preço é a âncora, a
           decomposição fica a um clique de quem quiser conferir. */}
       {preco.horasMes > 0 ? (
-        <div className="border-t border-slate-100 pt-4">
+        <div className="border-t border-slate-100 pt-6">
           <BlocoRecolhivel
             id="extrato-preco"
             titulo="De onde vem esse preço"
             aberto={extratoAberto}
             onToggle={() => setExtratoAberto((atual) => !atual)}
           >
-        <div className="flex flex-col gap-2 pt-1">
-          <div className="flex flex-col gap-1 text-sm">
-            {preco.extrato.map((faixa, index) => (
-              <div key={index} className="flex items-baseline justify-between gap-3">
-                <span className="text-slate-600">
-                  {formatNumero(faixa.horasNaFaixa, 0)} h × {formatBRL(faixa.taxaHora)}/h
-                </span>
-                <span className="tabular-nums text-slate-800">{formatBRL(faixa.subtotal)}</span>
+            {/* Mesmo ritmo da tabela da oferta no Resumo: linha de conta pede
+                ar, senão as faixas da escada leem como um bloco só de texto. */}
+            <div className="flex flex-col gap-4 pt-1">
+              <div className="flex flex-col gap-4 text-sm">
+                {preco.extrato.map((faixa, index) => (
+                  <div key={index} className="flex items-baseline justify-between gap-4">
+                    <span className="text-slate-600">
+                      {formatNumero(faixa.horasNaFaixa, 0)} h × {formatBRL(faixa.taxaHora)}/h
+                    </span>
+                    <span className="tabular-nums text-slate-800">
+                      {formatBRL(faixa.subtotal)}
+                    </span>
+                  </div>
+                ))}
+                {preco.pisoAplicado ? (
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-slate-600">Cobrança mínima da conta</span>
+                    <span className="tabular-nums font-medium text-slate-900">
+                      {formatBRL(preco.mensal)}
+                    </span>
+                  </div>
+                ) : null}
               </div>
-            ))}
-            {preco.pisoAplicado ? (
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-slate-600">Cobrança mínima da conta</span>
-                <span className="tabular-nums font-medium text-slate-900">
-                  {formatBRL(preco.mensal)}
-                </span>
-              </div>
-            ) : null}
-          </div>
-          <p className="text-xs text-slate-400">
-            {formatNumero(preco.horasMes, 0)} h de prática/mês · taxa efetiva de{" "}
-            {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais horas, menor a taxa:
-            a escada é progressiva por faixa.
-          </p>
-        </div>
+              <p className="text-xs text-slate-400">
+                {formatNumero(preco.horasMes, 0)} h de prática/mês · taxa efetiva de{" "}
+                {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais horas, menor a taxa:
+                a escada é progressiva por faixa.
+              </p>
+            </div>
           </BlocoRecolhivel>
         </div>
       ) : null}
 
       {/* Prazo */}
-      <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
+        <span className="text-xs font-semibold text-slate-500">
           Prazo do contrato
         </span>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -248,7 +250,7 @@ export function QuantoCusta({
                 aria-pressed={ativo}
                 onClick={() => onChangePrazo?.(prazo)}
                 className={cn(
-                  "flex min-h-[44px] flex-col gap-0.5 rounded-sm border px-3.5 py-2.5 text-left transition-colors",
+                  "flex min-h-[44px] flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                   interativo ? "cursor-pointer" : "cursor-default",
                   ativo
@@ -266,7 +268,7 @@ export function QuantoCusta({
                 >
                   {prazo} meses
                 </span>
-                <span className="text-xs leading-snug text-slate-500">
+                <span className="text-xs text-slate-500">
                   {PRAZO_COPY[prazo]}
                 </span>
               </button>
@@ -280,25 +282,25 @@ export function QuantoCusta({
       </div>
 
       {/* Nível de serviço + total */}
-      <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-4 text-sm">
-        <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-col gap-4 border-t border-slate-100 pt-6 text-sm">
+        <div className="flex items-baseline justify-between gap-4">
           <span className="text-slate-600">O que está incluído ({nivel.nome})</span>
           <span className="text-right text-xs text-slate-500">{nivel.incluso}</span>
         </div>
         {/* O degrau que o prazo de 24 meses compra (§4.9) — sem efeito sobre
             preço, mas a tela promete e agora entrega. */}
         {preco.nivelPorPrazo ? (
-          <p className="text-xs text-[#0F9F2E]">
+          <p className="text-xs text-trend-positive">
             Um degrau acima do que os assentos dariam: incluído no contrato de 24 meses.
           </p>
         ) : null}
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline justify-between gap-4">
           <span className="text-slate-600">Total de horas do contrato</span>
           <span className="tabular-nums text-slate-800">
             {preco.horasMes > 0 ? `${formatNumero(preco.horasMes * prazoMeses, 0)} h` : "—"}
           </span>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline justify-between gap-4">
           <span className="text-slate-600">Total do contrato ({prazoMeses} meses)</span>
           <span className="tabular-nums font-semibold text-slate-900">
             {preco.horasMes > 0 ? formatBRL(preco.mensal * prazoMeses) : "—"}

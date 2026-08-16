@@ -257,6 +257,7 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
                   description="Markdown. Quem renderiza o HTML final é o site do blog."
                 >
                   <MarkdownEditor
+                    postId={post.id}
                     value={values.body_md}
                     onChange={(value) => set("body_md", value)}
                   />

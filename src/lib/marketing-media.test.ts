@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  altFromFileName,
+  bodyImagePath,
   coverPath,
   isAllowedImage,
   publicMediaUrl,
@@ -45,6 +47,31 @@ describe("coverPath", () => {
     expect(coverPath("abc", "Capa Bonita.webp", "uuid-1")).toBe(
       "posts/abc/uuid-1-capa-bonita.webp",
     );
+  });
+});
+
+describe("bodyImagePath", () => {
+  it("fica na subpasta corpo, dentro da pasta do post", () => {
+    expect(bodyImagePath("abc", "Gráfico Vendas.png", "uuid-1")).toBe(
+      "posts/abc/corpo/uuid-1-grafico-vendas.png",
+    );
+  });
+
+  it("não cai no caminho que setPostCover aceita como capa", () => {
+    const path = bodyImagePath("abc", "foto.png", "uuid-1");
+    expect(path.startsWith("posts/abc/")).toBe(true);
+    expect(path.slice("posts/abc/".length)).toContain("corpo/");
+  });
+});
+
+describe("altFromFileName", () => {
+  it("tira a extensão e troca separadores por espaço, mantendo acentos", () => {
+    expect(altFromFileName("grafico-de_vendas.PNG")).toBe("grafico de vendas");
+    expect(altFromFileName("Reunião do time.jpeg")).toBe("Reunião do time");
+  });
+
+  it("devolve vazio quando o nome é só a extensão", () => {
+    expect(altFromFileName(".png")).toBe("");
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { PASSO_INTROS } from "@/lib/calculadora/campos";
+import { timesJaCompletos, timesParaCelebrar } from "@/lib/calculadora/celebracao";
 import {
   CENARIOS,
   MAX_TIMES,
@@ -38,6 +39,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { CelebracaoModal } from "./celebracao-modal";
 import { CenarioSliders } from "./cenario-sliders";
 import { ConsolidadoView } from "./consolidado-view";
 import { Disclaimer } from "./disclaimer";
@@ -49,7 +51,6 @@ import { PassoForm } from "./passo-form";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
-  ChecagemRealidade,
   EficienciaCard,
   EquacaoValor,
   HeroResultado,
@@ -58,7 +59,6 @@ import {
 } from "./resultado-time";
 import { SecaoResultado } from "./secao-resultado";
 import { ResumoVerificavel } from "./resumo-verificavel";
-import { SeloEvidencia } from "./selo-evidencia";
 import { SeusNumerosSidebar } from "./seus-numeros-sidebar";
 import { StepperNav } from "./stepper-nav";
 import { TopProgress } from "./top-progress";
@@ -91,15 +91,23 @@ export function CalculadoraApp({
   clientName,
   expiresAt,
   submittedAt,
+  dataCalculo,
 }: {
   token: string;
   estadoSalvo: EstadoCalculadora;
   clientName: string | null;
   expiresAt: string;
   submittedAt: string | null;
+  // Carimbada no servidor (rota force-dynamic): `new Date()` aqui divergiria
+  // entre SSR e hidratação.
+  dataCalculo: string;
 }) {
   const [estado, setEstado] = useState(estadoSalvo);
   const [glossarioAberto, setGlossarioAberto] = useState(false);
+  // Preferência de UI, só da sessão: a calculadora não guarda nada no
+  // dispositivo (o link é o estado), e recolher a sidebar não é dado do
+  // cliente para entrar no autosave.
+  const [sidebarAberta, setSidebarAberta] = useState(true);
   const [timeAtivoId, setTimeAtivoId] = useState(estadoSalvo.times[0].id);
   const [removendoTime, setRemovendoTime] = useState<EstadoTime | null>(null);
 
@@ -134,6 +142,31 @@ export function CalculadoraApp({
     ativo: true,
     submittedAtInicial: submittedAt,
   });
+
+  // O momento em que o número passa a existir. A semente roda no primeiro
+  // render: quem volta com o link pronto entra com todos os times já vistos e
+  // não é recebido por um modal a cada recarregamento (ver `celebracao.ts`).
+  const timesVistos = useRef<string[]>(timesJaCompletos(prog));
+  const [celebrandoTimeId, setCelebrandoTimeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Quem fecha o último campo ainda está no passo 5: a comemoração espera a
+    // tela de resultado, que é onde o número aparece.
+    if (view.modo !== "resultado") return;
+    const novos = timesParaCelebrar(timesVistos.current, prog);
+    const time = modelo.times.find(
+      (item) => novos.includes(item.id) && item.resultado.status === "ok",
+    );
+    if (!time) return;
+    timesVistos.current = [...timesVistos.current, time.id];
+    setCelebrandoTimeId(time.id);
+    // `prog` e `modelo` são derivados de `estado` — depender do estado evita um
+    // efeito que roda a cada render.
+  }, [view.modo, estado]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const timeCelebrado = celebrandoTimeId
+    ? modelo.times.find((time) => time.id === celebrandoTimeId)
+    : undefined;
 
   // -------------------------------------------------------------------------
   // Mutações do estado (o visitante é dono dos times e da proposta)
@@ -346,7 +379,7 @@ export function CalculadoraApp({
       </div>
       <div className="flex items-center gap-2">
         {view.modo !== "intro" ? (
-          <span className="hidden items-center gap-1.5 text-xs text-slate-400 sm:flex" role="status">
+          <span className="hidden items-center gap-2 text-xs text-slate-400 sm:flex" role="status">
             {autosave.status === "salvando"
               ? "Salvando…"
               : autosave.status === "erro"
@@ -355,7 +388,7 @@ export function CalculadoraApp({
                   ? "Salvo automaticamente"
                   : null}
             {autosave.status === "salvo" ? (
-              <CheckCircleIcon className="h-4 w-4 text-[#0F9F2E]" aria-hidden />
+              <CheckCircleIcon className="h-4 w-4 text-trend-positive" aria-hidden />
             ) : null}
           </span>
         ) : null}
@@ -425,17 +458,15 @@ export function CalculadoraApp({
               />
             </div>
 
-            <div className="fade-in-up flex flex-col gap-5 rounded-md border border-slate-200/80 bg-white p-5 shadow-[var(--shadow-sm)] sm:p-8">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-xl font-semibold text-slate-900">
-                    {PASSO_INTROS[view.passo].titulo}
-                  </h1>
-                  {/* Invariante 5: todo campo declara a origem. Vale para o
-                      passo inteiro — tudo aqui é digitado pelo cliente (P4). */}
-                  <SeloEvidencia selo="dado_do_cliente" />
-                </div>
-                <p className="text-sm leading-relaxed text-slate-500">
+            <div className="fade-in-up flex flex-col gap-6 rounded-sm border border-slate-200/80 bg-white p-6 shadow-[var(--shadow-sm)] sm:p-8">
+              <div className="flex flex-col gap-2">
+                {/* Sem selo de evidência nas etapas: a tela inteira é
+                    formulário, o selo só repetiria "isto é um campo". A origem
+                    volta a ser declarada onde há saída (sidebar, resultado). */}
+                <h1 className="text-xl font-semibold text-slate-900">
+                  {PASSO_INTROS[view.passo].titulo}
+                </h1>
+                <p className="text-sm leading-6 text-slate-500">
                   {PASSO_INTROS[view.passo].texto}
                 </p>
               </div>
@@ -470,7 +501,12 @@ export function CalculadoraApp({
                       Ver resultado
                     </Button>
                   ) : null}
-                  <Button variant="primary" icon={ArrowRightIcon} onClick={avancarWizard}>
+                  <Button
+                    variant="primary"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
+                    onClick={avancarWizard}
+                  >
                     {fimDoWizard ? "Ver resultado" : "Continuar"}
                   </Button>
                 </div>
@@ -495,7 +531,22 @@ export function CalculadoraApp({
               />
             ) : null}
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+            {/* Recolher a sidebar devolve os 304px à leitura. Como a coluna do
+                resultado é `@container`, a container query que decide o par
+                Eficiência/Performance reflowa junto — o recolhimento paga em
+                largura e em altura.
+
+                A transição é só `lg:`: abaixo disso a coluna é `1fr` e a troca
+                de layout vem da media query, que não se anima. */}
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-6",
+                "lg:transition-[grid-template-columns] lg:duration-200 lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                // 4rem = 64px: o rail recolhido é só a seta, e 64px mantêm o
+                // alvo de toque confortável sem devolver largura ao resultado.
+                sidebarAberta ? "lg:grid-cols-[304px_1fr]" : "lg:grid-cols-[4rem_1fr]",
+              )}
+            >
               <div className="order-2 lg:order-1 lg:sticky lg:top-8 lg:self-start">
                 <SeusNumerosSidebar
                   nome={timeModelo.nome}
@@ -521,16 +572,26 @@ export function CalculadoraApp({
                         }
                       : undefined
                   }
+                  aberta={sidebarAberta}
+                  onToggle={() => setSidebarAberta((atual) => !atual)}
                 />
               </div>
 
-              {/* Quatro seções nomeadas, na ordem da decisão: resposta → de
-                  onde vem → quanto custa → como se desenrola. gap-10 ENTRE
-                  seções contra gap-4 dentro: é o contraste que dá o desenho. */}
-              <div className="order-1 flex flex-col gap-10 lg:order-2">
+              {/* Quatro seções nomeadas, na ordem da decisão: resposta → como
+                  se desenrola → de onde vem → quanto custa. A trajetória vem
+                  logo depois do hero porque o convite a desenhar a curva
+                  precisa chegar antes do cansaço.
+
+                  Blocos principais empilhados com `gap-2` (8px): quase se
+                  tocam, e o que os separa é a quebra de superfície, não a
+                  distância. O container único que veio antes (`divide-y` com
+                  `py-12` por faixa) punha 96px de vazio entre dois títulos —
+                  respiro demais vira buraco. Quem faz hierarquia aqui é o
+                  contorno do hero e a ordem, não o espaço. */}
+              <div className="@container order-1 flex flex-col gap-2 lg:order-2">
                 {timeModelo.resultado.status === "ok" ? (
                   <>
-                    <SecaoResultado titulo="O resultado">
+                    <SecaoResultado titulo="O resultado" moldura="solta">
                       <HeroResultado
                         titulo={
                           multiTime
@@ -555,38 +616,84 @@ export function CalculadoraApp({
                             href: "#quanto-custa",
                           },
                         ]}
+                        checagem={{
+                          pct: timeModelo.resultado.checagemRealidadePct,
+                          alerta: timeModelo.resultado.checagemAlerta,
+                        }}
+                        tom="destaque"
                       />
                       <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
-                      <ChecagemRealidade resultado={timeModelo.resultado} />
+                    </SecaoResultado>
+                  </>
+                ) : null}
+
+                {timeModelo.resultado.status === "ok" ? (
+                  <>
+                    <SecaoResultado
+                      id="ao-longo-de-12-meses"
+                      titulo="Ao longo de 12 meses"
+                      descricao="Editar a curva não muda ROI, payback nem o valor do ano — só a forma."
+                    >
+                      <PaineisTrajetoria
+                        margemMensalAtual={timeModelo.resultado.margemMensalAtual}
+                        G={timeModelo.resultado.G}
+                        valorAno={timeModelo.resultado.valorAno}
+                        precoAno={timeModelo.resultado.precoAno}
+                        eficienciaAno={timeModelo.resultado.eficienciaAno}
+                        editada={trajetoriaInfo.g}
+                        onEditar={(g) => setTrajetoria(timeAtualId, g)}
+                        nota={
+                          trajetoriaInfo.ajustada
+                            ? "Suas premissas mudaram desde a última edição, então a curva foi re-reconciliada preservando a forma que você desenhou."
+                            : null
+                        }
+                      />
                     </SecaoResultado>
 
                     <SecaoResultado
                       id="de-onde-vem"
                       titulo="De onde vem o número"
                       descricao="As duas óticas do modelo: o que você deixa de gastar e o que o time passa a ganhar."
+                      divisor
                     >
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <EficienciaCard
-                          resultado={timeModelo.resultado}
-                          entradas={timeModelo.entradas}
-                          plano={timeModelo.proposta.plano}
-                          rateio={
-                            estruturaAtiva(estado)
-                              ? {
-                                  gestoresDaConta: estrutura.numGestoresTreino,
-                                  pctVendedores:
-                                    vendedoresDaConta > 0
-                                      ? (timeModelo.estadoTime.entradas.numVendedores ?? 0) /
-                                        vendedoresDaConta
-                                      : 0,
-                                }
-                              : null
-                          }
-                        />
-                        <PerformanceCard
-                          resultado={timeModelo.resultado}
-                          entradas={timeModelo.entradas}
-                        />
+                      {/* Container query, não breakpoint de viewport: o que
+                          decide se cabem duas colunas é a largura DESTA coluna
+                          (a sidebar come 304px fixos). Com `xl:` a seção mais
+                          alta da página empilhava em qualquer janela abaixo de
+                          1280px, dobrando de altura sem necessidade.
+
+                          Fio no vão, não `divide-x`: o gap vai a zero e cada
+                          coluna paga o próprio `p*-10`, então o fio fica no meio
+                          dos 80px em vez de colado na segunda coluna. Empilhado
+                          ele some — dois blocos em sequência já se separam pelo
+                          gap, e uma régua horizontal ali competiria com o fio do
+                          cabeçalho logo acima. */}
+                      <div className="grid grid-cols-1 gap-8 @3xl:grid-cols-2 @3xl:gap-0">
+                        <div className="@3xl:pr-10">
+                          <EficienciaCard
+                            resultado={timeModelo.resultado}
+                            entradas={timeModelo.entradas}
+                            plano={timeModelo.proposta.plano}
+                            rateio={
+                              estruturaAtiva(estado)
+                                ? {
+                                    gestoresDaConta: estrutura.numGestoresTreino,
+                                    pctVendedores:
+                                      vendedoresDaConta > 0
+                                        ? (timeModelo.estadoTime.entradas.numVendedores ?? 0) /
+                                          vendedoresDaConta
+                                        : 0,
+                                  }
+                                : null
+                            }
+                          />
+                        </div>
+                        <div className="@3xl:border-l @3xl:border-slate-100 @3xl:pl-10">
+                          <PerformanceCard
+                            resultado={timeModelo.resultado}
+                            entradas={timeModelo.entradas}
+                          />
+                        </div>
                       </div>
                       <EquacaoValor resultado={timeModelo.resultado} />
                       <CenarioSliders
@@ -597,10 +704,15 @@ export function CalculadoraApp({
                     </SecaoResultado>
                   </>
                 ) : (
-                  <ResultadoIncompleto
-                    faltando={timeModelo.resultado.faltando}
-                    onIrParaPasso={(passo) => irParaWizard(timeAtualId, passo)}
-                  />
+                  // Sem título de seção: o gating já se explica sozinho, e
+                  // inventar um cabeçalho aqui seria informação nova. O bloco
+                  // paga a própria superfície, como as seções ao lado.
+                  <div className="rounded-md border border-slate-200 bg-white p-6 sm:p-8">
+                    <ResultadoIncompleto
+                      faltando={timeModelo.resultado.faltando}
+                      onIrParaPasso={(passo) => irParaWizard(timeAtualId, passo)}
+                    />
+                  </div>
                 )}
 
                 <SecaoResultado
@@ -613,41 +725,28 @@ export function CalculadoraApp({
                     preco={modelo.preco}
                     prazoMeses={modelo.prazoMeses}
                     onChangePlano={(timeId, plano) => setProposta(timeId, { plano })}
-                    onChangeAssentos={(timeId, assentos) => setProposta(timeId, { assentos })}
+                    onChangeAssentos={(timeId, assentos) =>
+                      setProposta(timeId, { assentos })
+                    }
                     onChangePrazo={setPrazo}
                   />
                 </SecaoResultado>
-
-                {timeModelo.resultado.status === "ok" ? (
-                  <SecaoResultado
-                    titulo="Ao longo de 12 meses"
-                    descricao="Editar a curva não muda ROI, payback nem o valor do ano — só a forma."
-                  >
-                    <PaineisTrajetoria
-                      margemMensalAtual={timeModelo.resultado.margemMensalAtual}
-                      G={timeModelo.resultado.G}
-                      valorAno={timeModelo.resultado.valorAno}
-                      precoAno={timeModelo.resultado.precoAno}
-                      eficienciaAno={timeModelo.resultado.eficienciaAno}
-                      editada={trajetoriaInfo.g}
-                      onEditar={(g) => setTrajetoria(timeAtualId, g)}
-                      nota={
-                        trajetoriaInfo.ajustada
-                          ? "Suas premissas mudaram desde a última edição, então a curva foi re-reconciliada preservando a forma que você desenhou."
-                          : null
-                      }
-                    />
-                  </SecaoResultado>
-                ) : null}
 
                 <ResumoVerificavel
                   preco={modelo.preco}
                   prazoMeses={modelo.prazoMeses}
                   times={modelo.times}
                   consolidado={modelo.consolidado}
+                  dataCalculo={dataCalculo}
                 />
 
-                <Disclaimer />
+                {/* Só quando o Resumo não renderiza: ele traz o próprio
+                    disclaimer, e é o único bloco que a impressão enxerga. */}
+                {modelo.consolidado.status !== "ok" ? (
+                  <div className="px-6 pt-2">
+                    <Disclaimer />
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -665,6 +764,21 @@ export function CalculadoraApp({
       <CalculadoraFooter />
 
       <Glossario open={glossarioAberto} onClose={() => setGlossarioAberto(false)} />
+
+      {/* `key` no time: cada comemoração é uma montagem nova, e a contagem
+          começa do zero sem herdar o número da anterior. */}
+      {timeCelebrado && timeCelebrado.resultado.status === "ok" ? (
+        <CelebracaoModal
+          key={timeCelebrado.id}
+          open
+          onClose={() => setCelebrandoTimeId(null)}
+          nomeTime={timeCelebrado.nome}
+          multiTime={multiTime}
+          roi={timeCelebrado.resultado.roi}
+          paybackMeses={timeCelebrado.resultado.paybackMeses}
+          valorAno={timeCelebrado.resultado.valorAno}
+        />
+      ) : null}
 
       <ConfirmModal
         open={removendoTime !== null}

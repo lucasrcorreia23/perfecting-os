@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowUturnLeftIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
-import { formatBRL, formatBRLCompacto, formatMeses } from "@/lib/calculadora/format";
+import { TRAJETORIA_MESES } from "@/lib/calculadora/constants";
 import {
+  formatBRL,
+  formatBRLCompacto,
+  formatMeses,
+  formatNumero,
+} from "@/lib/calculadora/format";
+import {
+  limitesMensais,
   painelA,
   painelB,
+  painelMensal,
   pisoPonto,
-  reconciliar,
+  reReconciliar,
+  somaRelativa,
   tetoPonto,
   trajetoriaBase,
 } from "@/lib/calculadora/trajetoria";
@@ -16,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SeloEvidencia } from "./selo-evidencia";
 
-// Painéis A e B da trajetória (§4.12) em SVG próprio — zero dependências.
+// Painéis da trajetória (§4.12) em SVG próprio — zero dependências.
 // Editar a trajetória NUNCA altera ROI/payback/valor do ano (invariante 4):
 // os números vêm prontos do resultado; aqui só se redesenha a forma.
 
@@ -24,22 +33,34 @@ const VB_W = 640;
 const VB_H = 260;
 const PAD = { top: 18, right: 20, bottom: 30, left: 64 };
 
+// `stroke`/`fill` de SVG são atributos, não classes — não dá para usar
+// `text-trend-positive` aqui. Uma constante única em vez de dez literais
+// espalhados: o token de `globals.css` continua sendo a fonte, e este é o
+// único ponto do arquivo que precisa acompanhá-lo.
+const VERDE = "#0F9F2E";
+
+// O painel acumulado começa no mês 0 (a origem faz parte da história: as duas
+// retas partem do mesmo ponto). O mensal não tem mês 0 — cada mês é uma
+// coluna de slider, e a primeira coluna precisa encostar na borda do plot.
+type DominioX = "0a12" | "1a12";
+
 type Escala = {
   x: (mes: number) => number;
   y: (valor: number) => number;
-  yInverso: (py: number) => number;
   yMin: number;
   yMax: number;
 };
 
-function escala(yMin: number, yMax: number): Escala {
+function escala(yMin: number, yMax: number, dominioX: DominioX = "0a12"): Escala {
   const spanY = yMax - yMin || 1;
   const plotW = VB_W - PAD.left - PAD.right;
   const plotH = VB_H - PAD.top - PAD.bottom;
   return {
-    x: (mes) => PAD.left + (mes / 12) * plotW,
+    x: (mes) =>
+      dominioX === "0a12"
+        ? PAD.left + (mes / TRAJETORIA_MESES) * plotW
+        : PAD.left + ((mes - 1) / (TRAJETORIA_MESES - 1)) * plotW,
     y: (valor) => PAD.top + (1 - (valor - yMin) / spanY) * plotH,
-    yInverso: (py) => yMin + (1 - (py - PAD.top) / plotH) * spanY,
     yMin,
     yMax,
   };
@@ -89,10 +110,14 @@ function EixoY({ esc }: { esc: Escala }) {
   );
 }
 
-function EixoX({ esc }: { esc: Escala }) {
+function EixoX({ esc, dominioX = "0a12" }: { esc: Escala; dominioX?: DominioX }) {
+  const meses =
+    dominioX === "0a12"
+      ? Array.from({ length: TRAJETORIA_MESES + 1 }, (_, mes) => mes)
+      : Array.from({ length: TRAJETORIA_MESES }, (_, index) => index + 1);
   return (
     <g aria-hidden>
-      {Array.from({ length: 13 }, (_, mes) => (
+      {meses.map((mes) => (
         <text
           key={mes}
           x={esc.x(mes)}
@@ -111,119 +136,328 @@ function EixoX({ esc }: { esc: Escala }) {
   );
 }
 
+function ItemLegenda({
+  cor,
+  traco,
+  children,
+}: {
+  cor: string;
+  traco?: "solido" | "tracejado" | "pontilhado";
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="flex items-center gap-2">
+      <span
+        aria-hidden
+        className={cn(
+          "w-5 shrink-0",
+          traco === "tracejado"
+            ? "h-0 border-t-2 border-dashed"
+            : traco === "pontilhado"
+              ? "h-0 border-t-2 border-dotted"
+              : "h-0.5 rounded-full",
+        )}
+        style={traco && traco !== "solido" ? { borderColor: cor } : { backgroundColor: cor }}
+      />
+      {children}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Painel A — margem acumulada, com edição por arrasto dos 12 checkpoints
+// Slider vertical de um mês. O trilho, o preenchimento e o thumb são marcação;
+// o input nativo fica por cima, transparente, e continua dono do arrasto, do
+// teclado e da semântica. O thumb tem tamanho fixo em `globals.css`, então o
+// curso é `altura − THUMB` — a mesma conta usada aqui para posicionar o desenho.
+//
+// `THUMB` e o `.slider-trajetoria` do `globals.css` precisam bater: é o thumb
+// nativo que define o curso real do controle, e um desenho de tamanho diferente
+// descolaria dele nos extremos. Por isso a marcação desenhada tira largura e
+// altura DESTA constante, em vez de repetir o número numa classe.
+// ---------------------------------------------------------------------------
+
+const THUMB = 20;
+
+function SliderMes({
+  mes,
+  valor,
+  min,
+  max,
+  onChange,
+  onFoco,
+}: {
+  mes: number;
+  valor: number;
+  min: number;
+  max: number;
+  onChange: (valor: number) => void;
+  onFoco: (ativo: boolean) => void;
+}) {
+  const fracao = max > min ? Math.min(Math.max((valor - min) / (max - min), 0), 1) : 0;
+  // Base do thumb ao longo do curso; o preenchimento sobe até o centro dele.
+  const baseThumb = `calc((100% - ${THUMB}px) * ${fracao})`;
+  const centroThumb = `calc(${THUMB / 2}px + (100% - ${THUMB}px) * ${fracao})`;
+
+  return (
+    <div className="flex min-w-[44px] flex-1 flex-col items-center gap-2">
+      <div className="relative h-36 w-6">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={(max - min) / 200}
+          value={valor}
+          aria-orientation="vertical"
+          aria-label={`Margem do mês ${mes}`}
+          aria-valuetext={formatBRL(valor)}
+          onChange={(event) => onChange(Number(event.target.value))}
+          onPointerEnter={() => onFoco(true)}
+          onPointerLeave={() => onFoco(false)}
+          onFocus={() => onFoco(true)}
+          onBlur={() => onFoco(false)}
+          className={cn(
+            "peer absolute inset-0 z-10 h-full w-full cursor-ns-resize opacity-0",
+            "slider-trajetoria [direction:rtl] [writing-mode:vertical-lr]",
+          )}
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-1/2 w-2 -translate-x-1/2 rounded-full bg-[#ECEAE4]"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-1/2 w-2 -translate-x-1/2 rounded-full bg-trend-positive"
+          style={{ height: centroThumb }}
+        />
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-trend-positive",
+            "peer-focus-visible:ring-4 peer-focus-visible:ring-primary/35",
+          )}
+          style={{ bottom: baseThumb, height: THUMB, width: THUMB }}
+        />
+      </div>
+      <span className="text-xs tabular-nums text-slate-400">{mes}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Painel mensal — a leitura em que a curva desenhada aparece, e onde ela é
+// editada. No acumulado a soma achata a oscilação: mover o mês 9 quase não
+// muda o desenho. Aqui cada mês é uma coluna, e o slider é o próprio mês.
+// ---------------------------------------------------------------------------
+
+function PainelMensalTrajetoria({
+  margemMensalAtual,
+  G,
+  g,
+  editando,
+  onChangeMes,
+}: {
+  margemMensalAtual: number;
+  G: number;
+  g: number[];
+  editando: boolean;
+  onChangeMes: (index: number, valorMensal: number) => void;
+}) {
+  const [mesAtivo, setMesAtivo] = useState<number | null>(null);
+  const series = useMemo(
+    () => painelMensal(margemMensalAtual, g, G),
+    [margemMensalAtual, g, G],
+  );
+  const { min, max } = limitesMensais(margemMensalAtual, G);
+  const editavel = editando && max > min;
+
+  const topo = Math.max(
+    ...series.suaExpectativa.map((ponto) => ponto.valor),
+    ...series.mediaProjetada.map((ponto) => ponto.valor),
+    margemMensalAtual,
+  );
+  const esc = escala(0, topo * 1.25 || 1, "1a12");
+  const plotW = VB_W - PAD.left - PAD.right;
+  const larguraFaixa = plotW / (TRAJETORIA_MESES - 1);
+
+  const ativo =
+    mesAtivo !== null
+      ? {
+          mes: mesAtivo,
+          semPrograma: series.semPrograma[mesAtivo - 1].valor,
+          mediaProjetada: series.mediaProjetada[mesAtivo - 1].valor,
+          suaExpectativa: series.suaExpectativa[mesAtivo - 1].valor,
+        }
+      : null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
+        <ItemLegenda cor="#94a3b8" traco="tracejado">
+          Margem mensal sem programa
+        </ItemLegenda>
+        <ItemLegenda cor={VERDE} traco="pontilhado">
+          Média projetada com Perfecting
+        </ItemLegenda>
+        <ItemLegenda cor={VERDE}>Sua expectativa por mês</ItemLegenda>
+      </div>
+
+      {/* O balão é HTML, não foreignObject: texto em pt-BR com quebra e as
+          mesmas classes do sistema, sem reimplementar tipografia em SVG. */}
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${VB_W} ${VB_H}`}
+          role="img"
+          aria-label="Margem mensal em 12 meses, sem o programa, na média projetada e na sua expectativa"
+          className="w-full"
+          onPointerLeave={() => setMesAtivo(null)}
+        >
+          <EixoY esc={esc} />
+          <EixoX esc={esc} dominioX="1a12" />
+
+          {ativo ? (
+            <line
+              x1={esc.x(ativo.mes)}
+              x2={esc.x(ativo.mes)}
+              y1={PAD.top}
+              y2={VB_H - PAD.bottom}
+              stroke="#cbd5e1"
+              strokeWidth={1}
+              aria-hidden
+            />
+          ) : null}
+
+          <path
+            d={caminho(series.semPrograma, esc, false)}
+            fill="none"
+            stroke="#94a3b8"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+          />
+          <path
+            d={caminho(series.mediaProjetada, esc, false)}
+            fill="none"
+            stroke={VERDE}
+            strokeWidth={1.5}
+            strokeDasharray="1 4"
+            strokeLinecap="round"
+          />
+          <path
+            d={caminho(series.suaExpectativa, esc, false)}
+            fill="none"
+            stroke={VERDE}
+            strokeWidth={2.25}
+            strokeLinejoin="round"
+          />
+          {series.suaExpectativa.map((ponto) => (
+            <circle
+              key={ponto.mes}
+              cx={esc.x(ponto.mes)}
+              cy={esc.y(ponto.valor)}
+              r={ponto.mes === mesAtivo ? 5 : 3.5}
+              fill={ponto.mes === mesAtivo ? "#fff" : VERDE}
+              stroke={VERDE}
+              strokeWidth={2}
+              aria-hidden
+            />
+          ))}
+
+          {/* Faixas de hover: uma por mês, cobrindo toda a altura do plot. */}
+          {series.suaExpectativa.map((ponto) => (
+            <rect
+              key={ponto.mes}
+              x={esc.x(ponto.mes) - larguraFaixa / 2}
+              y={PAD.top}
+              width={larguraFaixa}
+              height={VB_H - PAD.top - PAD.bottom}
+              fill="transparent"
+              onPointerEnter={() => setMesAtivo(ponto.mes)}
+              onPointerMove={() => setMesAtivo(ponto.mes)}
+            />
+          ))}
+        </svg>
+
+        {ativo ? (
+          <div
+            className="pointer-events-none absolute top-0 z-10 flex flex-col gap-1 rounded-md border border-slate-200 bg-white p-3 text-xs shadow-[var(--shadow-sm)]"
+            style={{
+              left: `${(esc.x(ativo.mes) / VB_W) * 100}%`,
+              // Perto das bordas o balão vira para dentro em vez de vazar.
+              transform: `translateX(${ativo.mes <= 3 ? "-8%" : ativo.mes >= 10 ? "-92%" : "-50%"})`,
+            }}
+          >
+            <span className="font-semibold text-slate-900">Mês {ativo.mes}</span>
+            <span className="whitespace-nowrap text-slate-500">
+              Margem mensal sem programa:{" "}
+              <span className="font-medium tabular-nums text-slate-700">
+                {formatBRLCompacto(ativo.semPrograma)}
+              </span>
+            </span>
+            <span className="whitespace-nowrap text-slate-500">
+              Média projetada com Perfecting:{" "}
+              <span className="font-medium tabular-nums text-slate-700">
+                {formatBRLCompacto(ativo.mediaProjetada)}
+              </span>
+            </span>
+            <span className="whitespace-nowrap text-slate-500">
+              Sua expectativa por mês:{" "}
+              <span className="font-medium tabular-nums text-trend-positive">
+                {formatBRLCompacto(ativo.suaExpectativa)}
+              </span>
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      {editavel ? (
+        <div className="rounded-sm bg-slate-50/60 p-4">
+          <div className="flex items-end gap-1 overflow-x-auto">
+            {series.suaExpectativa.map((ponto, index) => (
+              <SliderMes
+                key={ponto.mes}
+                mes={ponto.mes}
+                valor={ponto.valor}
+                min={min}
+                max={max}
+                onChange={(valor) => onChangeMes(index, valor)}
+                onFoco={(ativo) => setMesAtivo(ativo ? ponto.mes : null)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Painel acumulado — leitura, não edição. O gap no mês 12 é G por construção.
 // ---------------------------------------------------------------------------
 
 export function PainelATrajetoria({
   margemMensalAtual,
   G,
-  editada,
-  onEditar,
-  readOnly = false,
-  nota,
-  semCard = false,
+  g,
+  editado,
 }: {
   margemMensalAtual: number;
   G: number;
-  editada: number[] | null;
-  onEditar?: (g: number[] | null) => void;
-  readOnly?: boolean;
-  // Aviso da re-reconciliação (§8). Tem slot próprio: antes vinha de fora com
-  // margem negativa, remendando a falta de lugar para ele.
-  nota?: string | null;
-  // Dentro do card de abas o painel é conteúdo, não superfície.
-  semCard?: boolean;
+  g: number[];
+  // A reta original vira referência tracejada assim que existe curva desenhada.
+  editado: boolean;
 }) {
-  const [editando, setEditando] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<number | null>(null);
-
-  const margemAnual = margemMensalAtual * 12;
-  const g = useMemo(() => editada ?? trajetoriaBase(G), [editada, G]);
   const series = useMemo(() => painelA(margemMensalAtual, g), [margemMensalAtual, g]);
   const referencia = useMemo(
-    () => (editada ? painelA(margemMensalAtual, trajetoriaBase(G)) : null),
-    [editada, margemMensalAtual, G],
+    () => (editado ? painelA(margemMensalAtual, trajetoriaBase(G)) : null),
+    [editado, margemMensalAtual, G],
   );
 
   const yMax = Math.max(series.comPrograma[11].valor, series.semPrograma[11].valor) * 1.05;
   const yMin = Math.min(0, ...series.comPrograma.map((ponto) => ponto.valor)) * 1.05;
   const esc = escala(yMin, yMax);
 
-  // Arrastar o checkpoint k muda o acumulado no mês k; o delta vira g_k e a
-  // reconciliação redistribui o resto preservando Σg = G.
-  const aoArrastar = useCallback(
-    (clientY: number) => {
-      const index = dragRef.current;
-      const svg = svgRef.current;
-      if (index === null || !svg || !onEditar) return;
-      const rect = svg.getBoundingClientRect();
-      const py = ((clientY - rect.top) / rect.height) * VB_H;
-      const acumAlvo = esc.yInverso(py);
-      const acumAnterior = index === 0 ? 0 : series.comPrograma[index - 1].valor;
-      const gAlvo = acumAlvo - acumAnterior - margemMensalAtual;
-      const piso = pisoPonto(margemAnual);
-      const teto = tetoPonto(margemAnual, G);
-      const novo = [...g];
-      novo[index] = Math.min(Math.max(gAlvo, piso), teto);
-      const { pontos } = reconciliar(novo, G, margemAnual, index);
-      onEditar(pontos);
-    },
-    [esc, series, g, G, margemAnual, margemMensalAtual, onEditar],
-  );
-
-  const editavel = editando && !readOnly && onEditar && G > 0;
-
   return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        !semCard && "rounded-sm border border-slate-200 bg-white p-5 sm:p-6",
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {semCard ? null : (
-            <h3 className="text-sm font-semibold text-slate-900">Trajetória projetada</h3>
-          )}
-          <SeloEvidencia selo={editada ? "dado_do_cliente" : "projecao"} />
-          {editada ? (
-            <span className="text-xs text-slate-400">
-              a reta original segue como média projetada, base do ROI
-            </span>
-          ) : null}
-        </div>
-        {!readOnly && onEditar ? (
-          <div className="flex items-center gap-2">
-            {editada ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={ArrowUturnLeftIcon}
-                onClick={() => {
-                  onEditar(null);
-                  setEditando(false);
-                }}
-              >
-                Restaurar reta
-              </Button>
-            ) : null}
-            <Button
-              variant={editando ? "primary" : "secondary"}
-              size="sm"
-              icon={PencilSquareIcon}
-              onClick={() => setEditando((atual) => !atual)}
-              disabled={G <= 0}
-            >
-              {editando ? "Concluir edição" : "Editar trajetória"}
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
+    <div className="flex flex-col gap-4">
       <svg
-        ref={svgRef}
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         role="img"
         aria-label="Margem acumulada em 12 meses, sem e com o programa"
@@ -250,7 +484,7 @@ export function PainelATrajetoria({
         <path
           d={caminho(series.comPrograma, esc)}
           fill="none"
-          stroke="#0F9F2E"
+          stroke={VERDE}
           strokeWidth={2.25}
           strokeLinejoin="round"
         />
@@ -260,90 +494,24 @@ export function PainelATrajetoria({
           x2={esc.x(12)}
           y1={esc.y(series.semPrograma[11].valor)}
           y2={esc.y(series.comPrograma[11].valor)}
-          stroke="#0F9F2E"
+          stroke={VERDE}
           strokeWidth={1}
           strokeDasharray="2 3"
           aria-hidden
         />
-        {editavel
-          ? series.comPrograma.map((ponto, index) => (
-              <g key={ponto.mes}>
-                <circle
-                  cx={esc.x(ponto.mes)}
-                  cy={esc.y(ponto.valor)}
-                  r={5}
-                  fill="#fff"
-                  stroke="#0F9F2E"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                {/* Área de toque generosa; touch-action none SÓ aqui, para não
-                    travar o scroll da página no mobile. */}
-                <circle
-                  cx={esc.x(ponto.mes)}
-                  cy={esc.y(ponto.valor)}
-                  r={16}
-                  fill="transparent"
-                  role="slider"
-                  aria-label={`Checkpoint do mês ${ponto.mes}`}
-                  aria-valuenow={Math.round(g[index])}
-                  tabIndex={0}
-                  style={{ touchAction: "none", cursor: "ns-resize" }}
-                  onPointerDown={(event) => {
-                    dragRef.current = index;
-                    (event.target as Element).setPointerCapture(event.pointerId);
-                  }}
-                  onPointerMove={(event) => {
-                    if (dragRef.current !== null) aoArrastar(event.clientY);
-                  }}
-                  onPointerUp={() => {
-                    dragRef.current = null;
-                  }}
-                  onKeyDown={(event) => {
-                    if (!onEditar) return;
-                    const passo = G / 48;
-                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-                      event.preventDefault();
-                      const delta = event.key === "ArrowUp" ? passo : -passo;
-                      const novo = [...g];
-                      novo[index] = Math.min(
-                        Math.max(novo[index] + delta, pisoPonto(margemAnual)),
-                        tetoPonto(margemAnual, G),
-                      );
-                      onEditar(reconciliar(novo, G, margemAnual, index).pontos);
-                    }
-                  }}
-                />
-              </g>
-            ))
-          : null}
       </svg>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-5 rounded-full bg-[#0F9F2E]" aria-hidden />
-          Com o programa
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span
-            className="h-0 w-5 border-t-2 border-dashed border-slate-400"
-            aria-hidden
-          />
+        <ItemLegenda cor={VERDE}>Com o programa</ItemLegenda>
+        <ItemLegenda cor="#94a3b8" traco="tracejado">
           Trajetória sem o programa (margem atual projetada)
-        </span>
+        </ItemLegenda>
         <span className="ml-auto tabular-nums">
-          Gap no mês 12: <span className="font-medium text-slate-700">{formatBRL(series.gapMes12)}</span>
+          Gap no mês 12:{" "}
+          <span className="font-medium text-slate-700">{formatBRL(series.gapMes12)}</span>
         </span>
       </div>
-
-      <p className="text-xs leading-relaxed text-slate-400">
-        {editavel
-          ? "Arraste os checkpoints para desenhar o ritmo que você espera. A soma dos ganhos é preservada, e editar a curva não muda ROI, payback nem o valor do ano."
-          : "A projeção distribui o ganho uniformemente: nenhuma oscilação é inventada. Este ROI ainda não tem curva: a forma, quem dá é você."}
-      </p>
-
-      {nota ? <p className="text-xs leading-relaxed text-slate-400">{nota}</p> : null}
-    </section>
+    </div>
   );
 }
 
@@ -356,13 +524,11 @@ export function PainelBTrajetoria({
   precoAno,
   eficienciaAno,
   gEditada,
-  semCard = false,
 }: {
   valorAno: number;
   precoAno: number;
   eficienciaAno: number;
   gEditada: number[] | null;
-  semCard?: boolean;
 }) {
   const series = useMemo(
     () => painelB({ valorAno, precoAno, eficienciaAno }, gEditada ?? undefined),
@@ -377,19 +543,7 @@ export function PainelBTrajetoria({
   const paybackVisivel = series.paybackMeses <= 12;
 
   return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        !semCard && "rounded-sm border border-slate-200 bg-white p-5 sm:p-6",
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2.5">
-        {semCard ? null : (
-          <h3 className="text-sm font-semibold text-slate-900">Em quanto tempo se paga</h3>
-        )}
-        <SeloEvidencia selo="projecao" />
-      </div>
-
+    <div className="flex flex-col gap-4">
       <svg
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         role="img"
@@ -451,45 +605,43 @@ export function PainelBTrajetoria({
               fontWeight={600}
               fill="#2E63CD"
             >
-              payback: mês {series.paybackMeses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+              payback: mês{" "}
+              {series.paybackMeses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
             </text>
           </g>
         ) : null}
       </svg>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-5 rounded-full bg-[#2E63CD]" aria-hidden />
-          Valor acumulado (média projetada, base do ROI)
-        </span>
+        <ItemLegenda cor="#2E63CD">Valor acumulado (média projetada, base do ROI)</ItemLegenda>
         {series.editado ? (
-          <span className="flex items-center gap-1.5">
-            <span className="h-0 w-5 border-t-2 border-dotted border-slate-400" aria-hidden />
+          <ItemLegenda cor="#94a3b8" traco="pontilhado">
             Com a trajetória que você desenhou
-          </span>
+          </ItemLegenda>
         ) : null}
       </div>
 
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-5 text-slate-400">
         {paybackVisivel
           ? `O cruzamento marca o payback: ${formatMeses(series.paybackMeses)} de valor gerado cobrem o custo anual total.`
           : `O payback projetado (${formatMeses(series.paybackMeses)}) fica além da janela de 12 meses do gráfico.`}
       </p>
-    </section>
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Os dois painéis num card só, alternados por controle segmentado. Empilhados
-// eles somavam duas telas de rolagem logo depois do hero — muito peso visual
-// para algo que, por construção, não muda número nenhum (invariante 4).
+// Os painéis num card só, alternados por controle segmentado. Empilhados eles
+// somavam três telas de rolagem para algo que, por construção, não muda número
+// nenhum (invariante 4).
 //
 // Não usa `ui/tabs.tsx` de propósito: aquele sincroniza com `?tab=` pelo
 // router, e esta é uma página pública tokenizada de estado local.
 // ---------------------------------------------------------------------------
 
 const ABAS = [
-  { id: "margem", label: "Margem acumulada" },
+  { id: "acumulada", label: "Margem acumulada" },
+  { id: "mensal", label: "Margem mensal" },
   { id: "payback", label: "Em quanto tempo se paga" },
 ] as const;
 
@@ -514,16 +666,100 @@ export function PaineisTrajetoria({
   editada: number[] | null;
   onEditar?: (g: number[] | null) => void;
   readOnly?: boolean;
+  // Aviso da re-reconciliação (§8). Tem slot próprio: antes vinha de fora com
+  // margem negativa, remendando a falta de lugar para ele.
   nota?: string | null;
 }) {
-  const [aba, setAba] = useState<AbaId>("margem");
+  const [aba, setAba] = useState<AbaId>("acumulada");
+  // O rascunho vive só aqui. Enquanto a pessoa arrasta, a soma anda livre e
+  // nada é persistido: o autosave não grava soma inválida, e a página não
+  // re-renderiza inteira a cada frame. `Σg = G` volta no "Concluir edição".
+  const [rascunho, setRascunho] = useState<number[] | null>(null);
+
+  const margemAnual = margemMensalAtual * TRAJETORIA_MESES;
+  const editando = rascunho !== null;
+  const podeEditar = !readOnly && onEditar !== undefined && G > 0;
+  const g = rascunho ?? editada ?? trajetoriaBase(G);
+  const pctSoma = rascunho ? somaRelativa(rascunho, G) : null;
+  const somaExata = pctSoma !== null && Math.abs(pctSoma - 1) < 0.005;
+
+  function abrirEdicao() {
+    setRascunho(editada ?? trajetoriaBase(G));
+    setAba("mensal");
+  }
+
+  function concluirEdicao() {
+    if (!rascunho || !onEditar) return;
+    // reReconciliar é exatamente o reajuste proporcional: escala por G/Σ
+    // preservando a forma e depois reconcilia dentro dos clamps do §4.12.
+    onEditar(reReconciliar(rascunho, G, margemAnual).pontos);
+    setRascunho(null);
+  }
+
+  function alterarMes(index: number, valorMensal: number) {
+    if (!rascunho) return;
+    const alvo = valorMensal - margemMensalAtual;
+    const novo = [...rascunho];
+    novo[index] = Math.min(
+      Math.max(alvo, pisoPonto(margemAnual)),
+      tetoPonto(margemAnual, G),
+    );
+    setRascunho(novo);
+  }
 
   return (
-    <section className="flex flex-col gap-4 rounded-sm border border-slate-200 bg-white p-5 sm:p-6">
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">Trajetória projetada</h3>
+          <SeloEvidencia selo={editada ? "dado_do_cliente" : "projecao"} />
+          {editada && !editando ? (
+            <span className="text-xs text-slate-400">
+              a reta original segue como média projetada, base do ROI
+            </span>
+          ) : null}
+        </div>
+        {podeEditar ? (
+          <div className="flex items-center gap-2">
+            {editando ? (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setRascunho(null)}>
+                  Cancelar
+                </Button>
+                <Button variant="primary" size="sm" onClick={concluirEdicao}>
+                  Concluir edição
+                </Button>
+              </>
+            ) : (
+              <>
+                {editada ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={ArrowUturnLeftIcon}
+                    onClick={() => onEditar?.(null)}
+                  >
+                    Restaurar reta
+                  </Button>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={PencilSquareIcon}
+                  onClick={abrirEdicao}
+                >
+                  Editar trajetória
+                </Button>
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
+
       <div
         role="tablist"
         aria-label="Painéis da trajetória"
-        className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/70 p-1"
+        className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/60 p-1"
         onKeyDown={(event) => {
           if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
           event.preventDefault();
@@ -543,7 +779,7 @@ export function PaineisTrajetoria({
               tabIndex={ativa ? 0 : -1}
               onClick={() => setAba(item.id)}
               className={cn(
-                "min-h-[44px] cursor-pointer whitespace-nowrap rounded-full px-4 text-[13px] font-medium transition-colors sm:min-h-0 sm:py-2",
+                "flex h-11 cursor-pointer items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors sm:h-9",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                 ativa
                   ? "bg-white text-slate-900 shadow-[var(--shadow-sm)]"
@@ -556,25 +792,52 @@ export function PaineisTrajetoria({
         })}
       </div>
 
-      {aba === "margem" ? (
+      {aba === "acumulada" ? (
         <PainelATrajetoria
-          semCard
           margemMensalAtual={margemMensalAtual}
           G={G}
-          editada={editada}
-          onEditar={onEditar}
-          readOnly={readOnly}
-          nota={nota}
+          g={g}
+          editado={editada !== null || editando}
+        />
+      ) : aba === "mensal" ? (
+        <PainelMensalTrajetoria
+          margemMensalAtual={margemMensalAtual}
+          G={G}
+          g={g}
+          editando={editando}
+          onChangeMes={alterarMes}
         />
       ) : (
         <PainelBTrajetoria
-          semCard
           valorAno={valorAno}
           precoAno={precoAno}
           eficienciaAno={eficienciaAno}
-          gEditada={editada}
+          gEditada={rascunho ?? editada}
         />
       )}
+
+      {editando ? (
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-slate-800">
+            {somaExata
+              ? "Seus checkpoints somam exatamente o total projetado."
+              : `Seus checkpoints somam ${formatNumero((pctSoma ?? 1) * 100, 0)}% do total projetado.`}
+          </p>
+          <p className="text-xs leading-5 text-slate-400">
+            Editar a trajetória não altera o ROI nem o total projetado. Ao concluir,
+            os meses são reajustados proporcionalmente, preservando a forma que você
+            desenhou.
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs leading-5 text-slate-400">
+          {editada
+            ? "Esta é a forma que você desenhou. O ROI, o payback e o valor do ano continuam vindo da média projetada."
+            : "A projeção distribui o ganho uniformemente: nenhuma oscilação é inventada. Este ROI ainda não tem curva: a forma, quem dá é você."}
+        </p>
+      )}
+
+      {nota ? <p className="text-xs leading-5 text-slate-400">{nota}</p> : null}
     </section>
   );
 }

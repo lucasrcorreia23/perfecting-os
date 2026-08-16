@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  limitesMensais,
   painelA,
   painelB,
+  painelMensal,
   pisoPonto,
   reReconciliar,
   reconciliar,
+  somaRelativa,
   tetoPonto,
   trajetoriaBase,
 } from "@/lib/calculadora/trajetoria";
@@ -93,6 +96,61 @@ describe("reconciliação iterativa", () => {
       antiga[11] / Math.max(antiga[5], 1),
       1,
     );
+  });
+});
+
+describe("painel mensal e limites do slider", () => {
+  it("sem edição, a expectativa coincide com a média projetada", () => {
+    const { semPrograma, mediaProjetada, suaExpectativa } = painelMensal(
+      MARGEM_MENSAL,
+      trajetoriaBase(G),
+      G,
+    );
+    expect(semPrograma).toHaveLength(12);
+    for (let index = 0; index < 12; index += 1) {
+      expect(semPrograma[index].valor).toBeCloseTo(MARGEM_MENSAL, 6);
+      expect(mediaProjetada[index].valor).toBeCloseTo(MARGEM_MENSAL + G / 12, 6);
+      expect(suaExpectativa[index].valor).toBeCloseTo(mediaProjetada[index].valor, 6);
+    }
+  });
+
+  it("a área entre expectativa e margem atual soma G, qualquer que seja a forma", () => {
+    const editados = trajetoriaBase(G);
+    editados[0] = -MARGEM_MENSAL / 2;
+    const { pontos } = reconciliar(editados, G, MARGEM_ANUAL);
+    const { semPrograma, suaExpectativa } = painelMensal(MARGEM_MENSAL, pontos, G);
+    const area = suaExpectativa.reduce(
+      (total, ponto, index) => total + (ponto.valor - semPrograma[index].valor),
+      0,
+    );
+    expect(area).toBeCloseTo(G, 1);
+  });
+
+  it("limites do slider derivam de piso/teto: mínimo zero, máximo 3× a média com o programa", () => {
+    const { min, max } = limitesMensais(MARGEM_MENSAL, G);
+    expect(min).toBeCloseTo(0, 6);
+    expect(max).toBeCloseTo((3 * (MARGEM_ANUAL + G)) / 12, 6);
+    expect(min).toBeCloseTo(MARGEM_MENSAL + pisoPonto(MARGEM_ANUAL), 9);
+    expect(max).toBeCloseTo(MARGEM_MENSAL + tetoPonto(MARGEM_ANUAL, G), 9);
+  });
+
+  it("somaRelativa mede o rascunho contra o total projetado", () => {
+    expect(somaRelativa(trajetoriaBase(G), G)).toBeCloseTo(1, 9);
+    expect(somaRelativa(trajetoriaBase(G).map((ponto) => ponto * 1.49), G)).toBeCloseTo(1.49, 9);
+    expect(somaRelativa(trajetoriaBase(0), 0)).toBeNull();
+  });
+
+  it("concluir a edição reajusta proporcionalmente: rascunho de 149% volta a Σg = G", () => {
+    // Rascunho livre (os sliders andam sem reconciliar), com forma desigual.
+    const rascunho = trajetoriaBase(G).map((ponto, index) =>
+      index < 6 ? ponto * 1.0 : ponto * 2.0,
+    );
+    expect(somaRelativa(rascunho, G)).toBeCloseTo(1.5, 6);
+    const { pontos, convergiu } = reReconciliar(rascunho, G, MARGEM_ANUAL);
+    expect(convergiu).toBe(true);
+    expect(soma(pontos)).toBeCloseTo(G, 2);
+    // Forma preservada: os últimos seis meses seguem valendo o dobro dos primeiros.
+    expect(pontos[11] / pontos[0]).toBeCloseTo(2, 6);
   });
 });
 

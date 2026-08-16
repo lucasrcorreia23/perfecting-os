@@ -6,7 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import type { AutosaveStatus } from "./use-autosave";
 
-// Barra flutuante do resultado: estado do autosave à esquerda, envio à direita.
+// Fecho do resultado: estado do autosave à esquerda, envio à direita.
 // Envio só habilita com o gating completo em todos os times; depois do
 // primeiro envio o link continua editável e o botão vira "Atualizar envio".
 export function EnviarBar({
@@ -35,15 +35,16 @@ export function EnviarBar({
           : "Preenchimento salvo automaticamente";
 
   return (
-    // Flutua: encostada no fim do conteúdo, com folga da borda da viewport.
-    <div className="sticky bottom-4 z-(--z-shell) rounded-md border border-slate-200 bg-white px-4 py-3 shadow-[var(--shadow-md)] sm:px-5">
+    // Último bloco da página, não barra flutuante: rola junto com o conteúdo.
+    // Sem sombra — ela existia para descolar a barra do que passava por baixo.
+    <div className="rounded-md border border-slate-200 bg-white px-4 py-4 sm:px-6">
       <div className="flex w-full flex-wrap items-center justify-between gap-3">
         <span
           role="status"
-          className="flex items-center gap-1.5 text-xs text-slate-500"
+          className="flex items-center gap-2 text-xs text-slate-500"
         >
           {autosaveStatus === "salvo" || (autosaveStatus === "idle" && salvoEm) ? (
-            <CheckCircleIcon className="h-4 w-4 text-[#0F9F2E]" aria-hidden />
+            <CheckCircleIcon className="h-4 w-4 text-trend-positive" aria-hidden />
           ) : null}
           {statusTexto}
           {submittedAt ? (
@@ -55,7 +56,7 @@ export function EnviarBar({
 
         <div className="flex items-center gap-3">
           {confirmado ? (
-            <span className="text-xs font-medium text-[#0F9F2E]" role="status">
+            <span className="text-xs font-medium text-trend-positive" role="status">
               {submittedAt ? "Envio atualizado." : "Enviado."}
             </span>
           ) : !completo ? (

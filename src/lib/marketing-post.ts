@@ -29,6 +29,16 @@ export function isPubliclyVisible(
   return postState(post, now) === "publicado";
 }
 
+// O site já renderiza o título do post como o <h1> da página. Um `#` no corpo
+// cria um segundo h1 — dois títulos de nível 1 competindo no mesmo documento.
+// Passa pelo parser (e não por regex) para não confundir `#` dentro de cerca de
+// código com título de verdade.
+export function hasTitleHeading(markdown: string): boolean {
+  return parseMarkdown(markdown).some(
+    (block) => block.type === "heading" && block.level === 1,
+  );
+}
+
 export function readingMinutes(markdown: string): number {
   const words = markdown.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / WORDS_PER_MINUTE));

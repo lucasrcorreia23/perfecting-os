@@ -38,6 +38,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Disclaimer } from "./disclaimer";
 import { QuantoCusta } from "./quanto-custa";
 import {
+  AvisosCoerencia,
   ChecagemRealidade,
   EficienciaCard,
   EquacaoValor,
@@ -243,81 +244,112 @@ export function LinkDetail({
             />
           ) : null}
 
-          {/* A proposta que o cliente montou vem antes do detalhamento: é o
-              que ele enviou para nós. */}
-          <QuantoCusta
-            times={modelo.times}
-            preco={modelo.preco}
-            prazoMeses={modelo.prazoMeses}
-            readOnly
-          />
+          {/* Os blocos de resultado não são donos da própria superfície — quem
+              dá moldura é o container. É o que permite a esta página e à do
+              visitante compartilharem os mesmos componentes sem que uma delas
+              vire pilha de cards aninhados. Um container só, seções separadas
+              por fio, igual ao público. */}
+          <div className="flex flex-col divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
+            {/* A proposta que o cliente montou vem antes do detalhamento: é o
+                que ele enviou para nós. */}
+            <div className="px-5 py-8 sm:px-6">
+              <QuantoCusta
+                times={modelo.times}
+                preco={modelo.preco}
+                prazoMeses={modelo.prazoMeses}
+                readOnly
+              />
+            </div>
 
-          {modelo.times.map((time) => {
-            const editada = time.estadoTime.trajetoria?.editada ?? null;
-            return (
-              <section key={time.id} className="flex flex-col gap-4">
-                {multiTime ? (
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h2 className="text-base font-semibold text-slate-900">{time.nome}</h2>
-                    <span className="text-xs text-slate-500">
-                      {time.proposta.assentos} assentos ·{" "}
-                      {PLANOS[time.proposta.plano].label}
-                    </span>
-                    {time.sel.modo === "personalizado" ? (
-                      <SeloEvidencia selo="personalizado" />
-                    ) : (
-                      <span className="text-xs text-slate-400">
-                        cenário {CENARIOS[time.sel.cenario].label}
+            {modelo.times.map((time) => {
+              const editada = time.estadoTime.trajetoria?.editada ?? null;
+              return (
+                <section
+                  key={time.id}
+                  className="flex flex-col gap-6 px-5 py-8 sm:px-6"
+                >
+                  {multiTime ? (
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h2 className="text-base font-semibold text-slate-900">
+                        {time.nome}
+                      </h2>
+                      <span className="text-xs text-slate-500">
+                        {time.proposta.assentos} assentos ·{" "}
+                        {PLANOS[time.proposta.plano].label}
                       </span>
-                    )}
-                  </div>
-                ) : null}
-
-                {time.resultado.status === "ok" ? (
-                  <>
-                    <HeroResultado
-                      titulo={
-                        multiTime
-                          ? `${time.nome}: ROI projetado`
-                          : "ROI projetado pelo cliente"
-                      }
-                      roi={time.resultado.roi}
-                      paybackMeses={time.resultado.paybackMeses}
-                      valorAno={time.resultado.valorAno}
-                      frase={
-                        !multiTime && time.sel.modo === "preset"
-                          ? `Cenário ${CENARIOS[time.sel.cenario].label}.`
-                          : !multiTime
-                            ? "Parâmetros personalizados pelo cliente, dentro dos tetos do modelo."
-                            : null
-                      }
-                    />
-                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-                      <EficienciaCard
-                        resultado={time.resultado}
-                        entradas={time.entradas}
-                        plano={time.proposta.plano}
-                      />
-                      <PerformanceCard resultado={time.resultado} entradas={time.entradas} />
+                      {time.sel.modo === "personalizado" ? (
+                        <SeloEvidencia selo="personalizado" />
+                      ) : (
+                        <span className="text-xs text-slate-400">
+                          cenário {CENARIOS[time.sel.cenario].label}
+                        </span>
+                      )}
                     </div>
-                    <EquacaoValor resultado={time.resultado} />
-                    <PaineisTrajetoria
-                      margemMensalAtual={time.resultado.margemMensalAtual}
-                      G={time.resultado.G}
-                      valorAno={time.resultado.valorAno}
-                      precoAno={time.resultado.precoAno}
-                      eficienciaAno={time.resultado.eficienciaAno}
-                      editada={editada}
-                      readOnly
-                    />
-                    <ChecagemRealidade resultado={time.resultado} />
-                  </>
-                ) : (
-                  <ResultadoIncompleto faltando={time.resultado.faltando} />
-                )}
-              </section>
-            );
-          })}
+                  ) : null}
+
+                  {time.resultado.status === "ok" ? (
+                    <>
+                      {/* Verde e sem borda, como o visitante viu: dentro do
+                          container, o tom claro (branco + borda) leria como
+                          card dentro de card. */}
+                      <HeroResultado
+                        titulo={
+                          multiTime
+                            ? `${time.nome}: ROI projetado`
+                            : "ROI projetado pelo cliente"
+                        }
+                        roi={time.resultado.roi}
+                        paybackMeses={time.resultado.paybackMeses}
+                        valorAno={time.resultado.valorAno}
+                        frase={
+                          !multiTime && time.sel.modo === "preset"
+                            ? `Cenário ${CENARIOS[time.sel.cenario].label}.`
+                            : !multiTime
+                              ? "Parâmetros personalizados pelo cliente, dentro dos tetos do modelo."
+                              : null
+                        }
+                        tom="destaque"
+                      />
+                      {/* Mesmo fio no vão da tela pública: gap zerado e o
+                          padding nas duas colunas, para a régua cair no meio. */}
+                      <div className="grid grid-cols-1 gap-8 2xl:grid-cols-2 2xl:gap-0">
+                        <div className="2xl:pr-10">
+                          <EficienciaCard
+                            resultado={time.resultado}
+                            entradas={time.entradas}
+                            plano={time.proposta.plano}
+                          />
+                        </div>
+                        <div className="2xl:border-l 2xl:border-slate-100 2xl:pl-10">
+                          <PerformanceCard
+                            resultado={time.resultado}
+                            entradas={time.entradas}
+                          />
+                        </div>
+                      </div>
+                      <EquacaoValor resultado={time.resultado} />
+                      <PaineisTrajetoria
+                        margemMensalAtual={time.resultado.margemMensalAtual}
+                        G={time.resultado.G}
+                        valorAno={time.resultado.valorAno}
+                        precoAno={time.resultado.precoAno}
+                        eficienciaAno={time.resultado.eficienciaAno}
+                        editada={editada}
+                        readOnly
+                      />
+                      <ChecagemRealidade resultado={time.resultado} />
+                      {/* §4.7: o interno revisa o link antes de conversar com
+                          o cliente, então precisa ver os mesmos avisos de
+                          coerência que o visitante viu. */}
+                      <AvisosCoerencia avisos={time.resultado.avisos} />
+                    </>
+                  ) : (
+                    <ResultadoIncompleto faltando={time.resultado.faltando} />
+                  )}
+                </section>
+              );
+            })}
+          </div>
 
           {/* Invariante 10: disclaimer permanente em TODA tela de resultado —
               a interna também mostra ROI, payback e os painéis. */}

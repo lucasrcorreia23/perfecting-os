@@ -267,7 +267,7 @@ export function ActivitiesTab({
               index > 0 && "border-t border-slate-100 pt-6",
             )}
           >
-            <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: STAGES[stage].color }}
@@ -275,7 +275,7 @@ export function ActivitiesTab({
               />
               {STAGES[stage].label}
               {stage === currentStage ? (
-                <span className="font-normal normal-case tracking-normal text-slate-400">
+                <span className="font-normal text-slate-400">
                   · etapa atual
                 </span>
               ) : null}

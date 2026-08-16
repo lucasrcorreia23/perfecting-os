@@ -10,47 +10,74 @@ export type Selo =
   | "personalizado"
   | "nao_somado";
 
+// Rótulos em caixa de frase: nenhum texto de UI é caixa alta (§2 das
+// diretrizes, inegociável — a regra nomeia chips e selos). O V5 escreve os
+// selos em versal, mas ali é notação de documento, não interface; o que o selo
+// diz é o mesmo, e quem o separa do texto ao lado é a pílula, não a caixa.
 const SELOS: Record<Selo, { label: string; className: string }> = {
   dado_do_cliente: {
-    // O V5 chama este selo de "DADO DO CLIENTE" (§4.12). Na tela pública quem
+    // O V5 chama este selo de "dado do cliente" (§4.12). Na tela pública quem
     // lê é o próprio cliente, para quem "do cliente" soa como terceiro — daí
-    // "DADOS FORNECIDOS". Divergência de redação a registrar no documento; a
+    // "Dados fornecidos". Divergência de redação a registrar no documento; a
     // chave permanece, é o vocabulário interno do racional.
-    label: "DADOS FORNECIDOS",
+    label: "Dados fornecidos",
     className: "bg-blue-50 text-[#2E63CD] border-[#2E63CD]/25",
   },
   premissa: {
-    label: "PREMISSA DECLARADA",
+    label: "Premissa declarada",
     className: "bg-amber-50 text-[#973C00] border-[#973C00]/25",
   },
   projecao: {
-    label: "PROJEÇÃO",
+    label: "Projeção",
     className: "bg-slate-50 text-slate-600 border-slate-200",
   },
   estimativa: {
-    label: "ESTIMATIVA",
+    label: "Estimativa",
     className: "bg-slate-50 text-slate-600 border-slate-200",
   },
   personalizado: {
-    label: "PARÂMETROS PERSONALIZADOS",
+    label: "Parâmetros personalizados",
     className: "bg-violet-50 text-[#7C3AED] border-[#7C3AED]/25",
   },
   nao_somado: {
-    label: "NÃO SOMADO AO ROI",
+    label: "Não somado ao ROI",
     className: "bg-slate-50 text-slate-500 border-slate-200",
   },
 };
 
-export function SeloEvidencia({ selo, className }: { selo: Selo; className?: string }) {
+// Paleta alternativa para os selos que aparecem sobre a superfície de destaque
+// (o hero verde do resultado). É SUBSTITUIÇÃO, não acréscimo: `cn` é clsx puro,
+// sem tailwind-merge — um `bg-white/70` empilhado sobre `bg-slate-50` não desfaz
+// o primeiro, quem decide é a ordem no CSS gerado. Só os selos que de fato vão
+// ao verde precisam de entrada aqui; o resto cai no claro.
+const SELOS_DESTAQUE: Partial<Record<Selo, string>> = {
+  estimativa: "bg-white/70 text-slate-600 border-trend-positive/20",
+};
+
+export function SeloEvidencia({
+  selo,
+  tom = "claro",
+  className,
+}: {
+  selo: Selo;
+  tom?: "claro" | "destaque";
+  className?: string;
+}) {
   const config = SELOS[selo];
+  const cores = (tom === "destaque" ? SELOS_DESTAQUE[selo] : null) ?? config.className;
   return (
     <span
       className={cn(
         // whitespace-nowrap: em coluna estreita o selo quebrava em três
         // linhas dentro da própria pílula. Ele vai inteiro para a linha de
         // baixo, nunca se desmonta.
-        "inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide",
-        config.className,
+        //
+        // Altura fixa de 20px em vez de `py-0.5` sobre um corpo de 10px sem
+        // line-height: 20 é exatamente o line-box do `text-sm` ao lado, então o
+        // selo para de empurrar a baseline nos oito pontos em que aparece
+        // colado a um título.
+        "inline-flex h-5 w-fit items-center whitespace-nowrap rounded-full border px-2 text-[10px] font-semibold leading-none",
+        cores,
         className,
       )}
     >

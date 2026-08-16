@@ -35,7 +35,7 @@ O que ela cria:
 | `marketing_funnels` | funis (rascunho editável) |
 | `marketing_funnel_versions` | schema congelado de cada publicação |
 | `marketing_leads` | respostas recebidas do site |
-| bucket `marketing-media` | imagens de capa (público, 5 MB, só imagens) |
+| bucket `marketing-media` | imagens de capa e do corpo dos posts (público, 5 MB, só imagens) |
 
 Todas com RLS ligada e acessíveis apenas ao papel `interno`. **Nenhuma policy para `anon`** — o site não acessa o banco.
 
@@ -91,7 +91,7 @@ curl -i -H "Authorization: Bearer $MARKETING_API_TOKEN" http://localhost:3000/ap
 `Marketing → Blog → Novo post`.
 
 1. **Novo post** pede só o título; o post nasce **rascunho** e o slug é gerado a partir do título.
-2. Aba **Conteúdo**: título, slug, resumo e o corpo em Markdown (alterne entre *Escrever* e *Visualizar*).
+2. Aba **Conteúdo**: título, slug, resumo e o corpo em Markdown (alterne entre *Escrever* e *Visualizar*). Para inserir uma **imagem no meio do texto**, use o botão de foto da barra, cole do clipboard ou arraste o arquivo para dentro do editor: ela sobe para `marketing-media/posts/{id}/corpo/` e o editor escreve `![alt](url)` — a URL é pública e absoluta, então o site não precisa de nada além de saber renderizar a imagem do markdown. Edite o texto entre `![` e `]`: é o alternativo que vai para o leitor de tela. **Os títulos do corpo começam em `##`** — o `#` é do título do post, que o site renderiza como o `<h1>` da página; a barra do editor já insere `##`/`###` e avisa (com um botão de rebaixar) se sobrar algum `#`.
 3. Aba **SEO e capa**: capa (arraste a imagem), texto alternativo, título e descrição de SEO com contador 60/160, URL canônica, `noindex` e tags.
 4. Aba **Publicação**: data e hora, no horário de Brasília.
 5. **Salvar** e depois **Publicar**.
@@ -566,7 +566,7 @@ Use `question.label`, `question.help`, `question.required` e `question.placehold
 
 **A cada post**
 
-- [ ] Escrever, subir capa e preencher SEO no OS
+- [ ] Escrever, subir capa (e as imagens do corpo) e preencher SEO no OS
 - [ ] Definir data e hora → **Publicar**
 - [ ] Conferir no site depois de uma janela de revalidação
 
@@ -595,3 +595,4 @@ Use `question.label`, `question.help`, `question.required` e `question.placehold
 | `429` | 5 envios/min ou 20/h do mesmo IP | respeitar o `Retry-After` |
 | Lead chega sem nome/e-mail | nenhuma pergunta tem **Vincular ao lead** | marcar o `maps_to` das perguntas e **publicar** de novo |
 | Imagem de capa não carrega no site | domínio do Supabase não está nas `images.remotePatterns` do site | liberar o host, ou usar `<img>` |
+| Imagem do corpo aparece no OS e some no site | o renderizador de markdown do site descarta `![alt](url)`, ou a sanitização derruba a tag | tratar `image` no renderizador e manter `img` com `src`/`alt` na allowlist |

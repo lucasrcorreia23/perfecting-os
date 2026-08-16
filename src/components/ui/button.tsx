@@ -5,6 +5,11 @@ import type { HeroIcon } from "./types";
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "tertiary" | "danger";
   icon?: HeroIcon;
+  // Ícone à esquerda por padrão (ele qualifica a ação: excluir, adicionar,
+  // voltar). À direita quando aponta para onde o clique leva — seta de avanço
+  // em "Continuar →", "Ver detalhe →": à esquerda ela apontaria para fora do
+  // rótulo, contra a direção da leitura.
+  iconPosition?: "left" | "right";
   size?: "md" | "sm";
 };
 
@@ -37,6 +42,7 @@ const VARIANTS = {
 export function Button({
   variant = "secondary",
   icon: Icon,
+  iconPosition = "left",
   size = "md",
   className,
   children,
@@ -58,8 +64,13 @@ export function Button({
       )}
       {...props}
     >
-      {Icon ? <Icon className="h-5 w-5 shrink-0" aria-hidden /> : null}
+      {Icon && iconPosition === "left" ? (
+        <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      ) : null}
       {children}
+      {Icon && iconPosition === "right" ? (
+        <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      ) : null}
     </button>
   );
 }

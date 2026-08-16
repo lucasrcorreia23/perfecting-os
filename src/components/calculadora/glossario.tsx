@@ -91,9 +91,9 @@ export function Glossario({ open, onClose }: { open: boolean; onClose: () => voi
       </div>
       <dl className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
         {TERMOS.map(({ termo, definicao }) => (
-          <div key={termo} className="flex flex-col gap-0.5">
+          <div key={termo} className="flex flex-col gap-1">
             <dt className="text-sm font-semibold text-slate-900">{termo}</dt>
-            <dd className="text-sm leading-relaxed text-slate-600">{definicao}</dd>
+            <dd className="text-sm leading-6 text-slate-600">{definicao}</dd>
           </div>
         ))}
       </dl>

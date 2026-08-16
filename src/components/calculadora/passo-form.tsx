@@ -124,7 +124,7 @@ export function PassoForm({
           <CampoDef campo="conversaoPct" entradas={entradas} onChange={onChange} />
         </div>
         <Field label={MARGEM_LABEL} hint={MARGEM_HELP} htmlFor="campo-margemFaixa">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <SelectMenu
               id="campo-margemFaixa"
               placeholder="Escolha uma faixa…"
@@ -186,7 +186,7 @@ export function PassoForm({
                   aria-checked={ativo}
                   onClick={() => onChange("caminho", id)}
                   className={cn(
-                    "flex min-h-[44px] cursor-pointer flex-col gap-0.5 rounded-sm border px-4 py-3 text-left transition-colors",
+                    "flex min-h-[44px] cursor-pointer flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                     ativo
                       ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
@@ -211,7 +211,7 @@ export function PassoForm({
           <CampoDef campo="custoExternoAno" entradas={entradas} onChange={onChange} />
         ) : null}
         {caminho === "evento" ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <CampoDef campo="custoEventoAno" entradas={entradas} onChange={onChange} />
             <p className="text-xs text-slate-500">
               Consideramos 50% desse valor como substituível por prática contínua.

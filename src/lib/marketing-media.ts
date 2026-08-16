@@ -39,6 +39,26 @@ export function coverPath(
   return `posts/${postId}/${uuid}-${sanitizeMediaName(fileName)}`;
 }
 
+// Imagens do corpo ficam em posts/{postId}/corpo/ — mesmo prefixo do post (o
+// delete limpa a pasta inteira), mas fora do caminho aceito por setPostCover.
+export function bodyImagePath(
+  postId: string,
+  fileName: string,
+  uuid = crypto.randomUUID(),
+): string {
+  return `posts/${postId}/corpo/${uuid}-${sanitizeMediaName(fileName)}`;
+}
+
+// Alt inicial legível a partir do nome do arquivo: sem extensão, sem separador
+// técnico e com os acentos preservados (é texto para leitor de tela, não path).
+export function altFromFileName(fileName: string): string {
+  return fileName
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function isAllowedImage(mime: string, sizeBytes: number): boolean {
   return (
     COVER_MIME_TYPES.includes(mime) &&

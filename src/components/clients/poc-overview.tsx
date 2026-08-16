@@ -58,7 +58,7 @@ function StatRow({ label, value }: { label: string; value: number }) {
 
 function SectionTitle({ children }: { children: string }) {
   return (
-    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <h3 className="text-xs font-semibold text-slate-500">
       {children}
     </h3>
   );

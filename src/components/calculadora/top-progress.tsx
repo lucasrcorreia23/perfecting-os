@@ -58,8 +58,8 @@ export function TopProgress({
 
       <div
         className={cn(
-          "pointer-events-none invisible absolute left-1/2 top-2.5 flex -translate-x-1/2 flex-col gap-1.5",
-          "rounded-sm border border-slate-200 bg-white px-3.5 py-2.5 shadow-[var(--shadow-md)]",
+          "pointer-events-none invisible absolute left-1/2 top-3 flex -translate-x-1/2 flex-col gap-2",
+          "rounded-sm border border-slate-200 bg-white p-3 shadow-[var(--shadow-md)]",
           "opacity-0 transition-opacity group-hover:visible group-hover:opacity-100",
         )}
       >

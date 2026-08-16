@@ -8,7 +8,6 @@ import { Field } from "@/components/ui/form";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { cn } from "@/lib/utils";
 import { CampoNumero } from "./campo-numero";
-import { SeloEvidencia } from "./selo-evidencia";
 
 // Estrutura de capacitação compartilhada (§4.11). Quando os mesmos gestores
 // atendem mais de um time, declarar a estrutura em cada time contaria a mesma
@@ -40,11 +39,16 @@ export function Alternador({
         role="switch"
         aria-checked={ativa}
         onClick={() => onToggle(!ativa)}
-        className="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-4 rounded-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:min-h-0"
+        className="flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-4 rounded-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:min-h-0 sm:py-2"
       >
         <span className="text-sm font-medium text-slate-800">
           Os mesmos gestores treinam mais de um time?
         </span>
+        {/* Trilho 44×24 com knob de 16 e folga de 4: o curso vai de `left-1`
+            (4) a `left-6` (24), porque 4 + 16 + 24 = 44. Tudo na grade e nada
+            calculado à mão — o valor arbitrário anterior (`left-[1.375rem]`)
+            era 44 − 20 − 2 resolvido no braço, e quebrava calado se o trilho
+            mudasse de largura. */}
         <span
           className={cn(
             "relative h-6 w-11 shrink-0 rounded-full transition-colors",
@@ -54,13 +58,13 @@ export function Alternador({
         >
           <span
             className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[var(--shadow-sm)] transition-[left]",
-              ativa ? "left-[1.375rem]" : "left-0.5",
+              "absolute top-1 h-4 w-4 rounded-full bg-white shadow-[var(--shadow-sm)] transition-[left]",
+              ativa ? "left-6" : "left-1",
             )}
           />
         </span>
       </button>
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-5 text-slate-500">
         {ativa
           ? "A estrutura é declarada uma vez para a conta. Os gestores e o custo da alternativa são rateados entre os times por número de vendedores — cada time mantém os próprios números de operação."
           : "Ative se a mesma equipe de gestores atende vários times. Sem isso, declarar os mesmos gestores em cada time contaria a mesma economia mais de uma vez."}
@@ -109,11 +113,10 @@ export function BlocoEstrutura({
 
   return (
     <section className="flex flex-col gap-4 rounded-sm border border-[#2E63CD]/25 bg-[#2E63CD]/[0.03] p-4">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-xs font-semibold text-slate-500">
           Estrutura compartilhada da conta
         </h3>
-        <SeloEvidencia selo="dado_do_cliente" />
         <span className="text-xs text-slate-400">vale para todos os times</span>
       </div>
 
@@ -157,7 +160,7 @@ export function BlocoEstrutura({
                     aria-checked={ativo}
                     onClick={() => onChange({ caminho: id })}
                     className={cn(
-                      "flex min-h-[44px] cursor-pointer flex-col gap-0.5 rounded-sm border px-4 py-3 text-left transition-colors",
+                      "flex min-h-[44px] cursor-pointer flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                       ativo
                         ? "border-[#2E63CD]/50 bg-white"
@@ -186,7 +189,7 @@ export function BlocoEstrutura({
             />
           ) : null}
           {estrutura.caminho === "evento" ? (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <CampoEstrutura
                 campo="custoEventoAno"
                 estrutura={estrutura}
@@ -201,7 +204,7 @@ export function BlocoEstrutura({
         </div>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-slate-500">{rateioTexto}</p>
+      <p className="text-xs leading-5 text-slate-500">{rateioTexto}</p>
     </section>
   );
 }
@@ -218,7 +221,7 @@ export function CamposEstruturaSidebar({
   return (
     <section className="flex flex-col gap-3 border-t border-slate-100 pt-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h4 className="text-xs font-semibold text-slate-500">
           Estrutura compartilhada
         </h4>
         <span className="text-xs text-slate-400">todos os times</span>

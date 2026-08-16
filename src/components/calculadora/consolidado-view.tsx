@@ -41,13 +41,11 @@ export function ConsolidadoView({
           valorAno={consolidado.valorAno}
           precoAno={consolidado.precoAno}
           frase={`${consolidado.totalAssentos} assentos cobrindo ${consolidado.totalVendedores} vendedores em ${times.length} times. ROI ponderado pelo investimento de cada time, nunca a média simples, que distorceria a conta.`}
+          tom="destaque"
         />
       ) : (
-        <section className="flex flex-col gap-2 rounded-md border border-slate-200 bg-white p-6">
-          <span
-            className="font-semibold tabular-nums leading-none text-slate-300"
-            style={{ fontSize: "var(--text-score-lg)" }}
-          >
+        <section className="flex flex-col gap-2 rounded-sm border border-slate-200 bg-white p-6">
+          <span className="text-(length:--text-score-lg) font-semibold leading-12 tabular-nums text-slate-300">
             —
           </span>
           <p className="text-sm text-slate-500">
@@ -100,7 +98,7 @@ export function ConsolidadoView({
               aria-selected={ativo}
               onClick={() => onSelecionarTime(time.id)}
               className={cn(
-                "flex min-h-[44px] cursor-pointer flex-col justify-center gap-0.5 rounded-sm border px-4 py-2 text-left transition-colors",
+                "flex min-h-[44px] cursor-pointer flex-col justify-center gap-1 rounded-sm border px-4 py-2 text-left transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                 ativo
                   ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
@@ -131,7 +129,7 @@ export function ConsolidadoView({
           <button
             type="button"
             onClick={onAddTime}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-sm border border-dashed border-slate-300 bg-white px-4 text-[13px] font-medium text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm border border-dashed border-slate-300 bg-white px-4 text-sm font-medium text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <PlusIcon className="h-4 w-4" aria-hidden />
             Adicionar time

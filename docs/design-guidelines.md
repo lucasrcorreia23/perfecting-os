@@ -53,6 +53,28 @@ Para variação (KPIs, deltas percentuais). **Não** usar `emerald`/`rose` ad-ho
 | Negativo | `#9F0F0F` |
 | Neutro/estável | `#94A3B8` |
 
+Usar sempre as utilitárias do token (`text-trend-positive`, `bg-trend-positive`,
+`text-trend-positive-ink`), nunca o hex literal. Exceção única: atributos de SVG
+(`stroke`/`fill`), que não aceitam classe — ali, uma constante por arquivo.
+
+**Superfície de destaque positiva.** `bg-surface-positive` (`#EAF6EC`) é o verde
+claro que `--color-trend-positive-ink` (`#0B7A24`) sempre pressupôs: o par dá
+~5:1 (AA). Reservada a **momentos de celebração** (o modal que aparece quando o
+número passa a existir), não a blocos de leitura corrente — tingir um card que
+se lê demoradamente força toda a paleta interna para `-ink` e o bloco destoa do
+resto da página. Onde ela é usada, `-ink` substitui `text-trend-positive` (o
+`#0F9F2E` não sustenta contraste em `text-xs`) e o neutro continua slate-900: a
+regra do verde abaixo não muda com a superfície. Para destacar um bloco de
+leitura, o caminho é o wash na diagonal sobre branco (§5).
+
+**Verde marca valor que entra na conta.** Num demonstrativo (ROI, economia,
+ganho projetado), o verde Positivo é reservado às parcelas que somam ao
+resultado. Linha marcada como "não somada" nunca recebe verde — a cor
+contradiria o selo ao lado. **Custo e preço não são verdes nem vermelhos: são
+slate.** É o contraste com o verde ao lado que os identifica, sem precisar
+pintar o custo de "ruim". Tempo (payback, prazo) também é slate: é medida, não
+parcela.
+
 ### Semânticas — Estado
 
 | Estado | Cor base | Uso |
@@ -100,12 +122,30 @@ base do card a `alpha 0.22 → 0`. Isso mantém a cor legível sem "gritar".
 | Papel | Classe | Detalhe |
 |---|---|---|
 | Título de página | `text-xl`/`text-2xl font-semibold` | slate-900 |
+| Título de seção (página de leitura) | `text-lg font-semibold` | slate-900; descrição `text-sm text-slate-500` |
+| Título de card | `text-sm font-semibold text-slate-700` | |
 | Corpo | `text-sm` | slate-700/800 |
 | Label de campo | `text-sm font-medium text-slate-700` | |
 | Ajuda/descrição | `text-xs text-slate-500` | logo abaixo do label |
-| Título de seção (form) | `text-xs font-semibold uppercase tracking-wide text-slate-500` | |
-| Header de tabela | `text-xs font-semibold uppercase tracking-wider text-slate-600` | |
+| Título de sub-seção / eyebrow | `text-xs font-semibold text-slate-500` | seções de formulário, gatilho de bloco recolhível, sub-rótulo dentro de card |
+| Header de tabela | `text-xs font-semibold text-slate-600` | |
 | Link textual | 13px (`--link-font-size: 0.8125rem`) | |
+
+**Um papel por degrau.** Dentro de uma página a ordem é **seção > card > sub-rótulo**, e dois papéis
+nunca dividem a mesma classe. Quando a etapa de resultado da calculadora usava o eyebrow de formulário
+como título de seção, o título de primeiro nível empatava com o gatilho de um bloco recolhível dois
+níveis abaixo — a página inteira lia como uma pilha plana. Página de leitura longa usa `text-lg`;
+`text-xs` de eyebrow é para seção de formulário e para o que vive dentro de um card.
+
+### Caixa e espaçamento entre letras (inegociável)
+
+- **Nenhum texto de UI é caixa alta.** Proibido `uppercase` em labels, títulos de seção,
+  eyebrows, headers de tabela, chips e selos — a caixa vem escrita no próprio texto
+  ("Resultado", não "RESULTADO"). Hierarquia se faz com peso, cor e tamanho.
+- **Nenhum texto leva letter-spacing positivo.** Proibido `tracking-wide`/`tracking-wider`.
+  `tracking-tight` continua permitido em títulos grandes e no logotipo.
+- Vale para nomes vindos do usuário (nome de time, de cliente): nunca aplicar
+  `toUpperCase()` nem `uppercase` — a única exceção são as iniciais do avatar.
 
 ---
 
@@ -128,6 +168,42 @@ coluna. (`space-y` cria quirks de margem e quebra em telas condicionais.)
 
 Gaps corriqueiros: `gap-4` (16px) entre cards/campos, `gap-6` (24px) entre
 seções. Container de página de formulário: `max-w-3xl mx-auto flex flex-col gap-6`.
+
+### Grade: 8px em blocos, 4px em detalhes
+
+A escala do Tailwind não é redefinida (`1` = 4px). **Bloco** — padding de card,
+distância entre seções, largura de trilho de grid — anda de 8 em 8. **Detalhe** —
+o que vive dentro de uma linha — pode cair em 4.
+
+| Papel | Valor |
+|---|---|
+| Seção ↔ seção | `gap-8` (32) |
+| Coluna ↔ coluna do grid | `gap-6` (24) |
+| Card ↔ card, campo ↔ campo | `gap-4` (16) |
+| Linha ↔ linha de lista | `gap-3` (12) |
+| Ícone ↔ texto, chip ↔ chip | `gap-2` (8) |
+| Rótulo ↔ valor (par colado) | `gap-1` (4) |
+
+Padding de card em três degraus, **um valor por posto**: `p-8` (hero/página
+inteira) → `p-6` (card de seção) → `p-4` (sub-bloco dentro de um card). `p-5` e
+`p-3` não são postos de card.
+
+**Nada de meio-passo** (`gap-1.5`, `py-2.5`, `px-3.5`, `mt-0.5` = 6/10/14/2px),
+com três exceções que já são padrão de componente: `px-4 py-2.5` em header de
+tabela (§8.6), `p-1.5` em popover (§8.8) e `gap-2.5` em campo de busca (§8.7).
+
+**Line-height é o que mais quebra a grade**, e quase sempre em silêncio.
+`text-xs` e `text-sm` já caem certo no default (16 e 20px); quem estraga é o
+`leading-*` explícito — `text-sm leading-relaxed` dá **22,75px**, `text-xs
+leading-relaxed` dá **19,5px**, `text-2xl leading-snug` dá **33px**. Para texto
+corrido com mais ar, usar o degrau numérico (`leading-5`/`leading-6`), nunca o
+nomeado. Fonte em `px` arbitrário (`text-[13px]`) **não traz line-height junto**:
+declarar um.
+
+Número de KPI com `clamp()` (`--text-score-*`) leva **caixa de linha fixa no
+máximo do clamp** (`leading-12` para `--text-score-lg`, `leading-9` para o `md`),
+não `leading-none`: o glifo continua fluido, mas a altura para de acompanhar o
+viewport e a coluna inteira deixa de dançar ao redimensionar a janela.
 
 ---
 
@@ -164,6 +240,72 @@ bg-white rounded-sm border border-slate-200
 
 Aplicar em tabelas, resumos, painéis, containers de conteúdo. Quando precisar
 recortar cantos internos: adicionar `overflow-hidden`.
+
+### Página de leitura longa: blocos que quase se tocam
+
+Quando uma página é uma sequência de seções que se leem em ordem — um resultado
+detalhado, um dossiê, um relatório — cada seção é um bloco branco próprio
+(`rounded-md border border-slate-200 bg-white p-6 sm:p-8`) e a pilha anda com
+**`gap-2` (8px)**. Blocos que quase se tocam: o que separa é a quebra de
+superfície, não a distância.
+
+Duas tentativas erradas cercam esse ponto, e as duas parecem razoáveis no
+papel:
+
+1. **Cards com respiro normal** (`gap-4`/`gap-6`) — dez blocos de mesma borda e
+   mesmo raio, todos com o mesmo peso, então nada é mais importante que nada. A
+   página lê como lista de caixas soltas.
+2. **Um container único** com as seções viradas faixas (`divide-y` + `py-10
+   sm:py-12`) — corrige o excesso de molduras e cria outro problema: com padding
+   nas duas pontas, **dois títulos vizinhos ficam a ~96px um do outro**. O
+   respiro vira buraco e a página pede scroll para dizer o mesmo.
+
+Os 8px ficam entre os dois: uma superfície por seção (o olho encontra as
+divisões sem contar bordas) e nenhuma distância desperdiçada. Hierarquia sai da
+ordem e de **um** bloco marcado — o bloco-resposta, com contorno em gradiente
+(abaixo) —, não de dez pesos iguais.
+
+Vale de todo jeito o alerta sobre aninhamento: card interno quase sempre atrai
+outro dentro dele — o padrão que aparece é card › caixa tingida bordada › botão
+bordado, três `border-slate-200` encaixadas, que é ruído puro.
+
+Corolário: **um componente de conteúdo não é dono da própria superfície.** Ele
+renderiza `flex flex-col gap-*` e nada mais; quem dá moldura é a seção que o
+contém. É o que permite o mesmo bloco aparecer solto numa tela e dentro de outro
+container noutra sem virar card aninhado. Superfície própria fica para o que é
+de fato outra camada: controles, alertas, e zonas editáveis tingidas (aí **sem**
+borda, só o fundo — a cor já delimita).
+
+### Bloco-resposta: wash na diagonal, moldura igual às outras
+
+O card que carrega o número pelo qual a pessoa abriu a página **não ganha
+superfície nem moldura próprias**. Ele mantém `bg-white` e a mesma
+`border-slate-200` de todos os blocos, e se separa por duas coisas: o número um
+degrau acima de tudo na página (`--text-score-*` maior) e um **wash da primária
+na diagonal**, forte no canto de entrada e morto antes do meio:
+
+```
+bg-white bg-linear-to-br from-primary/8 to-transparent to-60%
+```
+
+`bg-white` é a cor e o wash é a imagem por cima dela — propriedades diferentes,
+então convivem sem depender da ordem das classes. O stop final em 60% importa:
+passando disso o canto oposto perde o branco e o wash deixa de ser wash, vira
+fundo tingido.
+
+Dois caminhos foram tentados antes e vale saber por que saíram:
+
+- **Superfície inteira tingida** (verde claro no bloco-resposta): obriga toda a
+  paleta interna a migrar para a variante `-ink` por contraste, e o bloco passa
+  a ler como peça de outro produto no meio da página.
+- **Contorno em gradiente** (borda de 1px azul→verde, via dois backgrounds com
+  `background-clip: padding-box, border-box`): funciona tecnicamente, mas as
+  duas pontas do gradiente brigam com qualquer fundo que não seja neutro, e a
+  moldura passa a competir com o conteúdo que deveria emoldurar.
+
+O wash resolve o mesmo problema — dizer "é aqui que está a resposta" — sem
+cobrar nenhuma das duas coisas. **Um por página**: a regra do azul (§1,
+"restrito e intencional") vale para o fundo também.
 
 ### Tokens de borda
 
@@ -292,7 +434,7 @@ Todas as listagens compartilham o mesmo visual:
 
 - **Outer**: `bg-white rounded-sm border border-slate-200 overflow-hidden`.
 - **Header row**: `bg-slate-50 border-b border-slate-200`.
-- **Header text**: `text-xs font-semibold uppercase tracking-wider text-slate-600`, padding `px-4 py-2.5` (`px-5` em tabelas densas).
+- **Header text**: `text-xs font-semibold text-slate-600`, padding `px-4 py-2.5` (`px-5` em tabelas densas).
 - **Linhas**: `px-4 py-4 h-14` (56px), `text-sm font-medium text-slate-800`, **sem** border-b entre linhas (a faixa do header + proximidade organizam).
 - Tabelas com 4+ colunas precisam de alternativa mobile: cards (`md:hidden`) + tabela (`hidden md:block`).
 
@@ -334,7 +476,7 @@ Estilo **underlined**, com as abas **flutuando fora do card**:
 ### 8.10 Formulários (páginas pequenas: perfil, edição, config)
 
 - **Container**: `max-w-3xl mx-auto flex flex-col gap-6`; card flat; painel com abas usa `p-4 sm:p-8`.
-- **Seção**: título `text-xs font-semibold uppercase tracking-wide text-slate-500` + descrição opcional; separar seções com `border-t border-slate-100`.
+- **Seção**: título `text-xs font-semibold text-slate-500` + descrição opcional; separar seções com `border-t border-slate-100`.
 - **Campo**: `flex flex-col gap-2` → `<label>` (`text-sm font-medium text-slate-700`) **com a ajuda logo abaixo do label** (`text-xs text-slate-500`), e só então o input. Nunca a descrição depois do campo.
 - **Grid 2 colunas**: `grid grid-cols-1 md:grid-cols-2 gap-4`. Campo largura-cheia fica fora do grid; meia-largura sem par usa `md:w-1/2`.
 - **Inputs**: `h-12`, `rounded-full` (alinhados aos Selects); textarea usa `rounded-sm`.

@@ -31,7 +31,7 @@ export function SeoPreview({
 
   return (
     <div className="flex flex-col gap-2 rounded-sm border border-slate-200 bg-white p-4">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <span className="text-xs font-semibold text-slate-500">
         Prévia na busca
       </span>
       <div className="flex flex-col gap-1">

@@ -67,7 +67,7 @@ function Card({
   return (
     <section className="flex flex-col gap-4 rounded-sm border border-slate-200 bg-white p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="text-xs font-semibold text-slate-500">
           {title}
         </h2>
         {action}

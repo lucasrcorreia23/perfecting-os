@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasTitleHeading,
   isPubliclyVisible,
   postState,
   readingMinutes,
@@ -149,5 +150,23 @@ describe("validatePostInput", () => {
   it("recusa tags fora do formato de slug", () => {
     expect(validatePostInput(input({ tags: ["ia", "Treinamento"] }))).toContain("Tags");
     expect(validatePostInput(input({ tags: ["ia", "treinamento"] }))).toBeNull();
+  });
+});
+
+describe("hasTitleHeading", () => {
+  it("acusa # no corpo, que duplicaria o h1 do título do post", () => {
+    expect(hasTitleHeading("# Título\n\ntexto")).toBe(true);
+  });
+
+  it("não acusa quando o corpo começa em ##", () => {
+    expect(hasTitleHeading("## Seção\n\ntexto\n\n### Subseção")).toBe(false);
+  });
+
+  it("não acusa # dentro de cerca de código", () => {
+    expect(hasTitleHeading("```bash\n# instala\nnpm i\n```")).toBe(false);
+  });
+
+  it("não acusa hashtag colada no texto", () => {
+    expect(hasTitleHeading("Bora de #vendas")).toBe(false);
   });
 });

@@ -32,10 +32,10 @@ export function StepperNav({
       {times.map((time) => (
         <div key={time.id} className="group/time flex flex-col gap-2">
           {multiTime ? (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span
                 className={cn(
-                  "text-xs font-semibold uppercase tracking-wide",
+                  "text-xs font-semibold",
                   time.id === timeAtual ? "text-slate-700" : "text-slate-400",
                 )}
               >
@@ -60,7 +60,7 @@ export function StepperNav({
               ) : null}
             </div>
           ) : null}
-          <ol className="flex flex-wrap items-center gap-1.5">
+          <ol className="flex flex-wrap items-center gap-2">
             {PASSOS.map((passo) => {
               const completo = passoCompleto(time.entradas, passo.id);
               const atual = time.id === timeAtual && passo.id === passoAtual;
@@ -102,7 +102,7 @@ export function StepperNav({
           <button
             type="button"
             onClick={onAddTime}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-slate-300 bg-white px-4 text-[13px] font-medium text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full border border-dashed border-slate-300 bg-white px-4 text-sm font-medium text-slate-500 sm:min-h-8 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <PlusIcon className="h-4 w-4" aria-hidden />
             Adicionar time

@@ -21,21 +21,36 @@ export function Modal({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // O efeito abaixo NÃO pode depender de `onClose`. Quase todo modal declara o
+  // handler no corpo do componente (`function fechar() {…}`), então cada
+  // re-render — inclusive o de digitar uma letra num input — cria uma
+  // identidade nova. Com `onClose` na lista de deps o efeito rodava a cada
+  // tecla e o `focus()` roubava o cursor do campo, cancelando a edição. O
+  // handler mais recente chega por ref: o listener lê no momento do Esc.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
 
-    panelRef.current?.focus();
+    // Foco só na abertura: leitor de tela anuncia o dialog e o Tab começa
+    // dentro dele. Se algum campo já se declarou dono do foco (`autoFocus`),
+    // ele fica — o painel é o destino de fallback, não um roubo.
+    const painel = panelRef.current;
+    if (painel && !painel.contains(document.activeElement)) painel.focus();
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

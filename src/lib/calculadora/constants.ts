@@ -153,6 +153,24 @@ export const PLANO_DEFAULT: PlanoId = "pratica";
 export const MAX_TIMES = 10;
 export const MAX_ASSENTOS = 10_000;
 
+// O que cada nível de serviço entrega. Vive aqui, e não no componente de
+// preço, porque o resumo imprimível declara a mesma coisa — duas cópias da
+// oferta em arquivos diferentes divergiriam na primeira edição.
+export const NIVEL_COPY = {
+  essencial: {
+    nome: "Essencial",
+    incluso: "Trilhas padrão · Relatório mensal · Onboarding assíncrono",
+  },
+  avancado: {
+    nome: "Avançado",
+    incluso: "Trilhas padrão · Relatórios quinzenais · Onboarding conduzido",
+  },
+  enterprise: {
+    nome: "Enterprise",
+    incluso: "Atendimento dedicado · Relatórios sob medida",
+  },
+} as const;
+
 export const PRAZO_COPY: Record<number, string> = {
   3: "Sem compromisso de prazo. Preço sujeito à tabela vigente na renovação.",
   6: "Meio ano de previsibilidade. Preço sujeito à tabela vigente na renovação.",

@@ -31,13 +31,13 @@ export function LinkExpirado({ variante }: { variante: keyof typeof VARIANTES })
   const { icon: Icon, titulo, texto } = VARIANTES[variante];
   return (
     <main className="page-fade-in flex min-h-[100dvh] items-center justify-center bg-[#f3f6fc] p-6">
-      <div className="flex w-full max-w-md flex-col items-center gap-5 rounded-md border border-slate-200 bg-white p-10 text-center shadow-[var(--shadow-sm)]">
+      <div className="flex w-full max-w-md flex-col items-center gap-6 rounded-sm border border-slate-200 bg-white p-10 text-center shadow-[var(--shadow-sm)]">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-50">
           <Icon className="h-7 w-7 text-slate-400" aria-hidden />
         </span>
         <div className="flex flex-col gap-2">
           <h1 className="text-xl font-semibold text-slate-900">{titulo}</h1>
-          <p className="text-sm leading-relaxed text-slate-500">{texto}</p>
+          <p className="text-sm leading-6 text-slate-500">{texto}</p>
         </div>
         <a
           href={PERFECTING_WHATSAPP_URL}

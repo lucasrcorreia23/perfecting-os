@@ -100,8 +100,6 @@ export function EncaminharCalculadoraModal({
         </div>
       ) : (
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
-         
-
           <Field label="Link expira em" htmlFor="calc-expira">
             <Input
               id="calc-expira"
@@ -115,7 +113,7 @@ export function EncaminharCalculadoraModal({
 
           <Field
             label="Identificação interna (opcional)"
-            help="Só a equipe vê. Ex.: “Proposta agosto” ou o nome do prospect."
+            help=""
             htmlFor="calc-label"
           >
             <Input

@@ -22,6 +22,13 @@
   --color-trend-negative: #9f0f0f;
   --color-trend-neutral: #94a3b8;
 
+  /*
+   * O verde claro que `--color-trend-positive-ink` sempre pressupôs e nunca
+   * teve token. Superfície de destaque (§5) do hero do resultado da calculadora:
+   * o par com o ink dá ~5:1, AA para texto normal.
+   */
+  --color-surface-positive: #eaf6ec;
+
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 6px 16px -4px rgba(15, 23, 42, 0.12),
     0 2px 6px -2px rgba(15, 23, 42, 0.08);
@@ -48,6 +55,9 @@
   --space-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
 
   /* Números grandes / KPIs (§2) */
+  /* xl é o número-manchete do hero da calculadora — um degrau acima de tudo o
+     mais na página, para o ROI não empatar com os três números que o apoiam. */
+  --text-score-xl: clamp(2.75rem, 2rem + 3.5vw, 4rem);
   --text-score-lg: clamp(2.25rem, 1.75rem + 2.5vw, 3rem);
   --text-score-md: clamp(1.75rem, 1.5rem + 1.25vw, 2.25rem);
 
@@ -147,4 +157,38 @@ body {
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: rgba(100, 116, 139, 0.65); /* slate-500 */
+}
+
+/*
+ * Sliders verticais dos 12 checkpoints da trajetória (calculadora de ROI).
+ * O trilho, o preenchimento e o thumb são desenhados em marcação pelo
+ * componente (`trajetoria-panel.tsx`) — pseudo-elementos de vendor têm
+ * geometria diferente entre WebKit e Gecko justo na orientação vertical, que é
+ * a que importa aqui. O input fica por cima, transparente, mantendo teclado,
+ * arrasto e semântica nativos.
+ *
+ * O que ESTE bloco garante é só o tamanho do thumb: é ele que define o curso
+ * do controle (o valor mapeia de `thumb/2` a `altura − thumb/2`), e sem fixá-lo
+ * o thumb desenhado descolaria do nativo nos extremos. Os sliders de cenário
+ * continuam nativos com `accent-color`, sem passar por aqui.
+ *
+ * 20px espelha o `THUMB` de `trajetoria-panel.tsx` — mudar aqui sem mudar lá
+ * (ou o contrário) desalinha o desenho do controle nativo nos extremos.
+ */
+.slider-trajetoria {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+.slider-trajetoria::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+}
+.slider-trajetoria::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
 }

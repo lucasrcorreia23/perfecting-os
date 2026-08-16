@@ -5,7 +5,7 @@ import { PhotoIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { setPostCover } from "@/lib/actions/marketing-posts";
 import { MAX_COVER_SIZE_BYTES } from "@/lib/constants";
 import { publicMediaUrl } from "@/lib/marketing-media";
-import { COVER_ACCEPT, uploadPostCover } from "@/lib/marketing-media-upload";
+import { IMAGE_ACCEPT, uploadPostCover } from "@/lib/marketing-media-upload";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -115,7 +115,7 @@ export function CoverUploader({
       <input
         ref={inputRef}
         type="file"
-        accept={COVER_ACCEPT}
+        accept={IMAGE_ACCEPT}
         className="hidden"
         onChange={(event) => {
           send(event.target.files?.[0]);

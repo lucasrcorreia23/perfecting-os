@@ -219,14 +219,26 @@ export async function deletePost(postId: string): Promise<ActionResult> {
   const supabase = await createServerSupabase();
   const { data: post } = await supabase
     .from("marketing_posts")
-    .select("cover_path")
+    .select("id")
     .eq("id", postId)
     .single();
   if (!post) return { ok: false, error: "Post não encontrado." };
 
-  // O cascade do banco não alcança o bucket.
-  if (post.cover_path) {
-    await supabase.storage.from(MARKETING_MEDIA_BUCKET).remove([post.cover_path]);
+  // O cascade do banco não alcança o bucket. Limpa a pasta inteira: além da
+  // capa, ela guarda as imagens do corpo, que só existem dentro do markdown.
+  const raiz = `posts/${postId}`;
+  const paths: string[] = [];
+  for (const prefixo of [raiz, `${raiz}/corpo`]) {
+    const { data: objetos } = await supabase.storage
+      .from(MARKETING_MEDIA_BUCKET)
+      .list(prefixo, { limit: 1000 });
+    for (const objeto of objetos ?? []) {
+      // Subpasta vem como entrada sem id — só arquivo é removível.
+      if (objeto.id) paths.push(`${prefixo}/${objeto.name}`);
+    }
+  }
+  if (paths.length > 0) {
+    await supabase.storage.from(MARKETING_MEDIA_BUCKET).remove(paths);
   }
 
   const { error } = await supabase

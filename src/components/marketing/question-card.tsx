@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, Input } from "@/components/ui/form";
-import { Select } from "@/components/ui/select";
+import { SelectMenu } from "@/components/ui/select-menu";
 import type { HeroIcon } from "@/components/ui/types";
 
 const TYPE_OPTIONS = FUNNEL_FIELD_TYPE_ORDER.map((type) => ({
@@ -115,7 +115,7 @@ export function QuestionCard({
     <div className="flex flex-col gap-4 rounded-sm border border-slate-200 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <span className="text-xs font-semibold text-slate-500">
             Pergunta {index + 1}
           </span>
           <span className="text-xs text-slate-500">
@@ -162,25 +162,25 @@ export function QuestionCard({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Tipo de resposta" htmlFor={`${fieldId}-type`}>
-          <Select
+          <SelectMenu
             id={`${fieldId}-type`}
+            ariaLabel="Tipo de resposta"
             options={TYPE_OPTIONS}
             value={question.type}
-            onChange={(event) => changeType(event.target.value as FunnelFieldType)}
+            onChange={(value) => changeType(value as FunnelFieldType)}
           />
         </Field>
         <Field
           label="Vincular ao lead"
-          help="Preenche o campo do lead e o formulário de conversão em cliente."
+          hint="Preenche o campo do lead e o formulário de conversão em cliente."
           htmlFor={`${fieldId}-maps-to`}
         >
-          <Select
+          <SelectMenu
             id={`${fieldId}-maps-to`}
+            ariaLabel="Vincular ao lead"
             options={MAPS_TO_OPTIONS}
             value={question.maps_to ?? ""}
-            onChange={(event) =>
-              patch({ maps_to: (event.target.value || null) as MapsTo | null })
-            }
+            onChange={(value) => patch({ maps_to: (value || null) as MapsTo | null })}
           />
         </Field>
       </div>
@@ -188,7 +188,7 @@ export function QuestionCard({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field
           label="Texto de ajuda"
-          help="Aparece abaixo do enunciado no site."
+          hint="Aparece abaixo do enunciado no site."
           htmlFor={`${fieldId}-help`}
         >
           <Input
@@ -199,7 +199,7 @@ export function QuestionCard({
         </Field>
         <Field
           label="Peso"
-          help="Multiplica os pontos desta pergunta na qualificação."
+          hint="Multiplica os pontos desta pergunta na qualificação."
           htmlFor={`${fieldId}-weight`}
         >
           <Input
@@ -279,7 +279,7 @@ export function QuestionCard({
       {hasOptions ? (
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-4">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="text-xs font-semibold text-slate-500">
               Opções e pontos
             </span>
             <button
@@ -310,36 +310,43 @@ export function QuestionCard({
           ) : (
             <div className="flex flex-col gap-2">
               {question.options.map((option, optionIndex) => (
+                // A largura mora nos wrappers, não no `className` do Input: o
+                // `cn` é clsx puro (sem tailwind-merge), então um `w-24` na
+                // prop convive com o `w-full` do próprio Input — e era o
+                // `w-full` que vencia, estourando o card.
                 <div key={option.id} className="flex items-center gap-2">
-                  <Input
-                    aria-label={`Texto da opção ${optionIndex + 1}`}
-                    value={option.label}
-                    placeholder="11 a 50 pessoas"
-                    onChange={(event) =>
-                      patch({
-                        options: question.options.map((item) =>
-                          item.id === option.id
-                            ? { ...item, label: event.target.value }
-                            : item,
-                        ),
-                      })
-                    }
-                  />
-                  <Input
-                    aria-label={`Pontos da opção ${optionIndex + 1}`}
-                    type="number"
-                    value={option.score}
-                    onChange={(event) =>
-                      patch({
-                        options: question.options.map((item) =>
-                          item.id === option.id
-                            ? { ...item, score: Number(event.target.value) }
-                            : item,
-                        ),
-                      })
-                    }
-                    className="w-24 shrink-0"
-                  />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      aria-label={`Texto da opção ${optionIndex + 1}`}
+                      value={option.label}
+                      placeholder="11 a 50 pessoas"
+                      onChange={(event) =>
+                        patch({
+                          options: question.options.map((item) =>
+                            item.id === option.id
+                              ? { ...item, label: event.target.value }
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="w-24 shrink-0">
+                    <Input
+                      aria-label={`Pontos da opção ${optionIndex + 1}`}
+                      type="number"
+                      value={option.score}
+                      onChange={(event) =>
+                        patch({
+                          options: question.options.map((item) =>
+                            item.id === option.id
+                              ? { ...item, score: Number(event.target.value) }
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
                   <IconButton
                     icon={XMarkIcon}
                     label={`Remover opção ${optionIndex + 1}`}

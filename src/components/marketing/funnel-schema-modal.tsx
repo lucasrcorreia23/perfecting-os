@@ -44,7 +44,7 @@ export function FunnelSchemaModal({
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <span className="text-xs font-semibold text-slate-500">
             Endpoint
           </span>
           <div className="flex items-center justify-between gap-3 rounded-sm border border-slate-200 bg-slate-50 p-3">
@@ -64,7 +64,7 @@ export function FunnelSchemaModal({
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="text-xs font-semibold text-slate-500">
               Resposta
             </span>
             <CopyButton text={json} label="Copiar JSON" />

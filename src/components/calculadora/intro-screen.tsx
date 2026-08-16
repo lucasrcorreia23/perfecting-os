@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowRightIcon,
   CalendarDaysIcon,
   ClockIcon,
   CloudArrowUpIcon,
@@ -53,7 +52,7 @@ export function IntroScreen({
     // que a 1024px (título em 1 linha) passava de 120.
     <div className="fade-in-up mx-auto flex w-full max-w-2xl flex-col items-center gap-8 text-center">
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold leading-snug text-slate-900 sm:text-3xl">
+        <h1 className="text-2xl font-semibold leading-8 text-slate-900 sm:text-3xl sm:leading-10">
           Quanto a prática estruturada devolve
           {clientName ? (
             <>
@@ -65,27 +64,34 @@ export function IntroScreen({
           )}
           ?
         </h1>
-        <p className="text-sm leading-relaxed text-slate-500 sm:text-base">
-          Você preenche os números da sua operação em 5 passos curtos, escolhe o
-          plano e os assentos no final, e a calculadora projeta o retorno em duas
-          frentes: o que você <span className="font-medium text-slate-700">deixa de gastar</span>{" "}
-          e o que o time <span className="font-medium text-slate-700">passa a ganhar</span>.
+        <p className="text-sm leading-6 text-slate-500 sm:text-base">
+          Em 5 passos você informa seus números, monta a proposta (plano,
+          assentos e prazo) e vê o retorno em duas frentes: o que{" "}
+          <span className="font-medium text-slate-700">deixa de gastar</span> e o
+          que o time <span className="font-medium text-slate-700">passa a ganhar</span>.
           Toda premissa fica declarada na tela.
         </p>
       </div>
 
-      <div className="grid w-full gap-2 sm:grid-cols-3">
+      {/* Um card só, dividido por fio: eram três superfícies de mesmo peso
+          disputando atenção com o botão. Fio interno slate-100 (a borda externa
+          é quem desenha o bloco); no mobile a divisão vira horizontal.
+          Estreito de propósito (max-w-lg, abaixo da medida do texto): é apoio,
+          não o assunto da tela — o título e o botão é que mandam. */}
+      <div className="grid w-full max-w-lg grid-cols-1 divide-y divide-slate-100 rounded-sm border border-slate-200 bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {destaques.map(({ icone: Icone, titulo, detalhe }) => (
           <div
             key={titulo}
-            className="flex items-start gap-2.5 rounded-sm border border-slate-200 bg-white p-3 text-left sm:flex-col sm:items-center sm:gap-2 sm:p-4 sm:text-center"
+            className="flex items-start gap-2 p-4 text-left sm:flex-col sm:items-center sm:text-center"
           >
-            <Icone className="h-5 w-5 shrink-0 text-[#2E63CD]" aria-hidden />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-semibold leading-tight text-slate-900">
+            {/* Ícone em slate: aqui ele é sinalização, não ênfase — o azul da
+                marca fica reservado ao botão e ao nome do cliente no título. */}
+            <Icone className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-slate-900">
                 {titulo}
               </span>
-              <span className="text-xs leading-relaxed text-slate-500">
+              <span className="text-xs leading-5 text-slate-500">
                 {detalhe}
               </span>
             </div>
@@ -93,7 +99,9 @@ export function IntroScreen({
         ))}
       </div>
 
-      <Button variant="primary" icon={ArrowRightIcon} onClick={onComecar}>
+      {/* Sem seta: é o único botão da tela e já está isolado no centro — a
+          seta não desambigua nada e só engorda o rótulo. */}
+      <Button variant="primary" onClick={onComecar}>
         {temProgresso ? "Continuar de onde parei" : "Começar"}
       </Button>
     </div>

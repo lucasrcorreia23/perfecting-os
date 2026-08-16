@@ -579,7 +579,7 @@ function QuizResult({
       {/* Visão interna: o visitante nunca vê pontuação nem qualificação */}
       <div className="flex flex-col gap-4 border-t border-slate-100 pt-8">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-xs font-semibold text-slate-500">
             Resultado da simulação
           </h2>
           <p className="text-xs text-slate-500">

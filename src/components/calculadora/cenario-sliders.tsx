@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { SeloEvidencia } from "./selo-evidencia";
 
 // "De onde vem": presets de cenário (§4.8) + sliders de modelagem por
-// alavanca. Mover um slider entra em PARÂMETROS PERSONALIZADOS; os valores
+// alavanca. Mover um slider entra em "parâmetros personalizados"; os valores
 // passam SEMPRE por deltasEfetivos — os tetos do V5 nunca são relaxados.
 
 const ORDEM: Cenario[] = ["conservador", "realista", "otimista"];
@@ -48,7 +48,7 @@ function Slider({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={id} className="text-sm font-medium text-slate-700">
           {label}
@@ -102,13 +102,13 @@ export function CenarioSliders({
   const cicloNovo = temFunil ? entradas.cicloDias! - deltas.cicloDiasMenos : null;
 
   return (
-    <section className="flex flex-col gap-5 rounded-sm border border-slate-200 bg-white p-5 sm:p-6">
+    <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Não repetir o formato do eyebrow da seção ("De onde vem o
-              número"): dois rótulos uppercase quase iguais, empilhados, é
+              número"): dois rótulos quase iguais, empilhados, é
               ruído. Aqui é título de card, como nos vizinhos. */}
-          <h3 className="text-sm font-semibold text-slate-900">
+          <h3 className="text-sm font-semibold text-slate-700">
             Cenário e parâmetros
           </h3>
           {sel.modo === "personalizado" ? <SeloEvidencia selo="personalizado" /> : null}
@@ -118,7 +118,7 @@ export function CenarioSliders({
             type="button"
             onClick={() => onChange({ modo: "preset", cenario: sel.base })}
             className={cn(
-              "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#2E63CD] sm:min-h-0 sm:py-1.5",
+              "inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full px-3 text-[13px] font-medium leading-5 text-[#2E63CD] sm:min-h-8",
               "transition-colors hover:text-[#1e4a9e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
             )}
           >
@@ -139,7 +139,7 @@ export function CenarioSliders({
               onClick={() => onChange({ modo: "preset", cenario })}
               aria-pressed={ativo}
               className={cn(
-                "flex min-h-[44px] cursor-pointer flex-col gap-0.5 rounded-sm border px-3.5 py-2.5 text-left transition-colors",
+                "flex min-h-[44px] cursor-pointer flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
                 ativo
                   ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
@@ -155,7 +155,7 @@ export function CenarioSliders({
               >
                 {CENARIOS[cenario].label}
                 {cenario === "conservador" ? (
-                  <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  <span className="ml-2 text-[10px] font-semibold text-slate-400">
                     Recomendado
                   </span>
                 ) : null}
@@ -166,7 +166,7 @@ export function CenarioSliders({
         })}
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <Slider
           id="slider-conv"
           label="Ganho de taxa de conversão"
@@ -183,7 +183,7 @@ export function CenarioSliders({
           onChange={(valor) => aplicarDelta({ convPp: valor })}
           disabled={convMax === 0}
         />
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Slider
             id="slider-ticket"
             label="Quanto o ticket pode subir"
