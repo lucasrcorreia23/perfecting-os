@@ -66,10 +66,14 @@ export function CampoNumero({
       className={cn(
         "flex h-12 items-center gap-2 rounded-full border bg-white px-4 transition-colors",
         "border-slate-200 focus-within:border-[#2E63CD]/40",
+        // O anel é o indicador; a borda só acompanha. O `outline-none` do
+        // `input` mata o foco nativo, então sem isto o campo era o único
+        // controle da tela sem foco visível — e são 16 deles na sidebar.
+        "focus-within:ring-2 focus-within:ring-primary/35",
       )}
     >
       {prefixo ? (
-        <span className="shrink-0 text-sm text-slate-400">{prefixo}</span>
+        <span className="shrink-0 text-sm text-slate-600">{prefixo}</span>
       ) : null}
       <input
         id={id}
@@ -92,10 +96,10 @@ export function CampoNumero({
           const parsed = parseNumero(cru);
           onChange(parsed === null ? null : inteiro ? Math.trunc(parsed) : parsed);
         }}
-        className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-300"
+        className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
       />
       {sufixo ? (
-        <span className="shrink-0 text-sm text-slate-400">{sufixo}</span>
+        <span className="shrink-0 text-sm text-slate-600">{sufixo}</span>
       ) : null}
     </div>
   );

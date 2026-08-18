@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
 import { MedidorChecagem } from "./graficos-resultado";
 import { BlocoRecolhivel } from "./secao-resultado";
-import { SeloEvidencia, type Selo } from "./selo-evidencia";
 
 type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
 
@@ -400,33 +399,31 @@ function LinhaCompacta({
   delta,
   valor,
   nota,
-  selo,
   tom = "neutro",
 }: {
   rotulo: string;
   delta?: string;
   valor: string;
   nota?: string;
-  selo?: Selo;
   tom?: "neutro" | "positivo";
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <dt className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+    // Grade de duas trilhas, não `flex-wrap` + `justify-between`. Com flex, um
+    // rótulo comprido (os dois que carregam selo) empurrava o valor para uma
+    // segunda linha: metade das linhas da lista virava duas, o olho perdia a
+    // pauta e as duas colunas da seção paravam de bater linha a linha. Na
+    // grade quem quebra é o RÓTULO, dentro da própria trilha, e o valor fica
+    // onde sempre esteve — a lista volta a ter uma linha por parcela.
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1">
+      <dt className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
         {rotulo}
         {delta ? (
           <span className="tabular-nums font-medium text-slate-500">{delta}</span>
         ) : null}
-        {selo ? <SeloEvidencia selo={selo} /> : null}
       </dt>
-      {/* `ml-auto`: quando o rótulo é longo e o valor cai para a linha de
-          baixo, `justify-between` sozinho o joga para a esquerda e a coluna de
-          valores deixa de existir bem no meio da lista — algumas linhas lidas à
-          direita, outras à esquerda. Empurrado, ele guarda o mesmo eixo em
-          qualquer uma das duas situações. */}
       <dd
         className={cn(
-          "ml-auto text-sm font-semibold tabular-nums",
+          "text-right text-sm font-semibold tabular-nums",
           tom === "positivo" ? "text-trend-positive" : "text-slate-900",
         )}
       >
@@ -495,21 +492,25 @@ export function EficienciaCard({
           valor={formatBRL(teto?.valorAno ?? null)}
           nota={tetoMordeu ? "a economia parou aqui" : undefined}
         />
-        <LinhaCompacta
-          rotulo="Custo por hora de prática"
-          valor={`gestor ${formatBRL(ancoragem?.detalhe?.custoHoraGestor ?? null, 2)} · Perfecting ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 2)}`}
-          selo="nao_somado"
-        />
-        <LinhaCompacta
-          rotulo="Gestores que deixaria de contratar"
-          valor={
-            headcount?.valorAno != null
-              ? `${formatNumero(headcount.detalhe?.gestores ?? null, 1)} · ${formatBRL(headcount.valorAno)}/ano`
-              : "—"
-          }
-          selo="nao_somado"
-        />
       </dl>
+
+      <div className="flex flex-col gap-3 border-t border-slate-100 pt-4">
+        <p className="text-xs font-semibold text-slate-500">Não somado ao ROI</p>
+        <dl className="flex flex-col gap-3">
+          <LinhaCompacta
+            rotulo="Custo por hora de prática"
+            valor={`gestor ${formatBRL(ancoragem?.detalhe?.custoHoraGestor ?? null, 2)} · Perfecting ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 2)}`}
+          />
+          <LinhaCompacta
+            rotulo="Gestores que deixaria de contratar"
+            valor={
+              headcount?.valorAno != null
+                ? `${formatNumero(headcount.detalhe?.gestores ?? null, 1)} · ${formatBRL(headcount.valorAno)}/ano`
+                : "—"
+            }
+          />
+        </dl>
+      </div>
 
       {/* A prosa que sustenta as linhas acima sai do fluxo: com ela aberta,
           eram sete parágrafos antes de o leitor chegar ao segundo card. Quem
@@ -671,46 +672,6 @@ export function PerformanceCard({
         </div>
       </BlocoRecolhivel>
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Equação de fecho (§4.6): valor_ano = eficiência + performance. Fica abaixo
-// das duas colunas porque é o que as amarra — sem ela, o leitor tem dois
-// cards e nenhuma soma.
-// ---------------------------------------------------------------------------
-
-export function EquacaoValor({ resultado }: { resultado: ResultadoOk }) {
-  const parcelas = [
-    { rotulo: "Eficiência", valor: resultado.eficienciaAno },
-    { rotulo: "Performance", valor: resultado.G },
-  ];
-  return (
-    // Faixa, não card: é a soma dos dois blocos acima, e um contorno próprio a
-    // fazia ler como um terceiro irmão de mesmo peso.
-    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-sm bg-slate-50/60 px-6 py-4 text-sm">
-      {parcelas.map((parcela, index) => (
-        <span key={parcela.rotulo} className="flex items-center gap-3">
-          {index > 0 ? <span className="text-slate-300">+</span> : null}
-          <span className="flex flex-wrap items-baseline gap-2">
-            <span className="text-slate-500">{parcela.rotulo}</span>
-            {/* As parcelas também são verdes: as duas entram na conta, e a
-                equação lia "verde = cinza + cinza". O peso, não a cor, é o
-                que separa a soma do resultado. */}
-            <span className="font-medium tabular-nums text-trend-positive">
-              {formatBRL(parcela.valor)}
-            </span>
-          </span>
-        </span>
-      ))}
-      <span className="text-slate-300">=</span>
-      <span className="flex flex-wrap items-baseline gap-2">
-        <span className="font-semibold tabular-nums text-trend-positive">
-          {formatBRL(resultado.valorAno)}
-        </span>
-        <span className="text-xs text-slate-500">de valor projetado no ano</span>
-      </span>
-    </div>
   );
 }
 

@@ -148,6 +148,7 @@ export function SeusNumerosSidebar({
         id="seus-numeros-campos"
         className={cn(
           "scrollbar-thin min-h-0 flex-col gap-6 overflow-y-auto px-6 pb-6",
+          "[mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)]",
           aberta ? "flex" : "hidden",
         )}
       >
@@ -157,7 +158,7 @@ export function SeusNumerosSidebar({
               id="sb-nome-time"
               value={nome}
               onChange={(event) => onChangeNome(event.target.value)}
-              className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-colors focus:border-[#2E63CD]/40 sm:h-10"
+              className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-500 focus:border-[#2E63CD]/40 focus:ring-2 focus:ring-primary/35 sm:h-10"
             />
           </Field>
         ) : null}
