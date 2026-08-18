@@ -33,6 +33,7 @@ import type {
   PlanoId,
   ResultadoFatorEscopo,
   ResultadoTime,
+  TetoFunil,
 } from "./types";
 
 // Proposta do time com os defaults já resolvidos (assentosEfetivos no modelo).
@@ -259,17 +260,28 @@ export function calcResultadoTime(
   // Ciclo (§4.4): só com o funil preenchido; teto de funil — ciclo menor só
   // vira receita se houver oportunidade ociosa. Interação descartada.
   let ganhoCicloAno: number | null = null;
+  let tetoFunil: TetoFunil | null = null;
   if (funilPreenchido(entradas)) {
     const dCiclo = deltas.cicloPct;
     const ganhoCapacidade = vendasMes * (1 / (1 - dCiclo) - 1);
-    const tetoFunil = Math.max(0, entradas.leadsMes! - oportunidadesMes) * conversao;
+    const oportunidadesOciosas = Math.max(0, entradas.leadsMes! - oportunidadesMes);
+    const tetoVendasMes = oportunidadesOciosas * conversao;
     ganhoCicloAno =
-      Math.min(ganhoCapacidade, tetoFunil) *
+      Math.min(ganhoCapacidade, tetoVendasMes) *
       entradas.ticketMedio! *
       margem *
       12 *
       HAIRCUT *
       fatorCobertura;
+    // Excel Engine!C69 = OR(C67<C66, C64=0): o teto foi quem definiu a parcela.
+    // Sem isso a trava era invisível — a tela mostrava um ciclo menor que o
+    // ganho de capacidade sem dizer que o funil é que não sustenta.
+    tetoFunil = {
+      limitou: tetoVendasMes < ganhoCapacidade || oportunidadesOciosas === 0,
+      ganhoCapacidadeVendasMes: ganhoCapacidade,
+      tetoVendasMes,
+      oportunidadesOciosasMes: oportunidadesOciosas,
+    };
   }
 
   const G = margemTicketAno + margemRampaAno + ganhoConversaoAno + (ganhoCicloAno ?? 0);
@@ -389,6 +401,7 @@ export function calcResultadoTime(
     eficienciaAno,
     tetoEficienciaAno,
     parcelas: { margemTicketAno, margemRampaAno, ganhoConversaoAno, ganhoCicloAno },
+    tetoFunil,
     valorAno,
     G,
     precoMes,

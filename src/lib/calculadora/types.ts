@@ -127,6 +127,16 @@ export type ParcelasPerformance = {
   ganhoCicloAno: number | null; // null = funil não preenchido
 };
 
+// Teto de funil da alavanca de ciclo (Excel Engine!C64–C69): fechar mais
+// rápido só vira receita se houver oportunidade ociosa para ocupar a
+// capacidade liberada. `limitou` é o C69 — o teto foi quem definiu a parcela.
+export type TetoFunil = {
+  limitou: boolean;
+  ganhoCapacidadeVendasMes: number; // C66 — capacidade liberada pelo ciclo
+  tetoVendasMes: number; // C65 — o que o funil sustenta
+  oportunidadesOciosasMes: number; // C64
+};
+
 export type Granularidade = {
   precoPorAssento: number;
   custoDiaPorVendedor: number;
@@ -146,6 +156,7 @@ export type ResultadoTime =
       eficienciaAno: number;
       tetoEficienciaAno: number;
       parcelas: ParcelasPerformance;
+      tetoFunil: TetoFunil | null; // null = funil não preenchido
       valorAno: number;
       G: number; // soma das parcelas de performance (gap do mês 12 no Painel A)
       precoMes: number;

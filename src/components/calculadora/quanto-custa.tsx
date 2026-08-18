@@ -47,6 +47,14 @@ export function QuantoCusta({
 
   // Granularidade por vendedor/dia (§4.10) — do primeiro time completo.
   const comResultado = times.find((time) => time.resultado.status === "ok");
+  // Excel Account!C13: time incompleto não entrega horas à conta, então fica
+  // fora do preço até o preenchimento fechar. O aviso só aparece quando a
+  // exclusão pesa — sem nenhum time completo, o preço já é a prévia de todos
+  // os assentos e não há nada a explicar.
+  const foraDoPreco = times.filter(
+    (time) => time.resultado.status !== "ok" && time.proposta.assentos > 0,
+  );
+  const precoParcial = comResultado !== undefined && foraDoPreco.length > 0;
   const gran =
     comResultado && comResultado.resultado.status === "ok"
       ? comResultado.resultado.granularidade
@@ -143,9 +151,11 @@ export function QuantoCusta({
                     </span>
                   )}
                   <p className="text-xs text-slate-500">
-                    {time.assentosDefault && time.proposta.assentos > 0
-                      ? `Vazio = o time inteiro (${time.proposta.assentos}). Você pode começar com um grupo menor e expandir.`
-                      : "Você pode começar com um grupo menor e expandir."}
+                    {time.assentosLimitados
+                      ? `Travado no tamanho do time (${time.proposta.assentos}): assento acima do time não é cobrado, porque não gera retorno.`
+                      : time.assentosDefault && time.proposta.assentos > 0
+                        ? `Vazio = o time inteiro (${time.proposta.assentos}). Você pode começar com um grupo menor e expandir.`
+                        : "Você pode começar com um grupo menor e expandir."}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1 sm:text-right">
@@ -172,6 +182,13 @@ export function QuantoCusta({
           {preco.pisoAplicado && preco.horasMes > 0 ? (
             <span className="text-xs text-slate-500">
               cobrança mínima por conta de {formatBRL(13_000)}
+            </span>
+          ) : null}
+          {precoParcial ? (
+            <span className="text-xs text-slate-500">
+              {foraDoPreco.length === 1
+                ? `${foraDoPreco[0].nome} ainda está incompleto e entra no preço quando fechar o preenchimento.`
+                : `${foraDoPreco.length} times ainda incompletos entram no preço quando fecharem o preenchimento.`}
             </span>
           ) : null}
         </div>

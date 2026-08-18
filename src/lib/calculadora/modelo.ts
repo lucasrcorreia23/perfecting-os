@@ -16,20 +16,31 @@ import type {
   ResultadoConsolidado,
 } from "./types";
 
-// Assentos efetivos: o que o visitante escolheu ou, por default, os
-// vendedores do time ("cobertura 1", caso §14). Sem vendedores declarados
-// não existe número — P6 preservado.
+// Assentos efetivos: o que o visitante escolheu, TRAVADO no tamanho do time
+// (Excel Engine!C19 = MIN(assentos, vendedores)), ou, por default, o time
+// inteiro ("cobertura 1", caso §14). O teto não é preciosismo: a cobertura já
+// satura em 1, então o assento acima do time não gera retorno nenhum — cobrá-lo
+// derrubava o ROI por uma escolha que não muda o valor. Sem vendedores
+// declarados não existe número — P6 preservado.
 export function assentosEfetivos(time: EstadoTime): number | null {
-  if (time.proposta.assentos !== null) return time.proposta.assentos;
   const vendedores = time.entradas.numVendedores;
-  if (vendedores === null || !Number.isFinite(vendedores) || vendedores <= 0) return null;
-  return Math.max(1, Math.round(vendedores));
+  const timeInteiro =
+    vendedores !== null && Number.isFinite(vendedores) && vendedores > 0
+      ? Math.max(1, Math.round(vendedores))
+      : null;
+  if (time.proposta.assentos === null) return timeInteiro;
+  // Sem time declarado não há com que travar; o gating barra o resultado de
+  // todo jeito (numVendedores está na lista de faltantes).
+  if (timeInteiro === null) return time.proposta.assentos;
+  return Math.min(time.proposta.assentos, timeInteiro);
 }
 
 export type TimeModelo = TimeParaConsolidar & {
   precoMes: number;
   // true quando os assentos vieram do default (= vendedores do time).
   assentosDefault: boolean;
+  // true quando a escolha do visitante foi travada no tamanho do time.
+  assentosLimitados: boolean;
   estadoTime: EstadoTime;
 };
 
@@ -47,15 +58,25 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
   const efetivos = estado.times.map((time) => ({
     time,
     assentos: assentosEfetivos(time),
+    // Excel Engine!C15/C20: time incompleto não entrega horas à conta.
+    completo: camposFaltando(time.entradas).length === 0,
   }));
 
-  const paraPreco: TimePreco[] = efetivos
-    .filter((item) => item.assentos !== null)
-    .map((item) => ({
-      id: item.time.id,
-      plano: item.time.proposta.plano,
-      assentos: item.assentos!,
-    }));
+  // Base do preço (Excel Account!C13 = SUM(Engine!C20:L20)): só times completos
+  // entram na escada e no rateio. Sem isso, um time preenchido pela metade ao
+  // lado barateava a taxa combinada e mexia no ROI do time que já fechou.
+  // Enquanto NENHUM time fechou não existe resultado na tela, então a conta cai
+  // para todos os times com assentos — ali o preço é prévia da proposta em
+  // construção, nunca denominador de um ROI.
+  const comAssentos = efetivos.filter((item) => item.assentos !== null);
+  const completos = comAssentos.filter((item) => item.completo);
+  const basePreco = completos.length > 0 ? completos : comAssentos;
+
+  const paraPreco: TimePreco[] = basePreco.map((item) => ({
+    id: item.time.id,
+    plano: item.time.proposta.plano,
+    assentos: item.assentos!,
+  }));
   const preco = precoConta(paraPreco, estado.prazoMeses);
   const rateio = rateioPorTime(paraPreco);
 
@@ -82,6 +103,10 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
       resultado,
       precoMes,
       assentosDefault: time.proposta.assentos === null,
+      assentosLimitados:
+        time.proposta.assentos !== null &&
+        assentos !== null &&
+        assentos < time.proposta.assentos,
       // O time CRU, como está persistido — é o que os formulários editam. As
       // entradas rateadas ficam em `entradas`, para exibir o resultado.
       estadoTime: estadoBruto.times[index],

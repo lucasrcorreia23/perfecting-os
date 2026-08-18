@@ -574,6 +574,11 @@ export function PerformanceCard({
   // "N dias em vez de M" só vale no ramo de dias (Excel Engine!C53).
   const cicloEmDias = temFunil && deltas.cicloDiasMenos > 0;
   const cicloTetoMordeu = temFunil && (parcelas.ganhoCicloAno ?? 0) < 0.005;
+  // Excel Engine!C69: o teto de funil cortou o ganho sem zerá-lo. Sem dizer os
+  // dois números, a trava fica invisível — o leitor vê um ciclo menor que a
+  // capacidade liberada e não tem como conferir por quê.
+  const tetoFunil = resultado.tetoFunil;
+  const cicloTetoCortou = !cicloTetoMordeu && tetoFunil !== null && tetoFunil.limitou;
 
   return (
     <section className="flex flex-col gap-4">
@@ -642,7 +647,9 @@ export function PerformanceCard({
             <p className="text-sm leading-6 text-slate-600">
               {cicloTetoMordeu
                 ? "O ganho de ciclo parou no teto de funil: sem oportunidade sobrando, fechar mais rápido não gera receita nova."
-                : "Do ciclo só vira receita a capacidade que o funil consegue alimentar."}
+                : cicloTetoCortou
+                  ? `O teto de funil definiu essa parcela: o ciclo mais curto liberaria ${formatNumero(tetoFunil!.ganhoCapacidadeVendasMes, 1)} vendas/mês de capacidade, e as oportunidades ociosas sustentam ${formatNumero(tetoFunil!.tetoVendasMes, 1)}. Entra o menor dos dois.`
+                  : "Do ciclo só vira receita a capacidade que o funil consegue alimentar."}
             </p>
           ) : null}
           {rampaEvitada?.valorAno != null || timeEmRampa?.valorAno != null ? (

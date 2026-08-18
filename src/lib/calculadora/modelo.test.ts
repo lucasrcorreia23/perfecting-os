@@ -141,6 +141,114 @@ describe("computarModelo — golden §14 com a proposta escolhida pelo visitante
   });
 });
 
+describe("assentos travados no tamanho do time (Excel Engine!C19)", () => {
+  it("escolher mais assentos que vendedores não passa do time", () => {
+    const time = timeGolden({ proposta: { plano: "pratica", assentos: 45 } });
+    expect(assentosEfetivos(time)).toBe(30);
+  });
+
+  it("sem vendedores declarados a escolha passa — o gating barra o resultado", () => {
+    const time = timeGolden({
+      proposta: { plano: "pratica", assentos: 45 },
+      entradas: entradasVazias(),
+    });
+    expect(assentosEfetivos(time)).toBe(45);
+    expect(computarModelo(estadoGolden({ times: [time] })).times[0].resultado.status).toBe(
+      "incompleto",
+    );
+  });
+
+  it("comprar além do time não muda preço, valor nem ROI", () => {
+    const noLimite = computarModelo(
+      estadoGolden({ times: [timeGolden({ proposta: { plano: "intensivo", assentos: 30 } })] }),
+    );
+    const acima = computarModelo(
+      estadoGolden({ times: [timeGolden({ proposta: { plano: "intensivo", assentos: 45 } })] }),
+    );
+    expect(acima.preco.horasMes).toBe(noLimite.preco.horasMes);
+    expect(acima.preco.mensal).toBe(noLimite.preco.mensal);
+    expect(acima.times[0].proposta.assentos).toBe(30);
+    expect(acima.times[0].assentosLimitados).toBe(true);
+    expect(noLimite.times[0].assentosLimitados).toBe(false);
+    const a = acima.times[0].resultado;
+    const b = noLimite.times[0].resultado;
+    if (a.status !== "ok" || b.status !== "ok") throw new Error("deveriam estar completos");
+    expect(a.roi).toBeCloseTo(b.roi, 10);
+    expect(a.valorAno).toBeCloseTo(b.valorAno, 10);
+  });
+});
+
+describe("preço só sobre times completos (Excel Account!C13 = SUM(Engine!C20:L20))", () => {
+  const soloIntensivo = () =>
+    estadoGolden({ times: [timeGolden({ proposta: { plano: "intensivo", assentos: null } })] });
+
+  // Time 2 tem assentos resolvíveis (vendedores declarados) e nada mais: no
+  // Excel, C20 fica vazio e ele não soma horas na conta.
+  const irmaoPelaMetade = () => ({
+    ...timeGolden({ id: "t2" }),
+    entradas: { ...entradasVazias(), numVendedores: 50 },
+    proposta: { plano: "pratica" as const, assentos: null },
+  });
+
+  it("irmão incompleto não entra na escada nem no rateio", () => {
+    const solo = computarModelo(soloIntensivo());
+    const comIrmao = computarModelo(
+      estadoGolden({
+        times: [
+          timeGolden({ proposta: { plano: "intensivo", assentos: null } }),
+          irmaoPelaMetade(),
+        ],
+      }),
+    );
+    expect(solo.preco.horasMes).toBe(240);
+    expect(comIrmao.preco.horasMes).toBe(240);
+    expect(comIrmao.preco.mensal).toBe(solo.preco.mensal);
+    expect(comIrmao.times[1].precoMes).toBe(0);
+    expect(comIrmao.times[1].resultado.status).toBe("incompleto");
+    const a = comIrmao.times[0].resultado;
+    const b = solo.times[0].resultado;
+    if (a.status !== "ok" || b.status !== "ok") throw new Error("time 1 deveria fechar");
+    // O ROI do time que já fechou não se mexe pelo que o vizinho digitou.
+    expect(a.roi).toBeCloseTo(b.roi, 10);
+    expect(comIrmao.times[0].precoMes).toBeCloseTo(solo.times[0].precoMes, 6);
+  });
+
+  it("com nenhum time completo, o preço é prévia de todos os assentos", () => {
+    const modelo = computarModelo(
+      estadoGolden({
+        times: [
+          { ...timeGolden(), entradas: { ...entradasVazias(), numVendedores: 30 } },
+          irmaoPelaMetade(),
+        ],
+      }),
+    );
+    // 30 × 4 + 50 × 4 = 320 h — nenhum ROI depende desse número.
+    expect(modelo.preco.horasMes).toBe(320);
+    expect(modelo.times.every((time) => time.resultado.status === "incompleto")).toBe(true);
+  });
+
+  it("quando o irmão fecha, ele entra na conta e a taxa cai para os dois", () => {
+    const completo = computarModelo(
+      estadoGolden({
+        times: [
+          timeGolden({ proposta: { plano: "intensivo", assentos: null } }),
+          {
+            ...timeGolden({ id: "t2" }),
+            entradas: { ...entradasGolden(), numVendedores: 50 },
+            proposta: { plano: "pratica", assentos: null },
+          },
+        ],
+      }),
+    );
+    expect(completo.preco.horasMes).toBe(440); // 240 + 200
+    expect(completo.times[1].precoMes).toBeGreaterThan(0);
+    expect(completo.consolidado.status).toBe("ok");
+    // Rateio por horas: a soma das partes fecha o mensal da conta.
+    const soma = completo.times.reduce((total, time) => total + time.precoMes, 0);
+    expect(soma).toBeCloseTo(completo.preco.mensal, 2);
+  });
+});
+
 describe("resumo (cache da listagem interna)", () => {
   it("carrega a proposta que o visitante montou, além do resultado", () => {
     const r = resumo(estadoGolden({ prazoMeses: 12 }));

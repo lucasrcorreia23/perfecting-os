@@ -319,6 +319,44 @@ describe("tetos e travas (§5)", () => {
     expect(r.valorAno).toBeCloseTo(304_380 + esperado, 4);
   });
 
+  it("teto de funil sinaliza quando limita (Excel Engine!C69)", () => {
+    // Sem folga: C64 = 0 → C69 verdadeiro mesmo com a parcela zerada.
+    const semFolga = calcResultadoTime(
+      { ...entradasGolden(), cicloDias: 45, leadsMes: 240 },
+      PROPOSTA_GOLDEN,
+      13_000,
+      CONSERVADOR,
+    );
+    if (semFolga.status !== "ok") throw new Error("deveria estar completo");
+    expect(semFolga.tetoFunil).toMatchObject({ limitou: true, oportunidadesOciosasMes: 0 });
+
+    // Folga de 1 oportunidade: teto (0,25 venda) < capacidade (2,79) → cortou.
+    const folgaCurta = calcResultadoTime(
+      { ...entradasGolden(), cicloDias: 45, leadsMes: 241 },
+      PROPOSTA_GOLDEN,
+      13_000,
+      CONSERVADOR,
+    );
+    if (folgaCurta.status !== "ok") throw new Error("deveria estar completo");
+    expect(folgaCurta.tetoFunil!.limitou).toBe(true);
+    expect(folgaCurta.tetoFunil!.tetoVendasMes).toBeCloseTo(0.25, 6);
+
+    // Folga larga: a capacidade é que manda, o teto não limita.
+    const folgaLarga = calcResultadoTime(
+      { ...entradasGolden(), cicloDias: 45, leadsMes: 400 },
+      PROPOSTA_GOLDEN,
+      13_000,
+      CONSERVADOR,
+    );
+    if (folgaLarga.status !== "ok") throw new Error("deveria estar completo");
+    expect(folgaLarga.tetoFunil!.limitou).toBe(false);
+
+    // Sem funil declarado não existe teto — nem número, nem flag.
+    const semFunil = calcResultadoTime(entradasGolden(), PROPOSTA_GOLDEN, 13_000, CONSERVADOR);
+    if (semFunil.status !== "ok") throw new Error("deveria estar completo");
+    expect(semFunil.tetoFunil).toBeNull();
+  });
+
   it("Δconv_max = min(5 p.p., conversão × 0,4, 100 − conversão)", () => {
     expect(deltaConvMax(25)).toBe(5);
     expect(deltaConvMax(2)).toBeCloseTo(0.8, 6);
@@ -558,6 +596,11 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
   it("fecha ROI, payback e checagem de realidade do Account", () => {
     const r = resultadoFiesc();
     expect(r.roi).toBeCloseTo(0.43847877880423, 10);
+    // Engine!C64 = 20 oportunidades ociosas, C65 = 3 vendas, C66 = 0,789 →
+    // C69 FALSO: quem definiu a parcela foi a capacidade, não o funil.
+    expect(r.tetoFunil).toMatchObject({ limitou: false, oportunidadesOciosasMes: 20 });
+    expect(r.tetoFunil!.tetoVendasMes).toBeCloseTo(3, 10);
+    expect(r.tetoFunil!.ganhoCapacidadeVendasMes).toBeCloseTo(0.789473684210525, 10);
     expect(r.paybackMeses).toBeCloseTo(27.367344966443, 10);
     expect(r.checagemRealidadePct).toBeCloseTo(11.4842105263158, 6);
     expect(r.checagemAlerta).toBe(false);
