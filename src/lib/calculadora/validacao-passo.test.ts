@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entradasVazias } from "./estado";
+import { entradasVazias, estadoInicial, progresso } from "./estado";
 import type { EntradasTime } from "./types";
 import {
   errosPorCampo,
@@ -166,5 +166,29 @@ describe("errosPorCampo e resumoDoErro", () => {
   it("no funil pela metade anuncia a frase do funil, sem contagem", () => {
     const resumo = resumoDoErro(validarPasso({ ...completo(), cicloDias: 45 }, 5));
     expect(resumo).toBe("Preencha os dois campos do ciclo — ou pule a etapa.");
+  });
+});
+
+// A referência de fórmulas (botão no header e rota
+// `/api/publico/calculadora/[token]/formulas`) abre pela MESMA condição: existe
+// pelo menos um time completo. As duas pontas leem esta predicada, então ela
+// fica pinada aqui — se o gating mudar, a trava do documento muda junto e sem
+// silêncio.
+describe("condição de liberação da referência de fórmulas", () => {
+  it("estado novo não tem time completo", () => {
+    const prog = progresso(estadoInicial());
+    expect(prog.porTime.some((time) => time.completo)).toBe(false);
+  });
+
+  it("um time completo libera, mesmo com um irmão pela metade", () => {
+    const base = estadoInicial();
+    const cheio = { ...base.times[0], entradas: completo() };
+    const estado = {
+      ...base,
+      times: [cheio, { ...base.times[0], id: "t2", nome: "Time 2" }],
+    };
+    const prog = progresso(estado);
+    expect(prog.porTime.some((time) => time.completo)).toBe(true);
+    expect(prog.porTime.every((time) => time.completo)).toBe(false);
   });
 });

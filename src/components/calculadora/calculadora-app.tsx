@@ -8,6 +8,7 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
+  DocumentTextIcon,
   QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
 import { PASSO_INTROS } from "@/lib/calculadora/campos";
@@ -40,7 +41,8 @@ import type {
   EstruturaCompartilhada,
   PropostaTime,
 } from "@/lib/calculadora/types";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { TOOLTIP } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { CelebracaoModal } from "./celebracao-modal";
@@ -95,6 +97,11 @@ function primeiroPassoIncompleto(estado: EstadoCalculadora): {
   }
   return { timeId: estado.times[0].id, passo: 1 };
 }
+
+// O que falta para a referência abrir. Nomeia a CONDIÇÃO, não o bloqueio:
+// "indisponível" informaria o obstáculo sem dizer a saída.
+const MOTIVO_FORMULAS =
+  "Disponível quando o resultado aparecer: preencha os campos obrigatórios de um time.";
 
 export function CalculadoraApp({
   token,
@@ -450,6 +457,11 @@ export function CalculadoraApp({
     return { g: reReconciliar(editada, G, margemAnual).pontos, ajustada: true };
   }, [timeModelo]);
 
+  // A referência de fórmulas abre quando existe número para conferir. Antes
+  // disso ela responderia uma pergunta que ninguém fez — e o PDF descreve o
+  // motor inteiro, incluindo a escada de preço.
+  const formulasLiberadas = modelo.times.some((time) => time.resultado.status === "ok");
+
   // -------------------------------------------------------------------------
 
   const header = (
@@ -503,6 +515,48 @@ export function CalculadoraApp({
         >
           Glossário
         </Button>
+        {/* O PDF com as fórmulas, para conferir a conta fora da tela. É <a>, e
+            não botão: quem audita quer abrir em outra aba e guardar o
+            endereço. Servido pela rota que valida o MESMO token do link, então
+            expira e é revogado junto com ele — não é URL aberta na internet.
+
+            Fica VISÍVEL e bloqueado enquanto não há resultado, em vez de
+            sumir: escondido, ninguém descobre que a referência existe; assim a
+            pessoa vê que ela está ali e o balão diz o que falta para abrir. A
+            rota repete a mesma trava — botão desabilitado é afordância, não
+            controle de acesso. */}
+        <span className="group relative inline-flex">
+          <ButtonLink
+            href={`/api/publico/calculadora/${token}/formulas`}
+            target="_blank"
+            rel="noopener"
+            variant="secondary"
+            size="sm"
+            icon={DocumentTextIcon}
+            disabled={!formulasLiberadas}
+            aria-label={
+              formulasLiberadas
+                ? undefined
+                : `Fórmulas (PDF). ${MOTIVO_FORMULAS}`
+            }
+          >
+            <span className="hidden sm:inline">Fórmulas (PDF)</span>
+            <span className="sm:hidden">Fórmulas</span>
+          </ButtonLink>
+          {!formulasLiberadas ? (
+            // `group-focus-within` além do hover: o controle segue focável de
+            // propósito, e sem isso quem chega por teclado encontra um botão
+            // mudo sem saber por quê.
+            <span
+              className={cn(
+                TOOLTIP,
+                "left-auto right-0 group-focus-within:visible group-focus-within:opacity-100",
+              )}
+            >
+              {MOTIVO_FORMULAS}
+            </span>
+          ) : null}
+        </span>
       </div>
     </header>
   );
