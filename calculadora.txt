@@ -1,0 +1,431 @@
+# Calculadora de ROI Perfecting — Especificação Funcional Completa
+
+> Engenharia reversa da aplicação `simple-roi-insight.lovable.app`
+> Fonte: percurso completo do funil (5 etapas) + estado persistido em `localStorage` + motor de cálculo extraído do bundle `assets/routes-*.js`
+> Versão do schema: `v3.1-trajetoria-1`
+> Data da extração: 15/08/2026
+> Todas as fórmulas abaixo foram validadas contra a saída real da tela (ver §10)
+
+---
+
+## 1. Visão geral e fluxo
+
+Calculadora de ROI para treino de vendas com IA. Roda 100% client-side, sem backend: nada é enviado ao servidor, os dados ficam no navegador.
+
+### 1.1 Máquina de estados do funil
+
+```
+instrucoes
+   ↓  (botão "Começar")
+conta            → "Quantos times comerciais você quer calcular?" (1 a 10)
+   ↓  (botão "Começar")
+wizard por time  → passo 0..4 (5 passos, o último opcional)
+   ↓  (botão "Calcular meu ROI")
+resultado        → painel de inputs editáveis + resultado recalculado em tempo real
+```
+
+### 1.2 Passos do wizard
+
+| Passo | Título | Subtítulo | Campos |
+|---|---|---|---|
+| 1/5 | Quem vende e quem treina | Cinco números sobre a estrutura atual do time | 5 |
+| 2/5 | Como o time performa hoje | Dados do CRM ou do financeiro | 4 |
+| 3/5 | Contratação e rampa | O custo invisível: quanto tempo um vendedor novo leva para render | 4 |
+| 4/5 | Sem a Perfecting, como você treinaria o time? | A economia projetada é o custo do caminho que você tomaria | 1 radio + 1 campo condicional |
+| 5/5 | Seu funil (opcional) | Com três números a mais, incluímos a redução de ciclo como terceira alavanca. Pode pular | 2 opcionais |
+
+Regras de navegação:
+- "Continuar" fica desabilitado enquanto faltarem campos obrigatórios do passo (mensagem: *"Preencha os campos deste passo para continuar."*).
+- Passo 5 pode ser pulado; sem ele a alavanca de ciclo não existe.
+- Cada passo tem botão "Voltar"; no resultado existe "Voltar ao passo a passo".
+- Cada campo tem um botão de ajuda ("Entender: …") com popover explicativo.
+
+### 1.3 Estrutura do resultado (ordem das seções)
+
+```
+Seus números              (painel de inputs editáveis, colapsável "Ocultar dados")
+O RESULTADO              → ROI, Payback, Valor gerado/ano + frase-resumo
+TRAJETÓRIA               → curva 12 meses "Se nada mudar" vs "Com o programa" + curva de payback
+DE ONDE VEM              → seletor de cenário + 4 sliders de deltas
+  Eficiência             → o que você deixa de gastar
+  Performance            → o que o time passa a ganhar
+  Checagem de realidade
+QUANTO CUSTA             → planos, assentos, decomposição do preço, nível de serviço, prazo, total
+Resumo                   → narrativa + "VERIFICÁVEL NESTA TELA" + bloco OFERTA + botão Imprimir
+```
+
+---
+
+## 2. Campos de entrada (inputs do usuário)
+
+### 2.1 Passo 1 — Estrutura de treino
+
+| id | Label | Ajuda | Unidade | Placeholder | Obrigatório |
+|---|---|---|---|---|---|
+| `num_vendedores` | Quantos vendedores tem o time? | Considere só quem vende ativamente | — | ex.: 30 | ✅ |
+| `num_gestores_treino` | Quantos gestores são responsáveis pela capacitação do time? | Quem efetivamente treina e acompanha o time | — | ex.: 3 | ✅ |
+| `horas_treino_gestor_mes` | Horas de treino por gestor, por mês | Preparar + executar + dar feedback | h/mês | ex.: 20 | ✅ |
+| `vendedores_por_gestor_mes` | Quantos vendedores um gestor consegue capacitar por mês? | Considerando preparar, aplicar e dar feedback nos roleplays | — | ex.: 6 | ✅ |
+| `horas_pratica_por_rep_hoje` | Quantas horas de prática cada vendedor recebe nesse período? | Só o tempo de roleplay/simulação, sem preparação e feedback | h | ex.: 1,5 | ✅ |
+
+### 2.2 Passo 2 — Performance atual
+
+| id | Label | Ajuda | Unidade | Placeholder | Obrigatório |
+|---|---|---|---|---|---|
+| `receita_mensal` | Receita mensal de toda a equipe de vendas | Faturamento total do time, não por vendedor | R$ | ex.: 900.000 | ✅ |
+| `ticket_medio` | Ticket médio | Receita ÷ nº de vendas | R$ | ex.: 15.000 | ✅ |
+| `conversao_pct` | Taxa de conversão | De cada 100 oportunidades trabalhadas, quantas fecham | % | ex.: 25 | ✅ |
+| `margem` | Margem de contribuição | Quanto sobra de cada real vendido | select | Selecione uma faixa | ✅ |
+
+Opções de `margem` (label → valor aplicado):
+
+| value | label | valor | é premissa? |
+|---|---|---|---|
+| `ate20` | até 20% | 0,15 | não |
+| `20a40` | 20–40% | 0,30 | não |
+| `40a60` | 40–60% | 0,50 | não |
+| `acima60` | acima de 60% | 0,65 | não |
+| `naosei` | não sei | 0,30 | **sim** (marcado como premissa na tela) |
+
+### 2.3 Passo 3 — Contratação e rampa
+
+| id | Label | Ajuda | Unidade | Placeholder | Obrigatório |
+|---|---|---|---|---|---|
+| `salario_gestor` | Salário médio de um gestor comercial | Salário-base, sem encargos | R$ | ex.: 12.000 | ✅ |
+| `salario_vendedor` | Salário médio de um vendedor | Salário-base, sem encargos · opcional | R$ | ex.: 6.000 | ⚠️ não bloqueia |
+| `rampa_meses` | Meses até um vendedor novo atingir produtividade plena | O RH costuma acompanhar este dado | meses | ex.: 4 | ✅ |
+| `novos_ano` | Vendedores novos por ano (reposição + novas vagas) | Turnover + crescimento | — | ex.: 8 | ✅ |
+
+> `salario_vendedor` está na lista dos 13 campos, mas é **removido da checagem de bloqueio** — sem ele o time ainda é considerado completo; apenas as linhas de "salário de rampa economizado" e "custo do time em rampa" ficam nulas.
+
+### 2.4 Passo 4 — Contrafactual (alternativa sem a Perfecting)
+
+`contrafactual` — radio group, 4 opções:
+
+| id | Título | Descrição | Campo extra |
+|---|---|---|---|
+| `nenhum` | Não treinaria todos | só uma parte do time recebe prática hoje | — |
+| `gestores` | Meus gestores assumiriam as horas de treino | usa os campos de gestores já preenchidos | — |
+| `externo` | Contrataria consultoria ou treinador externo | custo anual de terceiros | `custo_externo_ano` — "Quanto isso custaria por ano?" |
+| `evento` | Faria um evento presencial intensivo | convenção ou imersão de treino | `custo_evento_ano` — "Quanto custaria por ano, somando deslocamento, estadia, produção e horas paradas?" |
+
+Aviso na tela: se você não treinaria todos hoje, a eficiência entra como **zero** e o ROI vem apenas de performance — por decisão de projeto, não se conta economia de um custo que não existiria.
+
+### 2.5 Passo 5 — Funil (opcional)
+
+| id | Label | Ajuda | Unidade | Placeholder |
+|---|---|---|---|---|
+| `ciclo_atual_dias` | Quantos dias leva, em média, da primeira conversa ao fechamento? | Ciclo médio de venda, em dias · opcional | dias | ex.: 45 |
+| `leads_mes` | Quantas oportunidades qualificadas chegam por mês? | Volume total que entra no funil · opcional | — | ex.: 200 |
+
+### 2.6 Labels curtos usados no painel do resultado
+
+`Vendedores` · `Gestores responsáveis pela capacitação` · `Horas de treino por gestor` · `Vendedores cobertos por gestor/mês` · `Horas de prática por vendedor` · `Receita mensal do time` · `Ticket médio` · `Taxa de conversão` · `Salário do gestor` · `Salário do vendedor` · `Meses de rampa` · `Vendedores novos por ano` · `Margem de contribuição`
+
+### 2.7 Nomes usados nas mensagens de campo faltante
+
+```
+num_vendedores            → "nº de vendedores"
+num_gestores_treino       → "nº de gestores responsáveis pela capacitação"
+horas_treino_gestor_mes   → "horas de treino por gestor"
+vendedores_por_gestor_mes → "vendedores cobertos por gestor por mês"
+horas_pratica_por_rep_hoje→ "horas de prática por vendedor"
+receita_mensal            → "receita mensal"
+ticket_medio              → "ticket médio"
+conversao_pct             → "taxa de conversão"
+margem                    → "margem de contribuição"
+salario_gestor            → "salário do gestor"
+salario_vendedor          → "salário do vendedor"   (excluído do bloqueio)
+rampa_meses               → "meses de rampa"
+novos_ano                 → "vendedores novos por ano"
++ "custo anual do treinamento externo"  (se contrafactual = externo)
++ "custo anual do evento presencial"    (se contrafactual = evento)
+```
+
+---
+
+## 3. Variáveis de controle (não são dados do cliente)
+
+| Variável | Domínio | Default | Onde aparece |
+|---|---|---|---|
+| `numTimesTexto` | 1..10 | `1` | etapa conta |
+| `estruturaCompartilhada` | bool | `false` | conta (só com >1 time) |
+| `plano` | `essencial` \| `pratica` \| `intensivo` | `pratica` | seção QUANTO CUSTA |
+| `assentos` | inteiro, `min(assentos, num_vendedores)` | = `num_vendedores` | seção Assentos |
+| `assentosTocado` | bool | `false` | controla se assentos segue o nº de vendedores |
+| `cenario` | `conservador` \| `base` \| `agressivo` | `conservador` | seção DE ONDE VEM |
+| `contrato` | `3` \| `6` \| `12` \| `24` | `3` | Prazo do contrato |
+| `deltas` | `{ticket, rampa, ciclo, ciclo_dias, conversao}` \| null | `null` (segue o cenário) | 4 sliders |
+| `premissas` | 8 valores | tabela §4.5 | "Ver premissas" |
+| `trajetoria` | array de 12 ganhos mensais \| null | `null` | "Editar trajetória" |
+| `aba` | `consolidado` \| id do time | `consolidado` | multi-time |
+| `idx` / `passo` | inteiros | 0 / 0 | posição no wizard |
+
+---
+
+## 4. Constantes e tabelas do modelo
+
+### 4.1 Planos
+
+| id | Nome | Horas/vendedor/mês | Cadência | ~min/dia |
+|---|---|---|---|---|
+| `essencial` | Essencial | 2 | 30 min/semana | ~5 min/dia |
+| `pratica` | Prática | 4 | 1 h/semana | ~11 min/dia |
+| `intensivo` | Intensivo | 8 | 2 h/semana | ~22 min/dia |
+
+### 4.2 Tabela de preço por hora (escalonada **marginal**)
+
+| Faixa acumulada de horas/mês da conta | Taxa |
+|---|---|
+| até 262 h | R$ 98/h |
+| 262 → 573 h | R$ 82/h |
+| 573 → 1.243 h | R$ 70/h |
+| acima de 1.243 h | R$ 60/h |
+
+- **Cobrança mínima (piso) da conta: R$ 13.000/mês.** Aplicada uma única vez sobre o total da conta e rateada entre os times.
+- Ponto de indiferença: `13.000 / 98 ≈ 133 h/mês`. Abaixo disso o piso define o preço; acima, vale a tabela.
+- A tabela também gera a **decomposição** exibida ("120 h × R$ 98/h = R$ 11.760" + linha do piso).
+
+### 4.3 Níveis de serviço (por nº de assentos)
+
+| Até | Rótulo | Entregas |
+|---|---|---|
+| 30 | Essencial | Trilhas padrão · Relatório mensal · Onboarding assíncrono |
+| 100 | Avançado | Trilhas customizadas por perfil · Relatório quinzenal · Revisão trimestral |
+| ∞ | Enterprise | Cenários sob medida · Relatório semanal · Gestor de conta dedicado · Calibração mensal |
+
+Contrato de 24 meses sobe **um degrau** de nível de serviço (`nivelServicoBonus`). Nível de serviço **não altera preço**.
+
+### 4.4 Contratos
+
+| meses | Label | Desconto | Trava reajuste | Bônus de serviço |
+|---|---|---|---|---|
+| 3 | 3 meses | 0 | não | não |
+| 6 | 6 meses | 0 | não | não |
+| 12 | 12 meses · preço travado | 0 | ✅ | não |
+| 24 | 24 meses · preço travado + serviço | 0 | ✅ | ✅ |
+
+> Todos os descontos estão em 0 nesta versão; o campo `desconto` existe e é aplicado antes do piso (`mostrar_desconto` só liga se houver desconto e o piso não estiver ativo).
+
+### 4.5 Premissas globais (editáveis)
+
+| id | Label | Default | Step | Papel |
+|---|---|---|---|---|
+| `ENCARGOS` | Multiplicador de encargos trabalhistas | 1,75× | 0,05 | salário → custo empresa |
+| `JORNADA` | Jornada mensal | 200 h | 5 | divisor do custo/hora do gestor |
+| `FATOR_ESCOPO` | Fator de escopo do roleplay | 2,1× | 0,1 | **fallback** (o real é derivado dos inputs) |
+| `SUPERVISAO` | Supervisão residual com a Perfecting | 0,25 | 0,05 | fração do tempo de gestor que permanece |
+| `HAIRCUT_RAMPA` | Haircut anti-otimismo no ganho de rampa | 0,7 | 0,05 | desconto de 30% |
+| `PCT_EVENTO_SUBSTITUIVEL` | Parcela substituível de um evento presencial | 0,5 | 0,05 | só no contrafactual `evento` |
+| `HAIRCUT_CICLO` | Haircut anti-otimismo no ganho de ciclo | 0,7 | 0,05 | desconto de 30% |
+| `HAIRCUT_CONVERSAO` | Haircut anti-otimismo no ganho de conversão | 0,7 | 0,05 | desconto de 30% |
+
+### 4.6 Cenários
+
+| id | Nome exibido | Δticket | Δrampa | Δciclo | Δconversão | Cor | Legenda |
+|---|---|---|---|---|---|---|---|
+| `conservador` | Conservador (recomendado) | +5% | −20% | −5% | +0,5 p.p. | brand | piso da projeção — use para decidir |
+| `base` | Realista | +15% | −50% | −15% | +2,5 p.p. | success | time praticando com consistência |
+| `agressivo` | Otimista | +20% | −65% | −20% | +3,5 p.p. | warning | teto com adoção alta do time |
+
+### 4.7 Limites dos sliders de delta
+
+| Slider | Min | Max | Step |
+|---|---|---|---|
+| `ticket` | 0 | 0,30 (30%) | 0,01 |
+| `rampa` | 0 | 0,80 (80%) | 0,05 |
+| `ciclo` | 0 | 0,30 (30%) | 0,01 |
+| `conversao` | 0 | 5 p.p. | 0,25 |
+
+Mexer em qualquer slider grava `deltas` e o time passa a contar como "ajustado". O cenário exibido é reconhecido de volta se os deltas coincidirem exatamente com um dos presets.
+
+---
+
+## 5. Motor de cálculo por time
+
+### 5.1 Semântica de null (importante)
+
+Quatro helpers governam tudo:
+
+```
+ehNumero(x)        = typeof number && isFinite && !NaN
+ehPositivo(x)      = ehNumero(x) && x > 0
+divide(a, b)       = ehNumero(a) && ehPositivo(b) ? a/b : null
+produto(...args)   = args.every(ehNumero) ? multiplica todos : null
+```
+
+Consequência: qualquer entrada ausente/zero em posição de divisor **anula o indicador** (a linha desaparece da tela) em vez de exibir 0. Um bloco só é somado ao ROI se **todos** os seus componentes forem números válidos.
+
+### 5.2 Assinatura
+
+```
+calcularTime({ inputs, plano, cenario, contrato, assentos, premissas, deltas })
+```
+
+Deltas efetivos:
+```
+Δticket = deltas?.ticket ?? CENARIO.ticket
+Δrampa  = deltas?.rampa  ?? CENARIO.rampa
+Δconv   = clamp(deltas?.conversao ?? CENARIO.conversao, 0, delta_conversao_pp_max)
+Δciclo  = ver §5.6
+```
+
+### 5.3 Estrutura, custo do gestor e fator de escopo
+
+```
+conversao            = min(conversao_pct, 100) / 100
+custo_hora_gestor    = salario_gestor × ENCARGOS / JORNADA
+receita_rep_pleno    = receita_mensal / num_vendedores
+horas_gestor_mes     = horas_treino_gestor_mes × num_gestores_treino
+reps_cobertos_mes    = vendedores_por_gestor_mes × num_gestores_treino
+horas_pratica_entregues_mes = reps_cobertos_mes × horas_pratica_por_rep_hoje
+
+fator_escopo_declarado   = horas_gestor_mes / horas_pratica_entregues_mes
+fator_escopo_fora_faixa  = declarado < 0,25 OU declarado > 6
+fator_escopo             = fora_faixa ? FATOR_ESCOPO (2,1) : declarado
+fator_escopo_origem      = "declarado" | "premissa"
+```
+
+### 5.4 Volume contratado, cobertura e capacidade
+
+```
+horas_pratica_mes = assentos × PLANO.horas
+cobertura         = min(1, assentos / num_vendedores)
+
+capacidade_hoje_reps_mes = horas_pratica_entregues_mes / PLANO.horas
+capacidade_com_reps_mes  = capacidade_hoje_reps_mes / SUPERVISAO
+fila_hoje_meses          = num_vendedores / capacidade_hoje_reps_mes
+fila_com_meses           = num_vendedores / capacidade_com_reps_mes
+
+multiplicador_capacidade_gestor = 1 / SUPERVISAO                      // 4×
+gestores_necessarios_hoje = num_vendedores / vendedores_por_gestor_mes
+gestores_necessarios_com  = num_vendedores / (vendedores_por_gestor_mes × 1/SUPERVISAO)
+gestores_evitados         = max(hoje − com, 0)
+gap_gestores_hoje         = max(hoje − num_gestores_treino, 0)
+economia_headcount_mes    = gestores_evitados × salario_gestor × ENCARGOS
+economia_headcount_ano    = economia_headcount_mes × 12          // ⚠️ NÃO entra no ROI
+```
+
+### 5.5 Preço do time e derivados de custo
+
+```
+preco_mes_tabela   = tabelaEscalonada(horas_pratica_mes)
+com_desconto       = preco_mes_tabela × (1 − CONTRATO.desconto)
+preco_mes          = max(com_desconto, 13.000)
+taxa_minima_ativa  = com_desconto < 13.000
+mostrar_desconto   = !taxa_minima_ativa && desconto > 0
+preco_ano          = preco_mes × 12
+preco_ano_efetivo  = preco_mes × 12
+total_horas_contrato = horas_pratica_mes × CONTRATO.meses
+total_bruto        = preco_mes_tabela × CONTRATO.meses
+total_liquido      = preco_mes × CONTRATO.meses
+valor_desconto     = max(total_bruto − total_liquido, 0)
+
+custo_manual_mes              = horas_pratica_mes × custo_hora_gestor × fator_escopo
+economia_gestor_mes           = custo_manual_mes × (1 − SUPERVISAO)
+horas_liberadas_mes           = horas_pratica_mes × fator_escopo × (1 − SUPERVISAO)
+valor_horas_liberadas_mes     = horas_liberadas_mes × custo_hora_gestor
+custo_hora_roleplay_humano    = custo_hora_gestor × fator_escopo
+custo_hora_roleplay_perfecting= preco_mes / horas_pratica_mes
+preco_por_assento             = preco_mes / assentos
+custo_dia_por_vendedor        = preco_por_assento / 22
+custo_dia_manual_por_vendedor = PLANO.horas × custo_hora_gestor × fator_escopo / 22
+vezes_mais_barato_dia         = custo_dia_manual / custo_dia_perfecting
+retorno_dia_por_assento       = valor_ano / assentos / 264
+```
+
+### 5.6 Alavanca 1 — Eficiência (com teto)
+
+```
+teto_eficiencia_ano = horas_pratica_mes × fator_escopo × custo_hora_gestor × (1 − SUPERVISAO) × 12
+
+caminho_eficiencia_ano =
+  contrafactual == "nenhum"   → 0
+  contrafactual == "gestores" → horas_treino_gestor_mes × num_gestores_treino
+                                × custo_hora_gestor × (1 − SUPERVISAO) × 12
+  contrafactual == "externo"  → custo_externo_ano × (1 − SUPERVISAO)
+  contrafactual == "evento"   → custo_evento_ano × PCT_EVENTO_SUBSTITUIVEL
+
+eficiencia_ano        = min(caminho_eficiencia_ano, teto_eficiencia_ano)
+teto_eficiencia_ativo = caminho > teto        // exibe aviso de teto de eficiência
+```
+
+> Note que o **caminho "gestores" não multiplica pelo fator de escopo** — usa as horas de gestor declaradas diretamente. O fator de escopo aparece apenas no teto e nas comparações de custo/hora.
+
+### 5.7 Alavanca 2 — Ticket
+
+```
+margem_ticket_ano = receita_mensal × Δticket × 12 × margem × cobertura
+```
+
+### 5.8 Alavanca 3 — Rampa
+
+```
+margem_rampa_ano        = rampa_meses × Δrampa × receita_rep_pleno × novos_ano
+                          × margem × HAIRCUT_RAMPA × cobertura
+receita_antecipada_rep  = rampa_meses × Δrampa × receita_rep_pleno
+custo_vendedor_mes      = salario_vendedor × ENCARGOS
+custo_time_rampa_ano    = custo_vendedor_mes × rampa_meses × novos_ano       // ⚠️ fora do ROI
+custo_rampa_evitado_ano = custo_vendedor_mes × rampa_meses × Δrampa
+                          × novos_ano × HAIRCUT_RAMPA                        // ⚠️ fora do ROI
+```
+
+### 5.9 Alavanca 4 — Conversão
+
+```
+vendas_mes              = receita_mensal / ticket_medio
+oportunidades_mes       = vendas_mes / conversao
+delta_conversao_pp_max  = max(0, min(5, conversao_pct × 0,4, 100 − conversao_pct))
+delta_conversao_pp      = clamp(Δconv, 0, delta_conversao_pp_max)
+delta_conversao_limitada= Δconv solicitado > máximo        // flag
+conversao_nova          = conversao + delta_conversao_pp/100
+vendas_adicionais_conv  = oportunidades_mes × delta_conversao_pp/100
+ganho_conversao_ano     = vendas_adicionais_conv × ticket_medio × margem × 12
+                          × HAIRCUT_CONVERSAO × cobertura
+```
+
+Rótulo exibido: `25,0% → 25,5% · +2% relativo` (relativo = pp / conversão atual).
+
+### 5.10 Alavanca 5 — Ciclo de venda (opcional, com teto de funil)
+
+```
+ciclo_em_dias      = ciclo_atual_dias >= 7
+dias_reduzidos_max = round(ciclo_atual_dias × 0,3)
+dias_reduzidos     = deltas?.ciclo_dias ? clamp(round(ciclo_dias), 0, max)
+                                        : max(1, round(ciclo_atual_dias × CENARIO.ciclo))
+delta_ciclo        = ciclo_em_dias ? dias_reduzidos / ciclo_atual_dias
+                                   : clamp(Δciclo, 0, 0,95)
+ciclo_novo_dias    = ciclo_atual_dias − dias_reduzidos
+
+ciclo_disponivel   = ciclo_atual_dias > 0 && leads_mes > 0 && conversao != null
+leads_trabalhados  = oportunidades_mes
+leads_ociosos      = max(0, leads_mes − leads_trabalhados)
+teto_vendas_mes    = leads_ociosos × conversao                  // TETO DE FUNIL
+ganho_capacidade_mes = vendas_mes × (1/(1 − delta_ciclo) − 1)
+vendas_adicionais_mes= min(ganho_capacidade_mes, teto_vendas_mes)
+funil_saturado     = vendas_adicionais < ganho_capacidade  OU  leads_ociosos == 0
+ganho_ciclo_ano    = vendas_adicionais_mes × ticket_medio × margem × 12
+                     × HAIRCUT_CICLO × cobertura
+```
+
+Sem demanda ociosa, **ganho de ciclo = 0** por construção.
+
+### 5.11 Consolidação do time
+
+```
+base = [eficiencia_ano, margem_ticket_ano, margem_rampa_ano, ganho_conversao_ano]
+soma_base = base.every(ehNumero) ? soma(base) : null
+valor_ano = soma_base + (ciclo_disponivel && ganho_ciclo_ano válido ? ganho_ciclo_ano : 0)
+
+roi           = valor_ano / preco_ano_efetivo
+payback_meses = preco_ano_efetivo / valor_ano × 12
+payback_excede_contrato = payback_meses > CONTRATO.meses
+
+margem_anual_atual = receita_mensal × 12 × margem
+checagem_pct       = (ticket + rampa + conversão + ciclo) / margem_anual_atual   // SEM eficiência
+checagem_alerta    = checagem_pct > 0,25
+```
+
+### 5.12 Não somados ao ROI (evitar dupla contagem)
+
+- `economia_headcount_ano` (g
