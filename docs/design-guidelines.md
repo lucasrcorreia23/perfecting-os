@@ -177,6 +177,7 @@ o que vive dentro de uma linha — pode cair em 4.
 
 | Papel | Valor |
 |---|---|
+| Sub-tópico ↔ sub-tópico dentro de um bloco longo | `gap-10` (40) |
 | Seção ↔ seção | `gap-8` (32) |
 | Coluna ↔ coluna do grid | `gap-6` (24) |
 | Card ↔ card, campo ↔ campo | `gap-4` (16) |
@@ -187,6 +188,17 @@ o que vive dentro de uma linha — pode cair em 4.
 Padding de card em três degraus, **um valor por posto**: `p-8` (hero/página
 inteira) → `p-6` (card de seção) → `p-4` (sub-bloco dentro de um card). `p-5` e
 `p-3` não são postos de card.
+
+Os 40px são o degrau que faltava, e existem por um caso: um bloco de leitura
+que carrega vários assuntos. Quando o intervalo entre os sub-blocos é o mesmo
+`gap-6` que separa o título do primeiro deles, os sub-blocos e o cabeçalho
+passam a valer o mesmo, e um bloco de 1.700px vira uma pilha sem cadência —
+nada diz onde um assunto acaba. Com 40 entre sub-tópicos e 24 do título para o
+corpo, a seção volta a ter dentro dela a mesma hierarquia que tem fora. Vale só
+para blocos com mais de um assunto: numa seção de assunto único não há o que
+separar, e 40px ali é buraco. (`SecaoResultado` expõe isso como `ritmo="amplo"`
+e mantém o corpo num filho só, para o cabeçalho continuar respirando mais em
+cima que embaixo.)
 
 **Nada de meio-passo** (`gap-1.5`, `py-2.5`, `px-3.5`, `mt-0.5` = 6/10/14/2px),
 com três exceções que já são padrão de componente: `px-4 py-2.5` em header de
@@ -302,6 +314,12 @@ Dois caminhos foram tentados antes e vale saber por que saíram:
   `background-clip: padding-box, border-box`): funciona tecnicamente, mas as
   duas pontas do gradiente brigam com qualquer fundo que não seja neutro, e a
   moldura passa a competir com o conteúdo que deveria emoldurar.
+- **Halo radial atrás do número** (oval da cor de tendência sob o glifo, via
+  `bg-radial from-trend-positive/14`): é decoração, não profundidade — sem
+  deslocamento e sem borrão que signifique alguma coisa, ele só pinta um oval em
+  volta do maior número da página, que já era o maior sem ajuda. Chegou a
+  substituir o wash no código e voltou atrás: o destaque tem de valer para o
+  bloco, não para um caractere dele.
 
 O wash resolve o mesmo problema — dizer "é aqui que está a resposta" — sem
 cobrar nenhuma das duas coisas. **Um por página**: a regra do azul (§1,

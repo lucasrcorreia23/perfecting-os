@@ -44,3 +44,11 @@ next-env.d.ts
 # agent skills (tooling local)
 .agents/
 skills-lock.json
+.claude/skills/
+.codex/
+
+# impeccable: config e artefatos de design são versionados; efêmeros, não
+.impeccable/config.local.json
+.impeccable/*.png
+.impeccable/live/sessions/
+.impeccable/live/previews/
