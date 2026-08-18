@@ -160,6 +160,73 @@ body {
 }
 
 /*
+ * Rolagem sem barra, com esvanecer na ponta que ainda esconde conteúdo.
+ * Usada na etapa de resultado da calculadora — a barra nativa cruzando um
+ * painel de leitura (a lista de "Dados preenchidos", o rodapé de um gráfico)
+ * é ruído de sistema numa tela que a pessoa abre uma vez para decidir.
+ *
+ * Esconder a barra sem devolver AFORDÂNCIA seria regressão: quem avisa que há
+ * mais conteúdo passa a ser o degradê de 24px na ponta. Por isso as duas
+ * coisas moram na mesma classe e nunca se separam — exceto em `.rolagem-limpa`
+ * abaixo, que tem motivo próprio.
+ *
+ * O degradê é atado à posição da rolagem (`animation-timeline: scroll(self …)`,
+ * animando só o comprimento `--rolagem-fim`): ele recua nos últimos 32px do
+ * curso, para a última linha chegar inteira, e some de vez quando não há o que
+ * rolar — timeline sem overflow é timeline inativa, a animação não se aplica e
+ * o estado base é máscara opaca. É essa inatividade que permite marcar um SVG
+ * que só transborda no mobile sem apagar a borda dele no desktop.
+ */
+@property --rolagem-fim {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes rolagem-esvanecer {
+  from {
+    --rolagem-fim: 24px;
+  }
+  to {
+    --rolagem-fim: 0px;
+  }
+}
+
+.rolagem-esvanecida-y,
+.rolagem-esvanecida-x {
+  scrollbar-width: none;
+  animation: rolagem-esvanecer linear both;
+  /* Depois do atalho `animation`, nunca antes: o shorthand reseta
+     `animation-range` e `animation-timeline` para o valor inicial. */
+  animation-range: calc(100% - 32px) 100%;
+}
+.rolagem-esvanecida-y::-webkit-scrollbar,
+.rolagem-esvanecida-x::-webkit-scrollbar,
+.rolagem-limpa::-webkit-scrollbar {
+  display: none;
+}
+
+.rolagem-esvanecida-y {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--rolagem-fim)), transparent);
+  animation-timeline: scroll(self block);
+}
+
+.rolagem-esvanecida-x {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--rolagem-fim)), transparent);
+  animation-timeline: scroll(self inline);
+}
+
+/*
+ * Só esconde a barra, sem máscara. Exceção para trilhos que já têm contorno
+ * próprio — a fita de abas da trajetória é uma pílula com borda, e o degradê
+ * dissolveria a borda junto com o conteúdo. Ali a afordância é a aba seguinte
+ * cortada na curva da pílula.
+ */
+.rolagem-limpa {
+  scrollbar-width: none;
+}
+
+/*
  * Sliders verticais dos 12 checkpoints da trajetória (calculadora de ROI).
  * O trilho, o preenchimento e o thumb são desenhados em marcação pelo
  * componente (`trajetoria-panel.tsx`) — pseudo-elementos de vendor têm

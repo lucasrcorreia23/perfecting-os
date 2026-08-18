@@ -410,7 +410,7 @@ function PainelMensalTrajetoria({
 
       {editavel ? (
         <div className="rounded-sm bg-slate-50/60 p-4">
-          <div className="flex items-end gap-1 overflow-x-auto">
+          <div className="rolagem-esvanecida-x flex items-end gap-1 overflow-x-auto">
             {series.suaExpectativa.map((ponto, index) => (
               <SliderMes
                 key={ponto.mes}
@@ -759,7 +759,7 @@ export function PaineisTrajetoria({
       <div
         role="tablist"
         aria-label="Painéis da trajetória"
-        className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/60 p-1"
+        className="rolagem-limpa flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/60 p-1"
         onKeyDown={(event) => {
           if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
           event.preventDefault();

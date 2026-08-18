@@ -140,6 +140,11 @@ export function SeusNumerosSidebar({
       </div>
 
       {/* Só os campos rolam: o card mantém a borda inteira, sem corte seco.
+          `rolagem-esvanecida-y` (globals.css) tira a barra nativa e põe o
+          degradê no lugar dela — a barra cruzando a lista é ruído de sistema
+          numa tela de leitura, e o degradê diz a mesma coisa ("tem mais
+          abaixo") sem desenhar um controle. Ele recua no fim do curso, então
+          o último rótulo chega inteiro.
           Recolhida, a coluna vira `display:none` — o elemento continua no DOM
           para o `aria-controls` do gatilho apontar para algo, e `display:none`
           já tira os campos da ordem de foco. Uma única utilitária de display
@@ -147,8 +152,7 @@ export function SeusNumerosSidebar({
       <div
         id="seus-numeros-campos"
         className={cn(
-          "scrollbar-thin min-h-0 flex-col gap-6 overflow-y-auto px-6 pb-6",
-          "[mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)]",
+          "rolagem-esvanecida-y min-h-0 flex-col gap-6 overflow-y-auto px-6 pb-6",
           aberta ? "flex" : "hidden",
         )}
       >

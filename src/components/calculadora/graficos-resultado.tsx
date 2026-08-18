@@ -96,7 +96,7 @@ export function CascataValor({ resultado }: { resultado: ResultadoOk }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto">
+      <div className="rolagem-esvanecida-x overflow-x-auto">
         <svg
           viewBox={`0 0 ${VB_W} ${CASCATA_VB_H}`}
           className="w-full min-w-[520px]"
@@ -272,7 +272,7 @@ export function ComparacaoCenarios({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto">
+      <div className="rolagem-esvanecida-x overflow-x-auto">
         <svg
           viewBox={`0 0 ${VB_W} ${COMP_VB_H}`}
           className="w-full min-w-[420px]"
