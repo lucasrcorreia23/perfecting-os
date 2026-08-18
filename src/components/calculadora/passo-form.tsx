@@ -1,24 +1,17 @@
 "use client";
 
-import { CAMPO_DEFS, CAMINHO_HELP, CAMINHO_LABEL, MARGEM_HELP, MARGEM_LABEL } from "@/lib/calculadora/campos";
-import { CAMINHOS, FAIXAS_MARGEM } from "@/lib/calculadora/constants";
+import { CAMPO_DEFS, CAMINHO_HELP, CAMINHO_LABEL } from "@/lib/calculadora/campos";
+import { CAMINHOS, MARGEM_NAO_SEI } from "@/lib/calculadora/constants";
 import type {
   CampoId,
   Caminho,
   EntradasTime,
   EstruturaCompartilhada,
-  FaixaMargemId,
 } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/form";
-import { SelectMenu } from "@/components/ui/select-menu";
 import { CampoNumero } from "./campo-numero";
 import { Alternador, BlocoEstrutura } from "./estrutura-compartilhada";
-
-const FAIXA_OPTIONS = (Object.keys(FAIXAS_MARGEM) as FaixaMargemId[]).map((id) => ({
-  value: id,
-  label: FAIXAS_MARGEM[id].label,
-}));
 
 function CampoDef({
   campo,
@@ -26,7 +19,7 @@ function CampoDef({
   onChange,
   autoFocus,
 }: {
-  campo: Exclude<CampoId, "margemFaixa" | "caminho">;
+  campo: Exclude<CampoId, "caminho">;
   entradas: EntradasTime;
   onChange: (campo: CampoId, valor: EntradasTime[CampoId]) => void;
   autoFocus?: boolean;
@@ -115,7 +108,6 @@ export function PassoForm({
   }
 
   if (passo === 2) {
-    const faixa = entradas.margemFaixa;
     return (
       <div className="flex flex-col gap-4">
         <CampoDef campo="receitaMensal" entradas={entradas} onChange={onChange} autoFocus />
@@ -123,25 +115,22 @@ export function PassoForm({
           <CampoDef campo="ticketMedio" entradas={entradas} onChange={onChange} />
           <CampoDef campo="conversaoPct" entradas={entradas} onChange={onChange} />
         </div>
-        <Field label={MARGEM_LABEL} hint={MARGEM_HELP} htmlFor="campo-margemFaixa">
-          <div className="flex flex-col gap-2">
-            <SelectMenu
-              id="campo-margemFaixa"
-              placeholder="Escolha uma faixa…"
-              options={FAIXA_OPTIONS}
-              value={faixa ?? ""}
-              onChange={(valor) =>
-                onChange("margemFaixa", valor === "" ? null : (valor as FaixaMargemId))
-              }
-            />
-            {faixa ? (
-              <p className="text-xs text-slate-500">
-                Entra no cálculo como{" "}
-                <span className="font-medium text-slate-700">{FAIXAS_MARGEM[faixa].pct}%</span>.
-              </p>
-            ) : null}
-          </div>
-        </Field>
+        <div className="flex flex-col gap-2">
+          <CampoDef campo="margemPct" entradas={entradas} onChange={onChange} />
+          {entradas.margemPct === null ? (
+            <button
+              type="button"
+              onClick={() => onChange("margemPct", MARGEM_NAO_SEI)}
+              className={cn(
+                "self-start inline-flex min-h-[44px] cursor-pointer items-center rounded-full border border-slate-200 px-4 text-[13px] font-medium leading-5 text-slate-600 sm:min-h-8",
+                "transition-colors hover:border-slate-300 hover:text-slate-800",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+              )}
+            >
+              Não sei → usar {MARGEM_NAO_SEI}%
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }

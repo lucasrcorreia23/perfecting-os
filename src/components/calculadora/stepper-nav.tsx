@@ -70,7 +70,7 @@ export function StepperNav({
                     type="button"
                     onClick={() => onIrPara(time.id, passo.id)}
                     aria-current={atual ? "step" : undefined}
-                    aria-label={`${time.nome}, passo ${passo.id}: ${passo.titulo}${completo ? " (completo)" : ""}`}
+                    aria-label={`${time.nome}, passo ${passo.id}${passo.titulo ? `: ${passo.titulo}` : ""}${completo ? " (completo)" : ""}`}
                     className={cn(
                       "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border text-sm font-medium transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",

@@ -40,7 +40,14 @@ export function Modal({
     // ele fica — o painel é o destino de fallback, não um roubo.
     const painel = panelRef.current;
     if (painel && !painel.contains(document.activeElement)) painel.focus();
+
+    // Travar o scroll tira a barra de rolagem, e a página inteira salta para o
+    // lado pela largura dela. Repor esse espaço como padding mantém o conteúdo
+    // parado — sem isto, abrir qualquer modal desloca a tela atrás dele.
+    const larguraBarra = window.innerWidth - document.documentElement.clientWidth;
+    const paddingAnterior = document.body.style.paddingRight;
     document.body.style.overflow = "hidden";
+    if (larguraBarra > 0) document.body.style.paddingRight = `${larguraBarra}px`;
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onCloseRef.current();
@@ -48,6 +55,7 @@ export function Modal({
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
+      document.body.style.paddingRight = paddingAnterior;
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);

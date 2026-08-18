@@ -12,6 +12,7 @@ import type { PlanoId, PrecoConta } from "@/lib/calculadora/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CampoNumero } from "./campo-numero";
+import { EscadaPrecoGrafico } from "./graficos-resultado";
 import { BlocoRecolhivel } from "./secao-resultado";
 import { SeloEvidencia } from "./selo-evidencia";
 
@@ -204,7 +205,11 @@ export function QuantoCusta({
             {/* Mesmo ritmo da tabela da oferta no Resumo: linha de conta pede
                 ar, senão as faixas da escada leem como um bloco só de texto. */}
             <div className="flex flex-col gap-4 pt-1">
-              <div className="flex flex-col gap-4 text-sm">
+              {/* O desenho antes da conta: a escada é o conceito que a lista
+                  de subtotais pressupõe, e ver a largura de cada faixa explica
+                  "progressiva por faixa" mais rápido que a frase. */}
+              <EscadaPrecoGrafico preco={preco} />
+              <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 text-sm">
                 {preco.extrato.map((faixa, index) => (
                   <div key={index} className="flex items-baseline justify-between gap-4">
                     <span className="text-slate-600">

@@ -18,7 +18,7 @@ function entradasBase(sobrescreve: Partial<EntradasTime>): EntradasTime {
     receitaMensal: 900_000,
     ticketMedio: 15_000,
     conversaoPct: 25,
-    margemFaixa: "25a35",
+    margemPct: 30,
     salarioGestor: 12_000,
     rampaMeses: 4,
     contratacoesAno: 8,

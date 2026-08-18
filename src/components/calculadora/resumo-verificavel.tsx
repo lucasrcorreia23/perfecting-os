@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { PrinterIcon } from "@heroicons/react/24/outline";
 import {
-  CAMINHOS,
   CENARIOS,
   DIAS_UTEIS_MES,
-  HAIRCUT,
   NIVEL_COPY,
   PLANOS,
   PRAZO_COPY,
@@ -22,7 +19,7 @@ import type { PrecoConta, ResultadoConsolidado } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "./disclaimer";
-import { BlocoRecolhivel, SecaoResultado } from "./secao-resultado";
+import { SecaoResultado } from "./secao-resultado";
 import { SeloEvidencia } from "./selo-evidencia";
 
 // Resumo verificável e imprimível: o parágrafo-síntese, os três números, o
@@ -62,9 +59,6 @@ export function ResumoVerificavel({
   consolidado: ResultadoConsolidado;
   dataCalculo: string;
 }) {
-  // Hook antes do early return: o gating de resultado incompleto vem depois.
-  const [detalheAberto, setDetalheAberto] = useState(true);
-
   if (consolidado.status !== "ok") return null;
   const multiTime = times.length > 1;
   const totalAssentos = consolidado.totalAssentos;
@@ -97,60 +91,6 @@ export function ResumoVerificavel({
       ? (custoHoraGestor * PLANOS[primeiro.proposta.plano].horasMes) / DIAS_UTEIS_MES
       : null;
   const custoDiaPerfecting = !multiTime ? (ok?.granularidade.custoDiaPorVendedor ?? null) : null;
-
-  const cenarioTexto = multiTime
-    ? consolidado.mixCenarios
-        .map(
-          (mix) =>
-            `${mix.nome}: ${mix.sel.modo === "preset" ? CENARIOS[mix.sel.cenario].label : "parâmetros personalizados"}`,
-        )
-        .join(" · ")
-    : primeiro.sel.modo === "preset"
-      ? `Cálculo no cenário ${CENARIOS[primeiro.sel.cenario].label}${primeiro.sel.cenario === "conservador" ? ", o mais defensável em comitê" : ""}.`
-      : "Cálculo com parâmetros personalizados por você, dentro dos tetos do modelo.";
-
-  const verificaveis: { titulo: string; texto: string }[] = [
-    {
-      titulo: "Proposta montada por você",
-      texto:
-        "Plano, assentos e prazo foram escolhidos por você nesta tela. Nada veio pré-definido.",
-    },
-    {
-      titulo: "Alternativa declarada por você",
-      texto: multiTime
-        ? "A economia considera, em cada time, o caminho que você escolheu: um deles, nunca a soma de todos."
-        : primeiro.entradas.caminho
-          ? `A economia considera só o caminho que você escolheu (${CAMINHOS[primeiro.entradas.caminho].label.toLowerCase()}), nunca a soma de todas as alternativas.`
-          : "",
-    },
-    {
-      titulo: "Teto de funil",
-      // Passo 5 é opcional: sem ciclo e volume não existe ganho de ciclo, e a
-      // trava não tem o que travar.
-      texto:
-        primeiro.entradas.cicloDias !== null && primeiro.entradas.leadsMes !== null
-          ? "O ganho de encurtar o ciclo fica limitado pelas oportunidades ociosas do seu funil: capacidade sem demanda não vira receita."
-          : "",
-    },
-    {
-      titulo: "Linhas não somadas",
-      texto:
-        "Salário do time em rampa e economia de headcount aparecem no detalhamento, mas não entram no ROI, porque seriam contagem dupla.",
-    },
-    {
-      titulo: "Haircut anti-otimismo",
-      texto: `Os ganhos de rampa, ciclo e conversão foram reduzidos em ${formatNumero((1 - HAIRCUT) * 100, 0)}% antes de entrar na conta.`,
-    },
-    {
-      titulo: "Fator de escopo",
-      texto: ok
-        ? ok.fatorEscopo.origem === "declarado"
-          ? `A comparação com o custo do gestor usa os seus próprios números: ${formatNumero(ok.fatorEscopo.valor, 1)} h de gestor por hora de prática entregue.`
-          : "Seus números de treino ficaram fora da faixa de validade; usamos a premissa declarada de 2,1 h de gestor por hora de prática."
-        : "",
-    },
-    { titulo: "Cenário", texto: cenarioTexto },
-  ].filter((item) => item.texto !== "");
 
   // A oferta é tabela de verdade (rótulo → valor), não lista de linhas soltas:
   // é a parte do resumo que se lê de relance no papel.
@@ -214,7 +154,7 @@ export function ResumoVerificavel({
         <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           <SeloEvidencia selo="projecao" />
-          <p className="text-sm leading-6 text-slate-700">{sintese}</p>
+          <p className="text-base leading-7 text-slate-700">{sintese}</p>
         </div>
 
         {/* Payback fica slate: é tempo, não parcela que entra na conta — o
@@ -234,10 +174,10 @@ export function ResumoVerificavel({
             },
           ].map((item) => (
             <div key={item.rotulo} className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">{item.rotulo}</span>
+              <span className="text-sm font-medium text-slate-600">{item.rotulo}</span>
               <span
                 className={cn(
-                  "text-lg font-semibold tabular-nums",
+                  "text-xl font-semibold tabular-nums",
                   item.positivo ? "text-trend-positive" : "text-slate-900",
                 )}
               >
@@ -248,7 +188,7 @@ export function ResumoVerificavel({
         </div>
 
         {custoDiaPerfecting !== null && custoDiaGestor !== null ? (
-          <p className="text-sm leading-6 text-slate-700">
+          <p className="text-base leading-7 text-slate-700">
             <span className="font-medium tabular-nums">
               {formatBRL(custoDiaPerfecting, 2)}
             </span>{" "}
@@ -260,73 +200,47 @@ export function ResumoVerificavel({
           </p>
         ) : null}
 
-        {/* Aberto por padrão: é o fecho da página e o artefato que vai para o
-            comitê — quem rolou até aqui quer ler, não clicar. O gatilho fica
-            para quem já conferiu. BlocoRecolhivel mantém tudo montado, então a
-            impressão sai completa mesmo se a pessoa fechar. */}
-        <BlocoRecolhivel
-          id="resumo-detalhe"
-          titulo="Verificável nesta tela"
-          aberto={detalheAberto}
-          onToggle={() => setDetalheAberto((atual) => !atual)}
-        >
-          <div className="flex flex-col gap-6">
-            <ul className="flex flex-col gap-4">
-              {verificaveis.map((item) => (
-                <li
-                  key={item.titulo}
-                  className="text-xs leading-5 text-slate-500"
-                >
-                  <span className="font-medium text-slate-700">{item.titulo}.</span>{" "}
-                  {item.texto}
-                </li>
+        {/* A lista "Verificável nesta tela" saiu daqui: as mesmas travas estão
+            em "Perguntas comuns", com o argumento inteiro em vez de uma
+            linha, e repetidas nos dois lugares só engordavam o fecho. O que
+            sobrou é o que o papel precisa — a oferta e o próximo passo.
+
+            Zebra em vez de fio entre linhas: são seis parcelas da mesma
+            oferta, e seis réguas dariam a elas peso de subtotal. Sem caixa em
+            volta — a tabela mora dentro do container do resumo e uma borda
+            própria seria a terceira aninhada. */}
+        <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
+          <span className="text-sm font-semibold text-slate-700">Oferta</span>
+          <table className="w-full border-collapse text-base" data-zebra>
+            <tbody>
+              {linhasOferta.map((linha) => (
+                <tr key={linha.rotulo} className="odd:bg-slate-50">
+                  <th
+                    scope="row"
+                    className="px-4 py-4 text-left align-baseline font-normal whitespace-nowrap text-slate-700"
+                  >
+                    {linha.rotulo}
+                  </th>
+                  <td className="px-4 py-4 text-right align-baseline font-medium tabular-nums text-slate-900">
+                    {linha.valor}
+                    {linha.nota ? (
+                      <span className="mt-1.5 block text-sm leading-6 font-normal text-slate-600">
+                        {linha.nota}
+                      </span>
+                    ) : null}
+                  </td>
+                </tr>
               ))}
-            </ul>
+            </tbody>
+          </table>
+        </div>
 
-            <p className="text-xs leading-5 text-slate-500">
-              Nenhum número desta tela foi medido em campo. Todas as premissas estão
-              declaradas e editáveis, e a projeção é verificada no piloto contra um
-              baseline acordado.
-            </p>
-
-            {/* Zebra em vez de fio entre linhas: são seis parcelas da mesma
-                oferta, e seis réguas dariam a elas peso de subtotal (o `border-t`
-                aqui é do bloco, não das linhas). Sem caixa em volta — a tabela
-                mora dentro do container do resumo e uma borda própria seria a
-                terceira aninhada. */}
-            <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
-              <span className="text-xs font-semibold text-slate-500">Oferta</span>
-              <table className="w-full border-collapse text-sm" data-zebra>
-                <tbody>
-                  {linhasOferta.map((linha) => (
-                    <tr key={linha.rotulo} className="odd:bg-slate-50">
-                      <th
-                        scope="row"
-                        className="px-4 py-4 text-left align-baseline font-normal whitespace-nowrap text-slate-500"
-                      >
-                        {linha.rotulo}
-                      </th>
-                      <td className="px-4 py-4 text-right align-baseline font-medium tabular-nums text-slate-800">
-                        {linha.valor}
-                        {linha.nota ? (
-                          <span className="mt-1.5 block text-xs leading-5 font-normal text-slate-500">
-                            {linha.nota}
-                          </span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <p className="text-xs leading-5 text-slate-400">
-              Próximo passo: acordar o baseline dos indicadores que você quer mover e
-              definir o escopo do piloto. A partir dele, a projeção desta tela passa a
-              ser medida.
-            </p>
-          </div>
-        </BlocoRecolhivel>
+        <p className="text-sm leading-6 text-slate-600">
+          Nenhum número desta tela foi medido em campo: são projeções sobre premissas
+          declaradas e editáveis. Próximo passo é acordar o baseline dos indicadores
+          que você quer mover e o escopo do piloto — a partir dele, esta projeção passa
+          a ser medida.
+        </p>
 
         {/* Disclaimer aqui dentro, não como irmão da seção: só o que está sob
             `#resumo-verificavel` sai na impressão, e a folha sem ele violaria

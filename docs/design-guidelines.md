@@ -500,6 +500,74 @@ dedicado que ecoa o nome do item).
 `0/null = flat`. Convenção: por padrão ↑ é bom (verde); parametrizável quando ↑
 for ruim (ex.: tempo, churn).
 
+### 8.12b Calculadora de ROI: escala tipográfica ampliada
+
+A jornada pública da calculadora (`app/(calculadora)/`) roda **um degrau acima**
+da escala padrão do app, e isso é deliberado: quem lê a proposta e banca o
+número é tipicamente uma pessoa de finanças com 45+ anos, muitas vezes já com
+presbiopia. A escala de 14px com auxiliares em 12px `slate-400` — confortável
+para o time interno, que usa o produto o dia inteiro numa tela grande — vira
+obstáculo para quem abre o link uma vez e precisa decidir.
+
+Nessa jornada:
+
+- **Corpo de leitura** é `text-base` (16px) com `leading-7`, não `text-sm`.
+- **Auxiliares** (rótulo de KPI, descrição de seção, nota de bloco) são
+  `text-sm` (14px). `text-xs` fica reservado a selos e chips.
+- **Cinzas de texto** param em `slate-600`; `slate-400` só para elementos
+  decorativos, nunca para frase que precise ser lida.
+- **Rótulos dentro de SVG** ficam em 12–13px com cinza `#64748b` ou mais
+  escuro, não os 10px `#94a3b8` da convenção geral de §8.13.
+
+O resto do app (telas internas) segue a escala de §2. Esta subseção existe para
+que uma pessoa nova não "corrija" a calculadora de volta para a escala padrão
+achando que é inconsistência.
+
+### 8.13 Gráficos (SVG próprio, zero dependências)
+
+Não há biblioteca de charts no projeto e não deve haver: os gráficos existentes
+(`trajetoria-panel.tsx`, `graficos-resultado.tsx`) são SVG escrito à mão. As
+convenções abaixo já eram praticadas nesses dois arquivos — ficam registradas
+aqui para o próximo gráfico nascer igual.
+
+**Caixa e escala.** `viewBox="0 0 640 N"` com `className="w-full"`: a escala é
+do viewBox, nunca de medição de container. Padding interno padrão
+`{ top: 18, right: 20, bottom: 30, left: 64 }` — os 64px da esquerda são para o
+rótulo de valor. Gráfico que precisa de largura mínima para não achatar vive
+dentro de um `overflow-x-auto` com `min-w-[Npx]` no SVG: **quem rola é o
+container, nunca a página**.
+
+**Grade e eixos.** Grade `#e2e8f0`, `strokeWidth 1`, `strokeDasharray="3 4"`; a
+linha do zero fica sólida. Rótulos de eixo em `fontSize={10}` `fill="#94a3b8"`,
+valores por `formatBRLCompacto`. Quatro a cinco ticks — mais que isso vira
+papel milimetrado.
+
+**Cor.** `stroke`/`fill` são atributos, não classes, então os tokens de
+`globals.css` não alcançam o SVG: declare **uma constante por arquivo**
+(`const VERDE = "#0F9F2E"`) e mantenha-a sincronizada com o token. A semântica
+de §1 continua valendo dentro do gráfico: verde só para o que **entra na
+conta**; custo, preço, payback e réguas de referência em slate; âmbar
+(`#973C00`) só quando há alerta de verdade. Série de referência (o "sem o
+programa", o investimento) é tracejada e slate, para o olho não a confundir com
+resultado.
+
+**Rótulos.** Texto dentro do SVG só onde couber com folga — rótulo que pode
+cruzar uma barra alta (legenda de linha de referência, por exemplo) vai para
+uma **legenda HTML abaixo do gráfico**, não para dentro do desenho. Legendas
+são `div`s com um traço (`h-2 w-4 rounded-full` ou `border-t-2 border-dashed`),
+nunca elementos SVG.
+
+**Acessibilidade.** Todo gráfico leva `role="img"` e um `aria-label` que diz os
+números por extenso — o desenho é ilustração de um dado que também precisa
+existir em texto. Quando o gráfico substitui uma frase (uma soma, uma
+equação), mantenha a frase em prosa logo abaixo: é ela que sobrevive no leitor
+de tela, na impressão e no print de tela mandado por WhatsApp.
+
+**Interação.** Tooltip é HTML posicionado por cima do SVG (não `foreignObject`),
+com a área de hover captada por `<rect fill="transparent">` de altura inteira,
+uma por categoria. Edição por sliders usa `<input type="range">` nativo
+transparente sobre trilho desenhado — nunca arrasto customizado.
+
 ---
 
 ## 9. Movimento & Animação

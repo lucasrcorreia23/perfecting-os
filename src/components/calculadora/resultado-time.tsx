@@ -1,16 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-import { CAMPO_DEFS, MARGEM_LABEL } from "@/lib/calculadora/campos";
+import { CAMPO_DEFS } from "@/lib/calculadora/campos";
 import {
   CAMINHOS,
-  ENCARGOS,
   FATOR_ESCOPO_PREMISSA,
-  JORNADA_MENSAL_H,
   PLANOS,
 } from "@/lib/calculadora/constants";
 import { PASSOS } from "@/lib/calculadora/estado";
@@ -29,6 +28,8 @@ import type {
 } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
+import { MedidorChecagem } from "./graficos-resultado";
+import { BlocoRecolhivel } from "./secao-resultado";
 import { SeloEvidencia, type Selo } from "./selo-evidencia";
 
 type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
@@ -68,12 +69,14 @@ const TOM = {
     gap: "gap-4",
     titulo: "text-slate-700",
     nota: "text-slate-400",
-    numero: "text-(length:--text-score-lg) leading-12 text-trend-positive",
+    numero: "text-(length:--text-score-lg) leading-[3.5rem] text-trend-positive",
     regua: "sm:border-l sm:border-slate-100",
     apoioPositivo: "text-trend-positive",
     apoioNeutro: "text-slate-900",
-    rotulo: "text-slate-500",
-    frase: "text-slate-600",
+    // Rótulo de KPI é o que nomeia o número: em slate-500 ele quase some
+    // debaixo de um valor em peso 600. Um degrau acima resolve sem competir.
+    rotulo: "text-slate-600",
+    frase: "text-slate-700",
     chip: "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-primary/35",
     ressalva: "text-slate-500",
     checagem: "border-slate-100 text-slate-500",
@@ -84,18 +87,21 @@ const TOM = {
     // diferentes, então os dois convivem sem depender da ordem das classes.
     // O gradiente morre em 60%: passando disso o canto inferior direito perde
     // o branco e o wash vira fundo tingido, que é outra coisa.
-    card: "rounded-md border border-slate-200 bg-white bg-linear-to-br from-primary/8 to-transparent to-60% p-6 sm:p-8",
+    card: "rounded-md border border-slate-200 bg-white p-6 sm:p-8",
     gap: "gap-6",
     titulo: "text-slate-800",
     nota: "text-slate-500",
     // Sobre branco o verde volta a ser `text-trend-positive`: `-ink` existe
     // para segurar contraste sobre o verde claro, que saiu daqui.
-    numero: "text-(length:--text-score-xl) leading-16 text-trend-positive",
+    numero:
+      "text-(length:--text-score-lg) leading-[3.5rem] @2xl:text-(length:--text-score-xl) @2xl:leading-[4.5rem] text-trend-positive",
     regua: "sm:border-l sm:border-slate-100",
     apoioPositivo: "text-trend-positive",
     apoioNeutro: "text-slate-900",
-    rotulo: "text-slate-500",
-    frase: "text-slate-600",
+    // Rótulo de KPI é o que nomeia o número: em slate-500 ele quase some
+    // debaixo de um valor em peso 600. Um degrau acima resolve sem competir.
+    rotulo: "text-slate-600",
+    frase: "text-slate-700",
     chip: "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-primary/35",
     ressalva: "text-slate-500",
     checagem: "border-slate-100 text-slate-500",
@@ -110,6 +116,7 @@ export function HeroResultado({
   valorAno,
   precoAno,
   frase,
+  racional,
   chips,
   checagem,
   tom = "claro",
@@ -120,6 +127,10 @@ export function HeroResultado({
   valorAno: number | null;
   precoAno?: number | null;
   frase: string | null;
+  // Como se chegou neste múltiplo, em um balão ao lado do número. É a primeira
+  // pergunta de quem vai bancar a conta, e ela não pode custar uma rolagem
+  // até "De onde vem o número" para ser respondida.
+  racional?: string;
   chips?: { label: string; href: string }[];
   // Checagem de realidade (§4.7) como rodapé do hero: é uma frase sobre o
   // número que está logo acima. Card próprio para um parágrafo era altura
@@ -129,125 +140,155 @@ export function HeroResultado({
 }) {
   const cores = TOM[tom];
   const abaixoDe1 = roi !== null && roi < 1;
-  // Um número manda e três apoiam. Antes eram três de peso quase igual e
-  // nenhum vencia. O investimento entrou porque é a outra metade da fração —
-  // sem ele o ROI é afirmação, não conta verificável (§1, worthy performance).
-  // Só o valor gerado é verde. Payback é tempo, não parcela; investimento é
-  // custo — os três lado a lado, em cores diferentes, dizem qual é qual sem
-  // precisar de rótulo extra.
-  const apoio = [
-    { valor: formatMeses(paybackMeses), rotulo: "para se pagar", positivo: false },
-    { valor: formatBRL(valorAno), rotulo: "de valor em 12 meses", positivo: true },
-    {
-      valor: precoAno != null ? `${formatBRL(precoAno / 12)}/mês` : null,
-      rotulo: "de investimento",
-      positivo: false,
-    },
-  ].filter(
-    (item): item is { valor: string; rotulo: string; positivo: boolean } =>
-      item.valor !== null,
-  );
-
   return (
     <section className={cn("flex flex-col", cores.gap, cores.card)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className={cn("text-sm font-semibold", cores.titulo)}>{titulo}</h3>
-        <SeloEvidencia selo="estimativa" tom={tom} />
-        <span className={cn("text-xs", cores.nota)}>
-          Projeção com premissas declaradas. Não é medição.
-        </span>
-      </div>
+      {/* Sem selo nem ressalva aqui: "projeção, não medição" está no
+          disclaimer do resumo, e repetido no alto do bloco-resposta virava a
+          primeira coisa lida — a tela abria pedindo desculpa pelo número. O
+          racional migrou para o balão ao lado do múltiplo, que é onde a
+          pergunta de fato nasce. */}
+      <h3 className={cn("text-center text-base font-semibold", cores.titulo)}>
+        {titulo}
+      </h3>
 
-      {/* Um número manda e os três apoiam NA MESMA LINHA — separá-los em blocos
-          empilhados custava altura para repetir a mesma hierarquia. O que separa
-          os dois papéis é um fio vertical, não distância: à esquerda a resposta,
-          à direita as evidências dela. Sem o fio, o `1,29×` e o `9,3 meses`
-          liam como quatro KPIs de peso parecido. */}
-      <div className="flex flex-wrap items-end gap-6">
-        <div className="flex flex-col gap-1">
-          <span
-            className={cn(
-              "font-semibold tabular-nums",
-              cores.numero,
-            )}
-          >
-            {formatX(roi)}
-          </span>
-          <span className={cn("text-xs", cores.rotulo)}>
-            retorno projetado no primeiro ano
-          </span>
-        </div>
-        <div
-          className={cn(
-            "flex flex-wrap items-end gap-x-8 gap-y-4 sm:pl-8",
-            cores.regua,
-          )}
-        >
-          {apoio.map((item) => (
-            <div key={item.rotulo} className="flex flex-col gap-1">
-              <span
-                className={cn(
-                  "text-lg font-semibold leading-5 tabular-nums",
-                  item.positivo ? cores.apoioPositivo : cores.apoioNeutro,
-                )}
-              >
-                {item.valor}
-              </span>
-              <span className={cn("text-xs", cores.rotulo)}>{item.rotulo}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* O ROI É uma fração, e o hero mostra a fração.
+          
+          O layout anterior punha o múltiplo à esquerda e três KPIs soltos à
+          direita, todos do mesmo peso: a relação entre eles ficava implícita e
+          quem confere tinha de dividir de cabeça para ver a conta fechar.
+          Aqui o numerador e o denominador aparecem nos dois lados de um sinal
+          de divisão de verdade, e o resultado vem depois do igual — a mesma
+          leitura de uma memória de cálculo, que é o documento que esta pessoa
+          lê todos os dias.
 
-      {frase ? (
-        <p className={cn("text-sm leading-6", cores.frase)}>{frase}</p>
-      ) : null}
-
-      {chips && chips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {chips.map((chip) => (
-            <a
-              key={chip.href}
-              href={chip.href}
+          Centralizado porque é o veredito: não é uma linha de tabela, é a
+          resposta que a pessoa passou cinco passos construindo. */}
+      <div className="flex flex-col items-center gap-6 py-2 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-4">
+          <div className="flex flex-col gap-1">
+            <span
               className={cn(
-                "inline-flex min-h-[44px] items-center rounded-full border px-4 text-xs font-medium transition-colors sm:min-h-8",
-                "focus-visible:outline-none focus-visible:ring-2",
-                cores.chip,
+                "text-2xl font-semibold tabular-nums sm:text-3xl",
+                cores.apoioPositivo,
               )}
             >
-              {chip.label}
-            </a>
-          ))}
+              {formatBRL(valorAno)}
+            </span>
+            <span className={cn("text-sm", cores.rotulo)}>valor no ano</span>
+          </div>
+
+          <span className={cn("text-2xl font-light sm:text-3xl", cores.nota)} aria-hidden>
+            ÷
+          </span>
+
+          <div className="flex flex-col gap-1">
+            <span
+              className={cn(
+                "text-2xl font-semibold tabular-nums sm:text-3xl",
+                cores.apoioNeutro,
+              )}
+            >
+              {formatBRL(precoAno ?? null)}
+            </span>
+            <span className={cn("text-sm", cores.rotulo)}>investimento no ano</span>
+          </div>
+
+          <span className={cn("text-2xl font-light sm:text-3xl", cores.nota)} aria-hidden>
+            =
+          </span>
+
+          {/* `relative` para o balão do tooltip se ancorar aqui. */}
+          <div className="relative flex flex-col gap-1">
+            {/* Halo radial atrás do múltiplo: o card é branco de ponta a ponta
+                e o número é o único lugar da tela que merece um fundo. Fica no
+                fluxo antes do conteúdo (que é `relative`), então não precisa de
+                z-index negativo — que sumiria atrás do `bg-white` do card.
+                `to-70%` mata o verde antes da borda: passando disso o halo
+                vira mancha com contorno visível em vez de brilho. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-0 h-[220%] w-[150%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial from-trend-positive/14 to-transparent to-70%"
+            />
+            <span className={cn("relative font-semibold tabular-nums", cores.numero)}>
+              {formatX(roi)}
+            </span>
+            <span
+              className={cn(
+                "relative flex items-center justify-center gap-1.5 text-sm",
+                cores.rotulo,
+              )}
+            >
+              no primeiro ano
+              {racional ? <HintTooltip text={racional} align="right" /> : null}
+            </span>
+          </div>
         </div>
-      ) : null}
+
+        {/* Payback numa faixa própria: é a pergunta seguinte à do múltiplo, e
+            como quarta coluna da conta ele confundia — não é fator da divisão,
+            é consequência dela. */}
+        <p className={cn("text-base leading-7", cores.frase)}>
+          A conta se paga em{" "}
+          <span className={cn("font-semibold tabular-nums", cores.apoioNeutro)}>
+            {formatMeses(paybackMeses)}
+          </span>
+          {frase ? ` · ${frase}` : ""}
+        </p>
+
+        {chips && chips.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {chips.map((chip) => (
+              <a
+                key={chip.href}
+                href={chip.href}
+                className={cn(
+                  "inline-flex min-h-[44px] items-center rounded-full border px-4 text-sm font-medium transition-colors sm:min-h-9",
+                  "focus-visible:outline-none focus-visible:ring-2",
+                  cores.chip,
+                )}
+              >
+                {chip.label}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       {abaixoDe1 ? (
-        <p className={cn("text-xs", cores.ressalva)}>
+        <p className={cn("text-center text-sm leading-6", cores.ressalva)}>
           Com estes números a projeção fica abaixo de 1×. Recomendamos medir um
           baseline num piloto antes de contratar.
         </p>
       ) : null}
 
       {checagem ? (
-        <p
-          className={cn(
-            "flex items-start gap-2 border-t pt-4 text-xs leading-5",
-            checagem.alerta ? cores.checagemAlerta : cores.checagem,
-          )}
-        >
-          {checagem.alerta ? (
-            <ExclamationTriangleIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden />
-          ) : null}
-          <span>
-            <span className="font-medium">Checagem de realidade:</span> os ganhos de
-            performance projetados equivalem a{" "}
-            <span className="font-semibold tabular-nums">{formatPct(checagem.pct, 1)}</span>{" "}
-            da margem anual do time hoje.{" "}
-            {checagem.alerta
-              ? "Acima de 25% a projeção pede ceticismo: vale reduzir o cenário antes de decidir."
-              : "É uma faixa plausível para um time que passa a praticar com consistência."}
-          </span>
-        </p>
+        <div className={cn("flex flex-col gap-2 border-t pt-4", cores.checagem)}>
+          <p
+            className={cn(
+              "flex items-start gap-2 text-sm leading-6",
+              checagem.alerta ? cores.checagemAlerta : cores.checagem,
+              "border-t-0 pt-0",
+            )}
+          >
+            {checagem.alerta ? (
+              <ExclamationTriangleIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+            ) : null}
+            <span>
+              <span className="font-medium">Checagem de realidade:</span> os ganhos de
+              performance projetados equivalem a{" "}
+              <span className="font-semibold tabular-nums">
+                {formatPct(checagem.pct, 1)}
+              </span>{" "}
+              da margem anual do time hoje.{" "}
+              {checagem.alerta
+                ? "Acima de 25% a projeção pede ceticismo: vale reduzir o cenário antes de decidir."
+                : "É uma faixa plausível para um time que passa a praticar com consistência."}
+            </span>
+          </p>
+          {/* A régua desenhada põe o número contra o limite que o CFO conhece:
+              a frase sozinha exigia comparar 11,5% com 25% de cabeça. */}
+          <MedidorChecagem pct={checagem.pct} />
+        </div>
       ) : null}
     </section>
   );
@@ -271,7 +312,6 @@ export function ResultadoIncompleto({
   })).filter((grupo) => grupo.campos.length > 0);
 
   function labelDe(campo: CampoId): string {
-    if (campo === "margemFaixa") return MARGEM_LABEL;
     if (campo === "caminho") return "A alternativa sem a Perfecting";
     return CAMPO_DEFS[campo].label;
   }
@@ -295,7 +335,8 @@ export function ResultadoIncompleto({
           >
             <span className="flex flex-col gap-1">
               <span className="text-sm font-medium text-slate-800">
-                Passo {passo.id} · {passo.titulo}
+                Passo {passo.id}
+                {passo.titulo ? ` · ${passo.titulo}` : ""}
               </span>
               <span className="text-xs text-slate-500">
                 Falta: {campos.map(labelDe).join(" · ")}
@@ -322,79 +363,70 @@ export function ResultadoIncompleto({
 // Linha de detalhamento (usada nos dois cards)
 // ---------------------------------------------------------------------------
 
-// TUDO empilhado: título → valor → detalhe → nota. Uma direção de leitura só.
-//
-// O valor já morou à direita, em coluna própria, pela promessa de escanear os
-// números alinhados na vertical. Numa coluna de ~460px essa promessa não se
-// cumpre: os títulos ocupam duas ou três linhas, o número acompanha a PRIMEIRA
-// delas e a coluna de valores sai desalinhada de qualquer jeito. O custo real
-// era misturar direções — a linha com valor lia da esquerda para a direita, a
-// linha sem valor (só título + detalhe) lia de cima para baixo, e o olho
-// trocava de eixo a cada parcela.
-//
-// Empilhado, o número fica colado no rótulo que o nomeia e todas as parcelas
-// leem igual. Quem separa uma linha da outra é o espaço (`gap-6` na lista); o
-// `tabular-nums` continua, para os valores baterem coluna a coluna quando
-// caírem na mesma largura.
-function Linha({
+// Cabeçalho de parcela: o nome à esquerda, o TOTAL à direita. O número sobe
+// para cá porque é a resposta do bloco — antes ele era só mais uma linha no
+// meio da lista, com o mesmo peso das explicações que o sustentam.
+function CabecalhoParcela({
   titulo,
-  selo,
+  ajuda,
   valor,
-  detalhe,
-  nota,
-  destaque = false,
-  tom = "neutro",
 }: {
   titulo: string;
-  selo?: Selo;
-  valor?: string;
-  detalhe?: string;
+  ajuda: string;
+  valor: string;
+}) {
+  return (
+    // `relative`: o balão do HintTooltip se ancora aqui.
+    <div className="relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-3">
+      <span className="flex items-center gap-2">
+        <h3 className="text-base font-semibold text-slate-800">{titulo}</h3>
+        <HintTooltip text={ajuda} />
+      </span>
+      <span className="text-lg font-semibold tabular-nums text-trend-positive">
+        {valor}
+      </span>
+    </div>
+  );
+}
+
+// Linha de leitura tabular: rótulo, quanto muda, quanto vale. Substitui a
+// pilha título → valor → detalhe → nota, que gastava quatro linhas por item e
+// afogava a única informação que se soma de cima a baixo.
+function LinhaCompacta({
+  rotulo,
+  delta,
+  valor,
+  nota,
+  selo,
+  tom = "neutro",
+}: {
+  rotulo: string;
+  delta?: string;
+  valor: string;
   nota?: string;
-  destaque?: boolean;
-  // `positivo` = esta parcela ENTRA na conta do ROI. É o mesmo recorte que o
-  // selo "não somado ao ROI" já faz em texto — por isso nenhuma linha com esse
-  // selo recebe verde: a cor contradiria o selo ao lado. Custo nunca é verde
-  // nem vermelho, é slate.
+  selo?: Selo;
   tom?: "neutro" | "positivo";
 }) {
   return (
-    // Fio SÓ no subtotal. Antes havia um entre cada duas linhas — sete parcelas
-    // viravam sete fios, e a lista lia como grade de planilha. Agora o espaço
-    // separa as parcelas e o fio volta a significar uma coisa só: aqui fecha
-    // uma conta.
-    <div
-      className={cn(
-        "flex flex-col gap-1.5",
-        // `first:` porque em Eficiência a linha de destaque é a PRIMEIRA: o fio
-        // ali não fecharia conta nenhuma, só desenharia uma régua colada no
-        // cabeçalho do bloco.
-        destaque && "border-t border-slate-200 pt-6 first:border-t-0 first:pt-0",
-      )}
-    >
-      <span className="flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            "text-sm text-slate-800",
-            destaque ? "font-semibold" : "font-medium",
-          )}
-        >
-          {titulo}
-        </span>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <dt className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        {rotulo}
+        {delta ? (
+          <span className="tabular-nums font-medium text-slate-500">{delta}</span>
+        ) : null}
         {selo ? <SeloEvidencia selo={selo} /> : null}
-      </span>
-      {valor ? (
-        <span
-          className={cn(
-            "font-semibold tabular-nums",
-            destaque ? "text-base" : "text-sm",
-            tom === "positivo" ? "text-trend-positive" : "text-slate-900",
-          )}
-        >
-          {valor}
-        </span>
-      ) : null}
-      {detalhe ? <p className="text-xs leading-5 text-slate-500">{detalhe}</p> : null}
-      {nota ? <p className="text-xs leading-5 text-slate-400">{nota}</p> : null}
+      </dt>
+      <dd
+        className={cn(
+          "text-sm font-semibold tabular-nums",
+          tom === "positivo" ? "text-trend-positive" : "text-slate-900",
+        )}
+      >
+        {valor}
+        {nota ? (
+          <span className="ml-2 font-normal text-slate-500">{nota}</span>
+        ) : null}
+      </dd>
     </div>
   );
 }
@@ -421,6 +453,7 @@ export function EficienciaCard({
   // números deste card já vêm rateados, e isso precisa estar dito na tela.
   rateio?: { gestoresDaConta: number | null; pctVendedores: number } | null;
 }) {
+  const [detalhe, setDetalhe] = useState(false);
   const fator = resultado.fatorEscopo;
   const horasGestorMes = (entradas.horasTreinoGestorMes ?? 0) * (entradas.numGestoresTreino ?? 0);
   const repsCobertosHoje =
@@ -430,7 +463,6 @@ export function EficienciaCard({
     horasPlanoPorRep * fator.valor > 0 ? horasGestorMes / (horasPlanoPorRep * fator.valor) : 0;
   const filaHoje =
     repsCobriveisNaCarga > 0 ? (entradas.numVendedores ?? 0) / repsCobriveisNaCarga : null;
-  const custoHoraGestor = ((entradas.salarioGestor ?? 0) * ENCARGOS) / JORNADA_MENSAL_H;
   const ancoragem = achaLinha(resultado, "ancoragem_hora_roleplay");
   const headcount = achaLinha(resultado, "economia_headcount");
   const teto = achaLinha(resultado, "teto_eficiencia");
@@ -438,84 +470,79 @@ export function EficienciaCard({
   const caminho = entradas.caminho;
 
   return (
-    <section className="flex flex-col gap-5">
-      {/* Origem e enquadramento saem do fluxo e viram um balão: lado a lado, as
-          duas colunas gastavam três linhas de cabeçalho cada uma antes do
-          primeiro número, e o selo "Projeção" repetido nas duas lia como ruído.
-          A declaração não some — abre o texto do balão e o nome acessível do
-          gatilho (invariante 5). As linhas que fogem da projeção mantêm o
-          próprio selo à vista, que é onde o selo de fato informa.
-          `relative`: o balão do HintTooltip se ancora no pai. */}
-      <div className="relative flex items-start gap-2">
-        <h3 className="text-sm font-semibold text-slate-700">
-          Eficiência: o que você deixa de gastar
-        </h3>
-        <HintTooltip text="Projeção. Capacidade e cobertura de treino da sua operação, desde o dia zero." />
-      </div>
+    <section className="flex flex-col gap-4">
+      <CabecalhoParcela
+        titulo="Eficiência: o que deixa de ser gasto"
+        ajuda="Projeção. O custo do caminho que você seguiria sem a Perfecting, limitado pelo valor da prática que o plano entrega."
+        valor={`+${formatBRL(resultado.eficienciaAno)}/ano`}
+      />
 
-      <div className="flex flex-col gap-6">
-        <Linha
-          titulo="Economia declarada"
-          valor={`+${formatBRL(resultado.eficienciaAno)}/ano`}
-          destaque
-          tom="positivo"
-          detalhe={
-            caminho
-              ? `${CAMINHOS[caminho].label}.${tetoMordeu ? " Limitada pelo teto: a economia nunca supera o valor da prática que o plano entrega." : ""}`
-              : undefined
-          }
+      <dl className="flex flex-col gap-3">
+        <LinhaCompacta
+          rotulo="Caminho declarado"
+          valor={caminho ? CAMINHOS[caminho].label : "—"}
         />
-        {rateio ? (
-          <Linha
-            titulo="Estrutura compartilhada com os outros times"
-            detalhe={`Os ${formatNumero(rateio.gestoresDaConta, 0)} gestores da conta atendem mais de um time, então a economia é rateada por vendedores: ${formatNumero(rateio.pctVendedores * 100, 0)}% dela cabe a este time. Sem o rateio, a mesma estrutura seria contada uma vez por time.`}
-          />
-        ) : null}
-        <Linha
-          titulo="Cobertura de treino declarada"
-          selo={fator.origem === "declarado" ? "dado_do_cliente" : "premissa"}
-          detalhe={
-            fator.origem === "declarado"
-              ? `Hoje seus gestores cobrem ${formatNumero(repsCobertosHoje, 0)} vendedores por mês, com ${formatNumero(entradas.horasPraticaPorRepHoje, 1)} h de prática cada: cada hora de prática consome ${formatNumero(fator.valor, 1)} h de gestor. Na carga do plano ${PLANOS[plano].label}, as mesmas horas de gestor cobririam ${formatNumero(repsCobriveisNaCarga, 1)} vendedores.`
-              : `Seus números de treino ficaram fora da faixa de validade (0,25–6 h de gestor por hora de prática), então usamos a premissa declarada de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h de gestor por hora de prática.`
-          }
-          nota={
-            fator.treinoEmGrupo
-              ? "Fator abaixo de 1 indica treino em grupo: a comparação por hora não captura a diferença entre prática coletiva e individual."
-              : undefined
-          }
+        <LinhaCompacta
+          rotulo="Teto do plano"
+          valor={formatBRL(teto?.valorAno ?? null)}
+          nota={tetoMordeu ? "a economia parou aqui" : undefined}
         />
-        {filaHoje !== null && filaHoje > 0 ? (
-          <Linha
-            titulo="Fila para treinar o time inteiro"
-            detalhe={`Na carga do plano, seus gestores levariam ${formatMeses(filaHoje)} para cobrir o time inteiro. Com ${formatNumero(resultado.cobertura * 100, 0)}% do time praticando em paralelo, a fila some.`}
-          />
-        ) : null}
-        {horasGestorMes > 0 ? (
-          <Linha
-            titulo="Horas de gestor devolvidas à gestão"
-            valor={`${formatNumero(horasGestorMes, 0)} h/mês`}
-            detalhe={`Equivalentes a ${formatBRL(horasGestorMes * custoHoraGestor)}/mês em tempo de gestor.`}
-          />
-        ) : null}
-        <Linha
-          titulo="Custo por hora de roleplay entregue"
+        <LinhaCompacta
+          rotulo="Custo por hora de prática"
+          valor={`gestor ${formatBRL(ancoragem?.detalhe?.custoHoraGestor ?? null, 2)} · Perfecting ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 2)}`}
           selo="nao_somado"
-          detalhe={`Gestor conduzindo manualmente: ${formatBRL(ancoragem?.detalhe?.custoHoraGestor ?? null, 0)}/hora · Perfecting: ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 0)}/hora.`}
-          nota="Tabela de ancoragem: serve para comparar preço por hora, não para somar. A economia que entra no ROI é a do caminho declarado, logo acima — somar as duas contaria o mesmo benefício duas vezes."
         />
-        <Linha
-          titulo="Economia de headcount de gestores"
-          selo="nao_somado"
+        <LinhaCompacta
+          rotulo="Gestores que deixaria de contratar"
           valor={
-            headcount?.valorAno !== null && headcount !== undefined
-              ? `${formatNumero(headcount.detalhe?.gestores ?? null, 1)} gestores · ${formatBRL(headcount.valorAno)}/ano`
+            headcount?.valorAno != null
+              ? `${formatNumero(headcount.detalhe?.gestores ?? null, 1)} · ${formatBRL(headcount.valorAno)}/ano`
               : "—"
           }
-          detalhe="Gestores que você deixa de precisar contratar para entregar a mesma prática."
-          nota="A Perfecting multiplica a capacidade dos seus gestores. Nenhum cálculo aqui pressupõe redução da equipe."
+          selo="nao_somado"
         />
-      </div>
+      </dl>
+
+      {/* A prosa que sustenta as linhas acima sai do fluxo: com ela aberta,
+          eram sete parágrafos antes de o leitor chegar ao segundo card. Quem
+          precisa auditar abre; quem quer o número já o tem no cabeçalho. */}
+      <BlocoRecolhivel
+        id="eficiencia-detalhe"
+        titulo="Como chegamos nesse número"
+        aberto={detalhe}
+        onToggle={() => setDetalhe((atual) => !atual)}
+      >
+        <div className="flex flex-col gap-3 pl-6">
+          {rateio ? (
+            <p className="text-sm leading-6 text-slate-600">
+              Os {formatNumero(rateio.gestoresDaConta, 0)} gestores da conta atendem mais
+              de um time: {formatNumero(rateio.pctVendedores * 100, 0)}% da economia cabe
+              a este. Sem o rateio, a mesma estrutura seria contada uma vez por time.
+            </p>
+          ) : null}
+          <p className="text-sm leading-6 text-slate-600">
+            {fator.origem === "declarado"
+              ? `Seus gestores cobrem ${formatNumero(repsCobertosHoje, 0)} vendedores por mês, com ${formatNumero(entradas.horasPraticaPorRepHoje, 1)} h de prática cada — cada hora de prática consome ${formatNumero(fator.valor, 1)} h de gestor. Na carga do plano ${PLANOS[plano].label}, as mesmas horas cobririam ${formatNumero(repsCobriveisNaCarga, 1)}.`
+              : `Seus números de treino ficaram fora da faixa de validade (0,25–6 h de gestor por hora de prática), então usamos a premissa de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h.`}
+            {fator.treinoEmGrupo
+              ? " Fator abaixo de 1 indica treino em grupo: a comparação por hora não captura prática coletiva."
+              : ""}
+          </p>
+          {filaHoje !== null && filaHoje > 0 ? (
+            <p className="text-sm leading-6 text-slate-600">
+              Nessa carga, cobrir o time inteiro levaria {formatMeses(filaHoje)}. Com{" "}
+              {formatNumero(resultado.cobertura * 100, 0)}% praticando em paralelo, a fila
+              some — e os {formatNumero(horasGestorMes, 0)} h/mês de gestor voltam para a
+              gestão.
+            </p>
+          ) : null}
+          <p className="text-sm leading-6 text-slate-500">
+            As duas últimas linhas ficam fora do ROI de propósito: a comparação por hora
+            já está contada na economia do caminho declarado, e nenhum cálculo aqui
+            pressupõe reduzir a equipe.
+          </p>
+        </div>
+      </BlocoRecolhivel>
     </section>
   );
 }
@@ -531,6 +558,7 @@ export function PerformanceCard({
   resultado: ResultadoOk;
   entradas: EntradasTime;
 }) {
+  const [detalhe, setDetalhe] = useState(false);
   const { parcelas, deltas } = resultado;
   const conv = entradas.conversaoPct;
   const receitaRepPleno =
@@ -542,84 +570,91 @@ export function PerformanceCard({
   const rampaEvitada = achaLinha(resultado, "custo_rampa_evitado");
   const timeEmRampa = achaLinha(resultado, "custo_time_em_rampa");
   const temFunil = parcelas.ganhoCicloAno !== null;
-  const cicloNovo = temFunil ? (entradas.cicloDias ?? 0) - deltas.cicloDiasMenos : null;
+  // Abaixo de 7 dias o ciclo anda em percentual, não em dias inteiros: a frase
+  // "N dias em vez de M" só vale no ramo de dias (Excel Engine!C53).
+  const cicloEmDias = temFunil && deltas.cicloDiasMenos > 0;
   const cicloTetoMordeu = temFunil && (parcelas.ganhoCicloAno ?? 0) < 0.005;
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="relative flex items-start gap-2">
-        <h3 className="text-sm font-semibold text-slate-700">
-          Performance: alavancas para o time
-        </h3>
-        <HintTooltip text="Projeção. Vendedores treinados vendem melhor e rampam mais rápido. Estimulamos, não controlamos; por isso os haircuts." />
-      </div>
+    <section className="flex flex-col gap-4">
+      <CabecalhoParcela
+        titulo="Performance: o que passa a ser ganho"
+        ajuda="Projeção. Vendedores treinados vendem melhor e rampam mais rápido. Estimulamos, não controlamos; por isso o desconto de 30% em três das quatro alavancas."
+        valor={`+${formatBRL(resultado.G)}/ano`}
+      />
 
-      <div className="flex flex-col gap-6">
-        <Linha
-          titulo={`Ganho de ticket médio (+${formatNumero(deltas.ticketPct * 100, 0)}%)`}
+      {/* Uma linha por alavanca: nome, quanto muda, quanto vale. Antes cada
+          uma trazia um parágrafo de explicação, e quatro parágrafos empilhados
+          escondiam justamente a tabela que o CFO quer somar de cima a baixo. */}
+      <dl className="flex flex-col gap-3">
+        <LinhaCompacta
+          rotulo="Ticket médio"
+          delta={`+${formatNumero(deltas.ticketPct * 100, 0)}%`}
           valor={`+${formatBRL(parcelas.margemTicketAno)}/ano`}
           tom="positivo"
-          detalhe="Margem sobre a receita atual, com a cobertura de assentos aplicada."
         />
-        <Linha
-          titulo={`Ganho de conversão (+${formatNumero(deltas.convPp, 1)} p.p.)`}
+        <LinhaCompacta
+          rotulo="Conversão"
+          delta={`+${formatNumero(deltas.convPp, 1)} p.p.`}
           valor={`+${formatBRL(parcelas.ganhoConversaoAno)}/ano`}
           tom="positivo"
-          detalhe={
-            conv !== null
-              ? `${formatPct(conv, 1)} → ${formatPct(conv + deltas.convPp, 1)} nas mesmas oportunidades trabalhadas, com haircut de 30%.`
-              : undefined
-          }
         />
-        <Linha
-          titulo={`Rampa ${formatNumero(deltas.rampaPct * 100, 0)}% mais curta`}
+        <LinhaCompacta
+          rotulo="Rampa"
+          delta={`−${formatNumero(deltas.rampaPct * 100, 0)}%`}
           valor={`+${formatBRL(parcelas.margemRampaAno)}/ano`}
           tom="positivo"
-          detalhe={
-            receitaAntecipadaPorRep !== null
-              ? `Cada vendedor novo antecipa ${formatBRL(receitaAntecipadaPorRep)} de receita, no seu volume de contratações, com haircut de 30%.`
+        />
+        <LinhaCompacta
+          rotulo="Ciclo de venda"
+          delta={
+            temFunil
+              ? cicloEmDias
+                ? `−${deltas.cicloDiasMenos} ${deltas.cicloDiasMenos === 1 ? "dia" : "dias"}`
+                : `−${formatNumero(deltas.cicloPct * 100, 0)}%`
               : undefined
           }
+          valor={
+            temFunil ? `+${formatBRL(parcelas.ganhoCicloAno)}/ano` : "preencha o funil"
+          }
+          tom={temFunil ? "positivo" : "neutro"}
         />
-        {temFunil ? (
-          <Linha
-            titulo={`Ciclo de venda ${formatNumero((deltas.cicloDiasMenos / (entradas.cicloDias || 1)) * 100, 0)}% mais curto`}
-            valor={`+${formatBRL(parcelas.ganhoCicloAno)}/ano`}
-            tom="positivo"
-            detalhe={`${cicloNovo} dias em vez de ${entradas.cicloDias}.${
-              cicloTetoMordeu
-                ? " Limitado pelo teto de funil: sem oportunidades sobrando, encurtar o ciclo não gera receita nova."
-                : " Só vira receita a capacidade que o funil consegue alimentar."
-            }`}
-          />
-        ) : (
-          <Linha
-            titulo="Ciclo de venda"
-            detalhe="Preencha o passo de funil (ciclo + oportunidades) para projetar esta alavanca."
-          />
-        )}
-        {/* Fecha as quatro alavancas antes das linhas que NÃO entram na conta:
-            o subtotal é a régua que separa o que soma do que só informa. */}
-        <Linha
-          titulo="Total de performance"
-          valor={`+${formatBRL(resultado.G)}/ano`}
-          destaque
-          tom="positivo"
-        />
-        <Linha
-          titulo="Salário de rampa economizado"
-          selo="nao_somado"
-          valor={rampaEvitada?.valorAno != null ? `+${formatBRL(rampaEvitada.valorAno)}/ano` : "—"}
-          nota="O salário do vendedor em rampa não é economizado: a mesma folha rende antes, e isso já está contado como receita antecipada. Somar seria contar duas vezes."
-        />
-        <Linha
-          titulo="Custo do time em rampa"
-          selo="nao_somado"
-          valor={timeEmRampa?.valorAno != null ? formatBRL(timeEmRampa.valorAno) + "/ano" : "—"}
-          detalhe="O que fica na folha de quem ainda não rende o que consome."
-          nota="Esse salário não é economizado: o vendedor é pago de qualquer forma. Encurtar a rampa faz a mesma folha render antes, e essa receita antecipada já está no total de performance. Somar aqui seria contar duas vezes."
-        />
-      </div>
+      </dl>
+
+      <BlocoRecolhivel
+        id="performance-detalhe"
+        titulo="Como chegamos nesse número"
+        aberto={detalhe}
+        onToggle={() => setDetalhe((atual) => !atual)}
+      >
+        <div className="flex flex-col gap-3 pl-6">
+          <p className="text-sm leading-6 text-slate-600">
+            {conv !== null
+              ? `Conversão de ${formatPct(conv, 1)} para ${formatPct(conv + deltas.convPp, 1)} nas mesmas oportunidades. `
+              : ""}
+            {receitaAntecipadaPorRep !== null
+              ? `Cada vendedor novo antecipa ${formatBRL(receitaAntecipadaPorRep)} de receita. `
+              : ""}
+            Tudo sobre a margem declarada, com a cobertura de assentos aplicada e desconto
+            de 30% em rampa, conversão e ciclo.
+          </p>
+          {temFunil ? (
+            <p className="text-sm leading-6 text-slate-600">
+              {cicloTetoMordeu
+                ? "O ganho de ciclo parou no teto de funil: sem oportunidade sobrando, fechar mais rápido não gera receita nova."
+                : "Do ciclo só vira receita a capacidade que o funil consegue alimentar."}
+            </p>
+          ) : null}
+          {rampaEvitada?.valorAno != null || timeEmRampa?.valorAno != null ? (
+            <p className="text-sm leading-6 text-slate-500">
+              Fora da conta: {formatBRL(timeEmRampa?.valorAno ?? null)}/ano de folha em
+              vendedores que ainda não rendem o que consomem. Esse salário não é
+              economizado — encurtar a rampa faz a mesma folha render antes, e essa
+              receita já está no total acima.
+            </p>
+          ) : null}
+        </div>
+      </BlocoRecolhivel>
     </section>
   );
 }
@@ -694,8 +729,8 @@ export function ChecagemRealidade({ resultado }: { resultado: ResultadoOk }) {
         </span>
         <p
           className={cn(
-            "text-xs leading-5",
-            resultado.checagemAlerta ? "text-[#973C00]/90" : "text-slate-500",
+            "text-sm leading-6",
+            resultado.checagemAlerta ? "text-[#973C00]/90" : "text-slate-600",
           )}
         >
           Os ganhos de performance projetados equivalem a{" "}
@@ -707,6 +742,7 @@ export function ChecagemRealidade({ resultado }: { resultado: ResultadoOk }) {
             ? "Acima de 25% a projeção pede ceticismo: vale reduzir o cenário antes de decidir."
             : "É uma faixa plausível para um time que passa a praticar com consistência."}
         </p>
+        <MedidorChecagem pct={resultado.checagemRealidadePct} />
       </div>
     </section>
   );
@@ -722,7 +758,8 @@ export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
     (aviso) =>
       aviso.tipo === "receita_por_vendedor" ||
       aviso.tipo === "funil_fecha_mais" ||
-      aviso.tipo === "fator_fora_faixa",
+      aviso.tipo === "fator_fora_faixa" ||
+      aviso.tipo === "payback_excede_contrato",
   );
   if (relevantes.length === 0) return null;
 
@@ -736,6 +773,9 @@ export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
     if (aviso.tipo === "fator_fora_faixa") {
       return `Seus números de treino dão ${formatNumero(aviso.declarado, 1)} h de gestor por hora de prática, fora da faixa de validade de 0,25 a 6. Usamos a premissa declarada de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h no lugar. Confira horas de treino, gestores e vendedores cobertos.`;
     }
+    if (aviso.tipo === "payback_excede_contrato") {
+      return `O payback projetado (${formatMeses(aviso.paybackMeses)}) passa do prazo escolhido de ${aviso.prazoMeses} meses: o contrato termina antes de a conta se pagar. Um prazo maior, mais assentos ou um cenário revisto deixam a proposta defensável.`;
+    }
     return "";
   }
 
@@ -744,7 +784,7 @@ export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
       {relevantes.map((aviso, index) => (
         <p
           key={index}
-          className="flex items-start gap-2 rounded-sm border border-[#973C00]/25 bg-[#FFFBEB] px-4 py-3 text-xs leading-5 text-[#973C00]"
+          className="flex items-start gap-2 rounded-sm border border-[#973C00]/25 bg-[#FFFBEB] px-4 py-3 text-sm leading-6 text-[#973C00]"
         >
           <ExclamationTriangleIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden />
           {texto(aviso)}

@@ -11,7 +11,7 @@ import {
   CAMINHOS,
   CENARIO_DEFAULT,
   CENARIOS,
-  FAIXAS_MARGEM,
+  MARGEM_LEGADO,
   MAX_ASSENTOS,
   MAX_TIMES,
   PLANO_DEFAULT,
@@ -46,7 +46,7 @@ export const PASSOS: {
 }[] = [
   {
     id: 1,
-    titulo: "Quem vende e quem treina",
+    titulo: "",
     campos: [
       "numVendedores",
       "numGestoresTreino",
@@ -58,7 +58,7 @@ export const PASSOS: {
   {
     id: 2,
     titulo: "Como o time performa",
-    campos: ["receitaMensal", "ticketMedio", "conversaoPct", "margemFaixa"],
+    campos: ["receitaMensal", "ticketMedio", "conversaoPct", "margemPct"],
   },
   {
     id: 3,
@@ -88,7 +88,7 @@ export function entradasVazias(): EntradasTime {
     receitaMensal: null,
     ticketMedio: null,
     conversaoPct: null,
-    margemFaixa: null,
+    margemPct: null,
     salarioGestor: null,
     salarioVendedor: null,
     rampaMeses: null,
@@ -148,7 +148,7 @@ export function sanitizarNomeTime(bruto: unknown, fallback: string): string {
   return limpo === "" ? fallback : limpo;
 }
 
-const FAIXAS_IDS = Object.keys(FAIXAS_MARGEM) as FaixaMargemId[];
+const FAIXAS_LEGADO_IDS = Object.keys(MARGEM_LEGADO) as FaixaMargemId[];
 const CAMINHOS_IDS = Object.keys(CAMINHOS) as Caminho[];
 const CENARIOS_IDS = Object.keys(CENARIOS) as Cenario[];
 const PLANOS_IDS = Object.keys(PLANOS) as PlanoId[];
@@ -158,13 +158,18 @@ function sanitizarEntradas(bruto: unknown): EntradasTime {
   if (typeof bruto !== "object" || bruto === null) return entradas;
   const fonte = bruto as Record<string, unknown>;
   for (const campo of Object.keys(entradas) as CampoId[]) {
-    if (campo === "margemFaixa") {
-      entradas.margemFaixa = sanitizarEnum(fonte[campo], FAIXAS_IDS);
-    } else if (campo === "caminho") {
+    if (campo === "caminho") {
       entradas.caminho = sanitizarEnum(fonte[campo], CAMINHOS_IDS);
     } else {
       entradas[campo] = sanitizarNumero(fonte[campo]);
     }
+  }
+  // Retrocompat (margem virou % livre em 17/08/2026): estado salvo com a
+  // faixa antiga entra pelo valor central — v: 2 segue, sem migração.
+  // `margemPct` presente vence o legado.
+  if (entradas.margemPct === null) {
+    const legado = sanitizarEnum(fonte.margemFaixa, FAIXAS_LEGADO_IDS);
+    if (legado !== null) entradas.margemPct = MARGEM_LEGADO[legado];
   }
   return entradas;
 }

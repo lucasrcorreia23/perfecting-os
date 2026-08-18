@@ -1,5 +1,7 @@
 // Tipos do motor da Calculadora ROI Clarity.
-// Fonte da verdade do racional: CALCULADORA_ROI_RACIONAL_CONSOLIDADO_V5.md.
+// Fonte da verdade do racional: Perfecting_ROI_Calculator_FIESC.xlsx (motor
+// v4.1) onde diverge; CALCULADORA_ROI_RACIONAL_CONSOLIDADO_V5.md onde o Excel
+// é omisso (trajetória, nível de serviço, linhas não somadas).
 // Campo do cliente começa vazio (P4) e vazio é null — nunca 0 (P6).
 
 export type PlanoId = "essencial" | "pratica" | "intensivo";
@@ -10,6 +12,8 @@ export type Cenario = "conservador" | "realista" | "otimista";
 // não aparece na interface (§4.1) — na UI é "a alternativa sem a Perfecting".
 export type Caminho = "nenhum" | "gestores" | "externo" | "evento";
 
+// Ids das faixas de margem usadas até 17/08/2026. Sobrevivem SÓ para o parse
+// de estados salvos antes da margem virar % livre (valor central da faixa).
 export type FaixaMargemId =
   | "ate15"
   | "15a25"
@@ -40,7 +44,7 @@ export type EntradasTime = {
   receitaMensal: number | null;
   ticketMedio: number | null;
   conversaoPct: number | null; // sobre oportunidades trabalhadas, em %
-  margemFaixa: FaixaMargemId | null; // faixas; valor central entra no cálculo
+  margemPct: number | null; // % livre 0–100 (Excel); "não sei" é atalho p/ 30
   // Passo 3 — contratação e rampa
   salarioGestor: number | null;
   salarioVendedor: number | null; // OPCIONAL: alimenta só linhas não somadas
@@ -57,8 +61,10 @@ export type EntradasTime = {
 
 export type CampoId = keyof EntradasTime;
 
-// Deltas das quatro alavancas. Ciclo opera em DIAS como fonte da verdade
-// (§4.4); o percentual é derivado dos dias, nunca o inverso.
+// Deltas das quatro alavancas. Com ciclo ≥ 7 dias, o ciclo opera em DIAS
+// inteiros como fonte da verdade e o percentual é derivado deles; abaixo de
+// 7 dias o Excel usa o percentual contínuo do cenário (Engine!C53) e
+// cicloDiasMenos fica 0 — a fração efetiva vive em DeltasEfetivos.cicloPct.
 export type Deltas = {
   ticketPct: number; // fração: 0.05 = +5%
   rampaPct: number; // fração: 0.20 = rampa 20% mais curta
@@ -66,8 +72,13 @@ export type Deltas = {
   convPp: number; // pontos percentuais
 };
 
+// Deltas resolvidos e clampados por deltasEfetivos(): o shape persistido
+// (Deltas) mais a fração efetiva do ciclo — dias/ciclo quando ciclo ≥ 7,
+// percentual do cenário quando 0 < ciclo < 7, zero sem funil.
+export type DeltasEfetivos = Deltas & { cicloPct: number };
+
 // Cenário preset (§4.8) ou modelagem do gestor via sliders (protótipo),
-// sempre clampada pelos tetos do V5 em deltasEfetivos().
+// sempre clampada pelos tetos do modelo em deltasEfetivos().
 export type CenarioSelecionado =
   | { modo: "preset"; cenario: Cenario }
   | { modo: "personalizado"; base: Cenario; deltas: Deltas };
@@ -87,7 +98,9 @@ export type AvisoCoerencia =
   | { tipo: "funil_fecha_mais"; oportunidadesMes: number; leadsMes: number }
   | { tipo: "fator_fora_faixa"; declarado: number }
   | { tipo: "fator_treino_grupo"; declarado: number }
-  | { tipo: "funil_incompleto" };
+  | { tipo: "funil_incompleto" }
+  // Excel Engine!C83: o contrato termina antes de a conta se pagar.
+  | { tipo: "payback_excede_contrato"; paybackMeses: number; prazoMeses: number };
 
 // Linhas exibidas e não somadas (§7): selo "não somado ao ROI" + racional.
 export type LinhaNaoSomada = {
@@ -98,7 +111,13 @@ export type LinhaNaoSomada = {
     | "ancoragem_hora_roleplay"
     | "teto_eficiencia";
   valorAno: number | null; // null = depende de campo opcional vazio (travessão)
-  detalhe?: { gestores?: number; custoHoraGestor?: number; custoHoraPerfecting?: number };
+  detalhe?: {
+    gestores?: number;
+    gestoresHoje?: number;
+    gestoresComPerfecting?: number;
+    custoHoraGestor?: number;
+    custoHoraPerfecting?: number;
+  };
 };
 
 export type ParcelasPerformance = {
@@ -122,7 +141,7 @@ export type ResultadoTime =
   | {
       status: "ok";
       fatorEscopo: ResultadoFatorEscopo;
-      deltas: Deltas;
+      deltas: DeltasEfetivos;
       cobertura: number;
       eficienciaAno: number;
       tetoEficienciaAno: number;
@@ -173,6 +192,7 @@ export type ResultadoConsolidado =
       precoAno: number;
       roi: number;
       paybackMeses: number;
+      paybackExcedeContrato: boolean; // Excel Account!C32
       G: number;
       mixCenarios: MixCenario[];
       // Métricas que não se somam, recalculadas a partir dos totais.

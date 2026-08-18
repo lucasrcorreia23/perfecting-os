@@ -7,19 +7,19 @@ import {
   DIAS_UTEIS_ANO,
   DIAS_UTEIS_MES,
   ENCARGOS,
-  FAIXAS_MARGEM,
   FATOR_ESCOPO_MAX,
   FATOR_ESCOPO_MIN,
   FATOR_ESCOPO_PREMISSA,
+  FINE_TUNE_RAMPA_MAX,
+  FINE_TUNE_TICKET_MAX,
   HAIRCUT,
   JORNADA_MENSAL_H,
   PCT_EVENTO_SUBSTITUIVEL,
   PLANOS,
+  PRAZO_DEFAULT,
   RECEITA_POR_VENDEDOR_MAX,
   RECEITA_POR_VENDEDOR_MIN,
   REDUCAO_CICLO_MAX,
-  SLIDER_RAMPA_MAX,
-  SLIDER_TICKET_MAX,
   SUPERVISAO,
   CHECAGEM_ALERTA,
 } from "./constants";
@@ -27,7 +27,7 @@ import type {
   AvisoCoerencia,
   CampoId,
   CenarioSelecionado,
-  Deltas,
+  DeltasEfetivos,
   EntradasTime,
   LinhaNaoSomada,
   PlanoId,
@@ -60,6 +60,10 @@ export function funilIncompleto(entradas: EntradasTime): boolean {
 // Gating (§4.6): 13 campos obrigatórios + custo condicional do caminho.
 // Campo fora do domínio (negativo, não finito, conversão fora de 0–100)
 // conta como faltando: melhor travessão que número indefensável (P6).
+// O Excel (Engine!C15) exige Ng, Hg, Vg e Pr estritamente > 0; aqui 0 é
+// válido e o fator de escopo cai na premissa 2,1 — superset deliberado:
+// time sem programa de treino existe, a planilha trava por limitação de
+// formulário. Decisão registrada em 17/08/2026.
 export function camposFaltando(entradas: EntradasTime): CampoId[] {
   const faltando: CampoId[] = [];
   if (!positivo(entradas.numVendedores)) faltando.push("numVendedores");
@@ -72,7 +76,9 @@ export function camposFaltando(entradas: EntradasTime): CampoId[] {
   if (!positivo(entradas.conversaoPct) || (entradas.conversaoPct ?? 0) > 100) {
     faltando.push("conversaoPct");
   }
-  if (entradas.margemFaixa === null) faltando.push("margemFaixa");
+  if (!positivo(entradas.margemPct) || (entradas.margemPct ?? 0) > 100) {
+    faltando.push("margemPct");
+  }
   if (!valido(entradas.salarioGestor)) faltando.push("salarioGestor");
   if (!valido(entradas.rampaMeses)) faltando.push("rampaMeses");
   if (!valido(entradas.contratacoesAno)) faltando.push("contratacoesAno");
@@ -133,28 +139,48 @@ function clamp(valor: number, min: number, max: number): number {
   return Math.min(Math.max(valor, min), max);
 }
 
+// Ciclo curto demais para operar em dias inteiros (Excel Engine!C53): abaixo
+// de 7 dias a mecânica volta ao percentual contínuo do cenário.
+export const CICLO_DIAS_MINIMO = 7;
+
 // Único caminho pelo qual deltas entram no cálculo: resolve o preset OU os
-// sliders de parâmetros personalizados e clampa tudo pelos tetos do V5.
-// Ciclo opera em DIAS como fonte da verdade — o preset percentual vira dias
-// inteiros e o percentual efetivo é derivado deles (§4.4).
-export function deltasEfetivos(sel: CenarioSelecionado, entradas: EntradasTime): Deltas {
+// sliders de parâmetros personalizados e clampa tudo pelos tetos do modelo.
+// Mecânica do ciclo (Excel Engine!C52–C56): com ciclo ≥ 7 dias, DIAS inteiros
+// são a fonte da verdade — preset vira max(1, round(ciclo×Δ%)), teto é
+// round(ciclo×30%) (half-up, como ROUND do Excel) e o percentual efetivo é
+// derivado dos dias. Com 0 < ciclo < 7, o delta é o percentual contínuo do
+// cenário, clampado em 30%; o fine-tune em dias não se aplica (o percentual
+// do Excel para esse ramo não é exposto na UI — decisão de 17/08/2026).
+export function deltasEfetivos(
+  sel: CenarioSelecionado,
+  entradas: EntradasTime,
+): DeltasEfetivos {
   const preset = CENARIOS[sel.modo === "preset" ? sel.cenario : sel.base];
   const cicloDias = positivo(entradas.cicloDias) ? entradas.cicloDias : null;
-  const cicloDiasMax = cicloDias === null ? 0 : Math.floor(cicloDias * REDUCAO_CICLO_MAX);
-  const brutos: Deltas =
+  const brutos =
     sel.modo === "preset"
-      ? {
-          ticketPct: preset.ticketPct,
-          rampaPct: preset.rampaPct,
-          cicloDiasMenos: cicloDias === null ? 0 : Math.round(cicloDias * preset.cicloPct),
-          convPp: preset.convPp,
-        }
+      ? { ticketPct: preset.ticketPct, rampaPct: preset.rampaPct, convPp: preset.convPp }
       : sel.deltas;
+
+  let cicloDiasMenos = 0;
+  let cicloPct = 0;
+  if (cicloDias !== null && cicloDias >= CICLO_DIAS_MINIMO) {
+    const cicloDiasMax = Math.round(cicloDias * REDUCAO_CICLO_MAX);
+    cicloDiasMenos =
+      sel.modo === "preset"
+        ? clamp(Math.max(1, Math.round(cicloDias * preset.cicloPct)), 0, cicloDiasMax)
+        : clamp(Math.round(sel.deltas.cicloDiasMenos), 0, cicloDiasMax);
+    cicloPct = cicloDiasMenos / cicloDias;
+  } else if (cicloDias !== null) {
+    cicloPct = clamp(preset.cicloPct, 0, REDUCAO_CICLO_MAX);
+  }
+
   const convMax = positivo(entradas.conversaoPct) ? deltaConvMax(entradas.conversaoPct) : 0;
   return {
-    ticketPct: clamp(brutos.ticketPct, 0, SLIDER_TICKET_MAX),
-    rampaPct: clamp(brutos.rampaPct, 0, SLIDER_RAMPA_MAX),
-    cicloDiasMenos: clamp(Math.round(brutos.cicloDiasMenos), 0, cicloDiasMax),
+    ticketPct: clamp(brutos.ticketPct, 0, FINE_TUNE_TICKET_MAX),
+    rampaPct: clamp(brutos.rampaPct, 0, FINE_TUNE_RAMPA_MAX),
+    cicloDiasMenos,
+    cicloPct,
     convPp: clamp(brutos.convPp, 0, convMax),
   };
 }
@@ -167,8 +193,8 @@ export function cobertura(assentos: number, numVendedores: number): number {
 }
 
 export function resolverMargem(entradas: EntradasTime): number | null {
-  if (entradas.margemFaixa === null) return null;
-  return FAIXAS_MARGEM[entradas.margemFaixa].pct / 100;
+  if (!positivo(entradas.margemPct) || entradas.margemPct > 100) return null;
+  return entradas.margemPct / 100;
 }
 
 export function calcResultadoTime(
@@ -176,6 +202,7 @@ export function calcResultadoTime(
   proposta: PropostaEfetiva,
   precoMes: number,
   sel: CenarioSelecionado,
+  prazoMeses: number = PRAZO_DEFAULT,
 ): ResultadoTime {
   const faltando = camposFaltando(entradas);
   if (faltando.length > 0) return { status: "incompleto", faltando };
@@ -233,7 +260,7 @@ export function calcResultadoTime(
   // vira receita se houver oportunidade ociosa. Interação descartada.
   let ganhoCicloAno: number | null = null;
   if (funilPreenchido(entradas)) {
-    const dCiclo = deltas.cicloDiasMenos / entradas.cicloDias!;
+    const dCiclo = deltas.cicloPct;
     const ganhoCapacidade = vendasMes * (1 / (1 - dCiclo) - 1);
     const tetoFunil = Math.max(0, entradas.leadsMes! - oportunidadesMes) * conversao;
     ganhoCicloAno =
@@ -280,19 +307,23 @@ export function calcResultadoTime(
   if (funilIncompleto(entradas)) {
     avisos.push({ tipo: "funil_incompleto" });
   }
+  if (paybackMeses > prazoMeses) {
+    avisos.push({ tipo: "payback_excede_contrato", paybackMeses, prazoMeses });
+  }
 
   // Linhas exibidas e não somadas (§7), com selo e racional na UI. O salário
   // do vendedor em rampa não é economizado — a folha renderia antes, o que já
   // está contabilizado como receita antecipada.
   const temSalarioVendedor = valido(entradas.salarioVendedor);
-  const gapGestores =
-    entradas.horasTreinoGestorMes! > 0
-      ? Math.max(
-          0,
-          (horasPraticaMes * fatorEscopo.valor) / entradas.horasTreinoGestorMes! -
-            entradas.numGestoresTreino!,
-        )
+  // Excel Engine!C88–C91: gestores para cobrir o time hoje vs com a
+  // supervisão residual de 25% — a diferença é o headcount evitado.
+  const gestoresHoje =
+    entradas.vendedoresPorGestorMes! > 0
+      ? entradas.numVendedores! / entradas.vendedoresPorGestorMes!
       : null;
+  const gestoresComPerfecting = gestoresHoje === null ? null : gestoresHoje * SUPERVISAO;
+  const gestoresEvitados =
+    gestoresHoje === null ? null : Math.max(0, gestoresHoje - gestoresComPerfecting!);
   const linhasNaoSomadas: LinhaNaoSomada[] = [
     {
       id: "custo_rampa_evitado",
@@ -317,8 +348,17 @@ export function calcResultadoTime(
     {
       id: "economia_headcount",
       valorAno:
-        gapGestores === null ? null : gapGestores * entradas.salarioGestor! * ENCARGOS * 12,
-      detalhe: gapGestores === null ? undefined : { gestores: gapGestores },
+        gestoresEvitados === null
+          ? null
+          : gestoresEvitados * entradas.salarioGestor! * ENCARGOS * 12,
+      detalhe:
+        gestoresEvitados === null
+          ? undefined
+          : {
+              gestores: gestoresEvitados,
+              gestoresHoje: gestoresHoje!,
+              gestoresComPerfecting: gestoresComPerfecting!,
+            },
     },
     {
       id: "ancoragem_hora_roleplay",

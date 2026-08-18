@@ -21,10 +21,7 @@ export type CampoDef = {
   inteiro?: boolean;
 };
 
-export const CAMPO_DEFS: Record<
-  Exclude<CampoId, "margemFaixa" | "caminho">,
-  CampoDef
-> = {
+export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
   numVendedores: {
     id: "numVendedores",
     label: "Vendedores",
@@ -80,6 +77,13 @@ export const CAMPO_DEFS: Record<
     label: "Taxa de conversão",
     help: "De cada 100 oportunidades trabalhadas, quantas fecham.",
     placeholder: "Ex.: 25",
+    formato: "percentual",
+  },
+  margemPct: {
+    id: "margemPct",
+    label: "Margem de contribuição",
+    help: "O que sobra da receita depois dos custos diretos, em %. Se não souber, use o atalho: 30%.",
+    placeholder: "Ex.: 30",
     formato: "percentual",
   },
   salarioGestor: {
@@ -142,7 +146,7 @@ export const CAMPO_DEFS: Record<
 
 export const MARGEM_LABEL = "Margem de contribuição";
 export const MARGEM_HELP =
-  "O que sobra da receita depois dos custos diretos. Na dúvida, escolha “Não sei”: usamos 30%.";
+  "O que sobra da receita depois dos custos diretos, em %. Se não souber, use o atalho: 30%.";
 
 // Por que simular mais de um time. Vive junto de cada botão "Adicionar time"
 // (stepper, consolidado e sidebar), num balão de ajuda — é contexto que se lê

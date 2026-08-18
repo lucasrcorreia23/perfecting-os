@@ -68,6 +68,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
             { plano: time.proposta.plano, assentos },
             precoMes,
             time.cenarioSel,
+            estado.prazoMeses,
           )
         : // Sem vendedores nem assentos escolhidos: gating normal resolve
           // (numVendedores está na lista de faltantes de todo jeito).
@@ -91,7 +92,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
     preco,
     prazoMeses: estado.prazoMeses,
     times,
-    consolidado: consolidar(times),
+    consolidado: consolidar(times, estado.prazoMeses),
   };
 }
 

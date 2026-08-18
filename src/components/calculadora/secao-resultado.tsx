@@ -65,7 +65,7 @@ export function SecaoResultado({
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-slate-900">{titulo}</h2>
           {descricao ? (
-            <p className="text-sm leading-6 text-slate-500">{descricao}</p>
+            <p className="text-base leading-7 text-slate-600">{descricao}</p>
           ) : null}
         </div>
         {acao}
@@ -103,7 +103,7 @@ export function BlocoRecolhivel({
           onClick={onToggle}
           aria-expanded={aberto}
           aria-controls={id}
-          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full text-xs font-semibold text-slate-500 transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:min-h-0 sm:py-1"
+          className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full text-sm font-semibold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:min-h-0 sm:py-1"
         >
           <ChevronRightIcon
             className={cn("h-4 w-4 transition-transform", aberto && "rotate-90")}

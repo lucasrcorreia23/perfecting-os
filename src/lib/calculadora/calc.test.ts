@@ -10,8 +10,8 @@ import {
 } from "@/lib/calculadora/calc";
 import {
   CENARIOS,
-  SLIDER_RAMPA_MAX,
-  SLIDER_TICKET_MAX,
+  FINE_TUNE_RAMPA_MAX,
+  FINE_TUNE_TICKET_MAX,
 } from "@/lib/calculadora/constants";
 import { entradasVazias } from "@/lib/calculadora/estado";
 import { precoConta, rateioPorTime } from "@/lib/calculadora/preco";
@@ -32,7 +32,7 @@ function entradasGolden(): EntradasTime {
     receitaMensal: 900_000,
     ticketMedio: 15_000,
     conversaoPct: 25,
-    margemFaixa: "25a35", // 30%
+    margemPct: 30,
     salarioGestor: 12_000,
     rampaMeses: 4,
     contratacoesAno: 8,
@@ -147,7 +147,7 @@ describe("gating (§4.6) — quatro parcelas obrigatórias, nunca resultado parc
     "receitaMensal",
     "ticketMedio",
     "conversaoPct",
-    "margemFaixa",
+    "margemPct",
     "salarioGestor",
     "rampaMeses",
     "contratacoesAno",
@@ -335,7 +335,13 @@ describe("tetos e travas (§5)", () => {
 describe("deltas efetivos (cenários §4.8 + sliders do protótipo)", () => {
   it("preset conservador resolve os deltas exatos do V5", () => {
     const deltas = deltasEfetivos(CONSERVADOR, entradasGolden());
-    expect(deltas).toEqual({ ticketPct: 0.05, rampaPct: 0.2, cicloDiasMenos: 0, convPp: 0.5 });
+    expect(deltas).toEqual({
+      ticketPct: 0.05,
+      rampaPct: 0.2,
+      cicloDiasMenos: 0,
+      cicloPct: 0,
+      convPp: 0.5,
+    });
   });
 
   it("preset com ciclo derruba dias inteiros e deriva o percentual deles", () => {
@@ -344,6 +350,25 @@ describe("deltas efetivos (cenários §4.8 + sliders do protótipo)", () => {
     expect(
       deltasEfetivos({ modo: "preset", cenario: "realista" }, entradas).cicloDiasMenos,
     ).toBe(7); // 45 × 15% → 6,75 → 7
+  });
+
+  // Excel Engine!C55: o default nunca zera a alavanca num ciclo que existe.
+  it("ciclo curto no ramo de dias tem piso de 1 dia", () => {
+    const entradas = { ...entradasGolden(), cicloDias: 8, leadsMes: 400 };
+    const deltas = deltasEfetivos(CONSERVADOR, entradas); // 8 × 5% = 0,4 → 1
+    expect(deltas.cicloDiasMenos).toBe(1);
+    expect(deltas.cicloPct).toBeCloseTo(1 / 8, 6);
+  });
+
+  // Excel Engine!C53/C56: abaixo de 7 dias a mecânica volta ao percentual.
+  it("ciclo abaixo de 7 dias usa o percentual do cenário, não dias inteiros", () => {
+    const entradas = { ...entradasGolden(), cicloDias: 5, leadsMes: 400 };
+    const deltas = deltasEfetivos(CONSERVADOR, entradas);
+    expect(deltas.cicloDiasMenos).toBe(0);
+    expect(deltas.cicloPct).toBeCloseTo(0.05, 6);
+    expect(
+      deltasEfetivos({ modo: "preset", cenario: "realista" }, entradas).cicloPct,
+    ).toBeCloseTo(0.15, 6);
   });
 
   it("sliders personalizados são clampados pelos tetos, nunca os relaxam", () => {
@@ -356,21 +381,21 @@ describe("deltas efetivos (cenários §4.8 + sliders do protótipo)", () => {
       },
       entradas,
     );
-    expect(deltas.cicloDiasMenos).toBe(13); // floor(45 × 30%)
+    expect(deltas.cicloDiasMenos).toBe(14); // round(45 × 30%), half-up como o Excel
     expect(deltas.convPp).toBe(5); // Δconv_max
-    // Ticket e rampa não têm teto próprio no §5: herdam o preset Otimista, e
-    // herdam por derivação — o slider não pode passar do que o V5 documenta.
-    expect(deltas.ticketPct).toBe(CENARIOS.otimista.ticketPct);
-    expect(deltas.rampaPct).toBe(CENARIOS.otimista.rampaPct);
-    expect(SLIDER_TICKET_MAX).toBe(CENARIOS.otimista.ticketPct);
-    expect(SLIDER_RAMPA_MAX).toBe(CENARIOS.otimista.rampaPct);
+    // Tetos do fine-tune vêm da aba Assumptions do Excel — literais, e ACIMA
+    // do preset Otimista (o slider pode ir além do cenário, nunca do modelo).
+    expect(deltas.ticketPct).toBe(FINE_TUNE_TICKET_MAX);
+    expect(deltas.rampaPct).toBe(FINE_TUNE_RAMPA_MAX);
   });
 
-  it("nenhum preset ultrapassa a faixa dos sliders (§4.8 é o teto)", () => {
+  it("o teto de fine-tune nunca fica abaixo do preset otimista", () => {
     for (const cenario of Object.values(CENARIOS)) {
-      expect(cenario.ticketPct).toBeLessThanOrEqual(SLIDER_TICKET_MAX);
-      expect(cenario.rampaPct).toBeLessThanOrEqual(SLIDER_RAMPA_MAX);
+      expect(cenario.ticketPct).toBeLessThanOrEqual(FINE_TUNE_TICKET_MAX);
+      expect(cenario.rampaPct).toBeLessThanOrEqual(FINE_TUNE_RAMPA_MAX);
     }
+    expect(FINE_TUNE_TICKET_MAX).toBeGreaterThanOrEqual(CENARIOS.otimista.ticketPct);
+    expect(FINE_TUNE_RAMPA_MAX).toBeGreaterThanOrEqual(CENARIOS.otimista.rampaPct);
   });
 
   it("valores negativos viram zero", () => {
@@ -382,7 +407,13 @@ describe("deltas efetivos (cenários §4.8 + sliders do protótipo)", () => {
       },
       entradasGolden(),
     );
-    expect(deltas).toEqual({ ticketPct: 0, rampaPct: 0, cicloDiasMenos: 0, convPp: 0 });
+    expect(deltas).toEqual({
+      ticketPct: 0,
+      rampaPct: 0,
+      cicloDiasMenos: 0,
+      cicloPct: 0,
+      convPp: 0,
+    });
   });
 });
 
@@ -445,5 +476,111 @@ describe("avisos de coerência (§4.7)", () => {
     if (r.status !== "ok") throw new Error("deveria estar completo");
     expect(r.checagemRealidadePct).toBeGreaterThan(25);
     expect(r.checagemAlerta).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Segundo golden: caso FIESC do Excel v4.1 (aba Teams, coluna C). Cobre o que
+// o §14 não alcança — funil preenchido (alavanca de ciclo com teto de funil
+// ativo), preço acima do piso e payback maior que o prazo do contrato.
+// Divergência aqui é incidente de racional, igual ao §14.
+// ---------------------------------------------------------------------------
+
+function entradasFiesc(): EntradasTime {
+  return {
+    ...entradasVazias(),
+    numVendedores: 100,
+    numGestoresTreino: 6,
+    horasTreinoGestorMes: 20,
+    vendedoresPorGestorMes: 17,
+    horasPraticaPorRepHoje: 2,
+    receitaMensal: 750_000,
+    ticketMedio: 50_000,
+    conversaoPct: 15,
+    margemPct: 25,
+    salarioGestor: 10_000,
+    rampaMeses: 4,
+    contratacoesAno: 10,
+    caminho: "gestores",
+    cicloDias: 60,
+    leadsMes: 120,
+  };
+}
+
+const PROPOSTA_FIESC: PropostaEfetiva = { plano: "intensivo", assentos: 100 };
+const TIMES_FIESC = [{ id: "t1", ...PROPOSTA_FIESC }];
+
+function resultadoFiesc() {
+  const precoMes = rateioPorTime(TIMES_FIESC).get("t1")!;
+  const resultado = calcResultadoTime(
+    entradasFiesc(),
+    PROPOSTA_FIESC,
+    precoMes,
+    CONSERVADOR,
+    3,
+  );
+  if (resultado.status !== "ok") throw new Error("FIESC deveria estar completo");
+  return resultado;
+}
+
+describe("caso de referência FIESC (Excel v4.1)", () => {
+  it("escada sem piso: 800 h/mês → R$ 67.068/mês", () => {
+    const preco = precoConta(TIMES_FIESC);
+    expect(preco.horasMes).toBe(800);
+    // 262 × 98 + 311 × 82 + 227 × 70 = 25.676 + 25.502 + 15.890
+    expect(preco.bruto).toBeCloseTo(67_068, 4);
+    expect(preco.pisoAplicado).toBe(false);
+    expect(preco.mensal).toBeCloseTo(67_068, 4);
+    expect(preco.taxaCombinada).toBeCloseTo(83.835, 6);
+  });
+
+  it("fator de escopo declarado = 120 ÷ 204 = 0,588 (treino em grupo)", () => {
+    const fator = fatorEscopoDeclarado(entradasFiesc());
+    expect(fator.origem).toBe("declarado");
+    expect(fator.valor).toBeCloseTo(120 / 204, 6);
+    expect(fator.treinoEmGrupo).toBe(true);
+  });
+
+  it("reproduz as cinco parcelas do Engine", () => {
+    const r = resultadoFiesc();
+    // Caminho (94.500) abaixo do teto (370.588,24): a eficiência é o caminho.
+    expect(r.eficienciaAno).toBeCloseTo(94_500, 4);
+    expect(r.tetoEficienciaAno).toBeCloseTo(370_588.235294118, 4);
+    expect(r.parcelas.margemTicketAno).toBeCloseTo(112_500, 4);
+    expect(r.parcelas.margemRampaAno).toBeCloseTo(10_500, 4);
+    expect(r.parcelas.ganhoConversaoAno).toBeCloseTo(52_500, 4);
+    // Ociosas 20 → teto de funil 3/mês; capacidade 0,7895 vendas/mês manda.
+    expect(r.parcelas.ganhoCicloAno).toBeCloseTo(82_894.7368421052, 4);
+    expect(r.G).toBeCloseTo(258_394.736842105, 4);
+    expect(r.valorAno).toBeCloseTo(352_894.736842105, 4);
+  });
+
+  it("fecha ROI, payback e checagem de realidade do Account", () => {
+    const r = resultadoFiesc();
+    expect(r.roi).toBeCloseTo(0.43847877880423, 10);
+    expect(r.paybackMeses).toBeCloseTo(27.367344966443, 10);
+    expect(r.checagemRealidadePct).toBeCloseTo(11.4842105263158, 6);
+    expect(r.checagemAlerta).toBe(false);
+  });
+
+  it("payback maior que o prazo de 3 meses vira aviso", () => {
+    const r = resultadoFiesc();
+    const aviso = r.avisos.find((a) => a.tipo === "payback_excede_contrato");
+    expect(aviso).toBeDefined();
+    if (aviso?.tipo === "payback_excede_contrato") {
+      expect(aviso.prazoMeses).toBe(3);
+      expect(aviso.paybackMeses).toBeCloseTo(27.367344966443, 6);
+    }
+  });
+
+  it("headcount de referência segue o Engine e não entra no valor", () => {
+    const r = resultadoFiesc();
+    const linha = r.linhasNaoSomadas.find((l) => l.id === "economia_headcount")!;
+    // 100 ÷ 17 = 5,882 hoje; × 25% = 1,470 com a Perfecting; 4,412 evitados.
+    expect(linha.detalhe?.gestoresHoje).toBeCloseTo(100 / 17, 6);
+    expect(linha.detalhe?.gestores).toBeCloseTo(4.41176470588235, 6);
+    expect(linha.valorAno).toBeCloseTo(926_470.588235294, 4);
+    // Continua fora da conta (auditoria A-02).
+    expect(r.valorAno).toBeCloseTo(352_894.736842105, 4);
   });
 });

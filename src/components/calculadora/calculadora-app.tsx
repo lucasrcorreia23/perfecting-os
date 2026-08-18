@@ -7,6 +7,7 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
+  QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
 import { PASSO_INTROS } from "@/lib/calculadora/campos";
 import { timesJaCompletos, timesParaCelebrar } from "@/lib/calculadora/celebracao";
@@ -23,7 +24,9 @@ import {
   sanitizarNomeTime,
   timeVazio,
 } from "@/lib/calculadora/estado";
-import { formatBRL, formatMeses } from "@/lib/calculadora/format";
+import { formatBRL, formatPct } from "@/lib/calculadora/format";
+import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
+import { perguntasCfo } from "@/lib/calculadora/faq";
 import { computarModelo } from "@/lib/calculadora/modelo";
 import { reReconciliar } from "@/lib/calculadora/trajetoria";
 import { aplicarEstrutura, estruturaAtiva, estruturaVazia } from "@/lib/calculadora/estrutura";
@@ -45,14 +48,15 @@ import { ConsolidadoView } from "./consolidado-view";
 import { Disclaimer } from "./disclaimer";
 import { CalculadoraFooter } from "./footer";
 import { EnviarBar } from "./enviar-bar";
+import { FaqPainel } from "./faq-cfo";
 import { Glossario } from "./glossario";
+import { CascataValor, ComparacaoCenarios } from "./graficos-resultado";
 import { IntroScreen } from "./intro-screen";
 import { PassoForm } from "./passo-form";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
   EficienciaCard,
-  EquacaoValor,
   HeroResultado,
   PerformanceCard,
   ResultadoIncompleto,
@@ -104,6 +108,8 @@ export function CalculadoraApp({
 }) {
   const [estado, setEstado] = useState(estadoSalvo);
   const [glossarioAberto, setGlossarioAberto] = useState(false);
+  // Os dois painéis dividem a mesma faixa de 360px: abrir um fecha o outro.
+  const [faqAberto, setFaqAberto] = useState(false);
   // Preferência de UI, só da sessão: a calculadora não guarda nada no
   // dispositivo (o link é o estado), e recolher a sidebar não é dado do
   // cliente para entrar no autosave.
@@ -299,6 +305,33 @@ export function CalculadoraApp({
   const timeModelo =
     modelo.times.find((time) => time.id === timeAtualId) ?? modelo.times[0];
   const multiTime = estado.times.length > 1;
+  // Os três cenários com as MESMAS entradas (aba Scenario Comparison do
+  // Excel). Null enquanto o time estiver incompleto — nunca faixa parcial.
+  const comparacao = useMemo(
+    () =>
+      compararCenarios(
+        timeModelo.entradas,
+        timeModelo.proposta,
+        timeModelo.precoMes,
+        modelo.prazoMeses,
+      ),
+    [timeModelo.entradas, timeModelo.proposta, timeModelo.precoMes, modelo.prazoMeses],
+  );
+  // As objeções de CFO com os números deste link. Time incompleto ⇒ as
+  // respostas existem sem número (nunca projeção parcial).
+  const perguntas = useMemo(
+    () =>
+      perguntasCfo({
+        resultado: timeModelo.resultado.status === "ok" ? timeModelo.resultado : null,
+        entradas: timeModelo.entradas,
+        proposta: timeModelo.proposta.assentos > 0 ? timeModelo.proposta : null,
+        preco: modelo.preco,
+        prazoMeses: modelo.prazoMeses,
+        comparacao,
+        multiTime,
+      }),
+    [timeModelo, modelo.preco, modelo.prazoMeses, comparacao, multiTime],
+  );
   const estrutura = estado.estrutura ?? estruturaVazia();
   const vendedoresDaConta = estado.times.reduce(
     (total, time) => total + (time.entradas.numVendedores ?? 0),
@@ -395,8 +428,22 @@ export function CalculadoraApp({
         <Button
           variant="secondary"
           size="sm"
+          icon={QuestionMarkCircleIcon}
+          onClick={() => {
+            setGlossarioAberto(false);
+            setFaqAberto(true);
+          }}
+        >
+          Perguntas comuns
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           icon={BookOpenIcon}
-          onClick={() => setGlossarioAberto(true)}
+          onClick={() => {
+            setFaqAberto(false);
+            setGlossarioAberto(true);
+          }}
         >
           Glossário
         </Button>
@@ -408,8 +455,10 @@ export function CalculadoraApp({
     <main
       className={cn(
         "page-fade-in flex min-h-[100dvh] flex-col bg-[#f3f6fc] transition-[padding] duration-300",
-        // O glossário é painel lateral: em telas grandes a página encolhe em
-        // vez de ser coberta, para o formulário seguir editável ao lado.
+        // Só o Glossário encolhe a página: ele é gaveta, e o formulário segue
+        // editável ao lado. As Perguntas viraram MODAL — reservar a faixa de
+        // 360px para elas empurrava a tela inteira para a esquerda ao abrir,
+        // que é exatamente o salto que o overlay deveria evitar.
         glossarioAberto && "sm:pr-[360px]",
       )}
     >
@@ -420,7 +469,7 @@ export function CalculadoraApp({
           times={progressoPorTime}
         />
       ) : null}
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
         {header}
 
         {view.modo === "intro" ? (
@@ -531,7 +580,7 @@ export function CalculadoraApp({
               />
             ) : null}
 
-            {/* Recolher a sidebar devolve os 304px à leitura. Como a coluna do
+            {/* Recolher a sidebar devolve os 264px à leitura. Como a coluna do
                 resultado é `@container`, a container query que decide o par
                 Eficiência/Performance reflowa junto — o recolhimento paga em
                 largura e em altura.
@@ -544,7 +593,7 @@ export function CalculadoraApp({
                 "lg:transition-[grid-template-columns] lg:duration-200 lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                 // 4rem = 64px: o rail recolhido é só a seta, e 64px mantêm o
                 // alvo de toque confortável sem devolver largura ao resultado.
-                sidebarAberta ? "lg:grid-cols-[304px_1fr]" : "lg:grid-cols-[4rem_1fr]",
+                sidebarAberta ? "lg:grid-cols-[264px_1fr]" : "lg:grid-cols-[4rem_1fr]",
               )}
             >
               <div className="order-2 lg:order-1 lg:sticky lg:top-8 lg:self-start">
@@ -591,7 +640,9 @@ export function CalculadoraApp({
               <div className="@container order-1 flex flex-col gap-2 lg:order-2">
                 {timeModelo.resultado.status === "ok" ? (
                   <>
-                    <SecaoResultado titulo="O resultado" moldura="solta">
+                    {/* Sem SecaoResultado: o hero é o topo da página e já traz o
+                        próprio cabeçalho — "O resultado" era rótulo do rótulo. */}
+                    <div className="flex flex-col gap-6">
                       <HeroResultado
                         titulo={
                           multiTime
@@ -602,7 +653,14 @@ export function CalculadoraApp({
                         paybackMeses={timeModelo.resultado.paybackMeses}
                         valorAno={timeModelo.resultado.valorAno}
                         precoAno={timeModelo.resultado.precoAno}
-                        frase={`Com ${timeModelo.proposta.assentos} assentos no plano ${PLANOS[timeModelo.proposta.plano].label}, a projeção é de ${formatBRL(timeModelo.resultado.valorAno)} de retorno em 12 meses sobre ${formatBRL(timeModelo.resultado.precoMes)}/mês de investimento, com payback em ${formatMeses(timeModelo.resultado.paybackMeses)}.`}
+                        // Traduz o múltiplo em vez de repetir os três números
+                        // que estão logo acima (e o plano/assentos, que estão
+                        // no chip ao lado): dito duas vezes, nenhum deles ganha
+                        // peso — só custa uma linha a mais antes da checagem.
+                        frase={`Cada R$ 1 investido devolve ${formatBRL(timeModelo.resultado.roi, 2)} em margem no primeiro ano.`}
+                        // A conta inteira num balão: valor ÷ investimento, e
+                        // de onde sai cada metade do numerador.
+                        racional={`${formatBRL(timeModelo.resultado.valorAno)} de valor ÷ ${formatBRL(timeModelo.resultado.precoAno)} de investimento no ano. O valor soma ${formatBRL(timeModelo.resultado.eficienciaAno)} de eficiência (o custo do caminho que você declarou, limitado pelo teto do plano) e ${formatBRL(timeModelo.resultado.G)} de performance (ticket, conversão, rampa e ciclo, com desconto de 30% em três delas e cobertura de ${formatPct(timeModelo.resultado.cobertura * 100, 0)} dos vendedores).`}
                         chips={[
                           {
                             label:
@@ -623,7 +681,7 @@ export function CalculadoraApp({
                         tom="destaque"
                       />
                       <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
-                    </SecaoResultado>
+                    </div>
                   </>
                 ) : null}
 
@@ -632,7 +690,7 @@ export function CalculadoraApp({
                     <SecaoResultado
                       id="ao-longo-de-12-meses"
                       titulo="Ao longo de 12 meses"
-                      descricao="Editar a curva não muda ROI, payback nem o valor do ano — só a forma."
+                      descricao="Editar a curva muda só a forma, nunca o ROI."
                     >
                       <PaineisTrajetoria
                         margemMensalAtual={timeModelo.resultado.margemMensalAtual}
@@ -653,12 +711,12 @@ export function CalculadoraApp({
                     <SecaoResultado
                       id="de-onde-vem"
                       titulo="De onde vem o número"
-                      descricao="As duas óticas do modelo: o que você deixa de gastar e o que o time passa a ganhar."
+                      descricao="As duas metades da soma."
                       divisor
                     >
                       {/* Container query, não breakpoint de viewport: o que
                           decide se cabem duas colunas é a largura DESTA coluna
-                          (a sidebar come 304px fixos). Com `xl:` a seção mais
+                          (a sidebar come 264px fixos). Com `xl:` a seção mais
                           alta da página empilhava em qualquer janela abaixo de
                           1280px, dobrando de altura sem necessidade.
 
@@ -695,12 +753,24 @@ export function CalculadoraApp({
                           />
                         </div>
                       </div>
-                      <EquacaoValor resultado={timeModelo.resultado} />
+                      <CascataValor resultado={timeModelo.resultado} />
                       <CenarioSliders
                         sel={timeModelo.sel}
                         entradas={timeModelo.entradas}
                         onChange={(sel) => setCenario(timeAtualId, sel)}
                       />
+                      {comparacao ? (
+                        <ComparacaoCenarios
+                          linhas={comparacao}
+                          precoAno={timeModelo.resultado.precoAno}
+                          cenarioAtivo={
+                            timeModelo.sel.modo === "preset"
+                              ? timeModelo.sel.cenario
+                              : timeModelo.sel.base
+                          }
+                          personalizado={timeModelo.sel.modo === "personalizado"}
+                        />
+                      ) : null}
                     </SecaoResultado>
                   </>
                 ) : (
@@ -718,7 +788,7 @@ export function CalculadoraApp({
                 <SecaoResultado
                   id="quanto-custa"
                   titulo="Quanto custa"
-                  descricao="A proposta é sua: plano, assentos e prazo mudam o número acima na hora."
+                  descricao="Plano, assentos e prazo recalculam o número acima na hora."
                 >
                   <QuantoCusta
                     times={modelo.times}
@@ -764,6 +834,11 @@ export function CalculadoraApp({
       <CalculadoraFooter />
 
       <Glossario open={glossarioAberto} onClose={() => setGlossarioAberto(false)} />
+      <FaqPainel
+        open={faqAberto}
+        onClose={() => setFaqAberto(false)}
+        perguntas={perguntas}
+      />
 
       {/* `key` no time: cada comemoração é uma montagem nova, e a contagem
           começa do zero sem herdar o número da anterior. */}

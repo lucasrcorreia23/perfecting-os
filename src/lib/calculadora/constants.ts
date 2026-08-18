@@ -1,6 +1,7 @@
-// Constantes do racional (V5). Aqui vive SOMENTE preço de venda e premissa
-// declarada — nenhuma constante de custo interno entra no código (§9,
-// invariante 13).
+// Constantes do racional. Fonte: Excel FIESC (motor v4.1, aba Assumptions)
+// onde diverge do V5; V5 onde o Excel é omisso. Aqui vive SOMENTE preço de
+// venda e premissa declarada — nenhuma constante de custo interno entra no
+// código (§9, invariante 13).
 
 import type { Caminho, Cenario, FaixaMargemId, PlanoId } from "./types";
 
@@ -102,24 +103,28 @@ export const CENARIOS: Record<
 
 export const CENARIO_DEFAULT: Cenario = "conservador";
 
-// Faixas dos sliders de parâmetros personalizados. Ticket e rampa não têm teto
-// próprio no §5, então herdam o preset Otimista — derivado, nunca literal, para
-// não divergir do §4.8 (invariante 15: teto não se cria nem se relaxa sem
-// decisão registrada). Δconv e ciclo têm tetos próprios, aplicados em
+// Tetos dos sliders de parâmetros personalizados: literais da aba Assumptions
+// do Excel FIESC (fine-tuning limits), que registra tetos ACIMA do preset
+// Otimista. O invariante 15 segue de pé — o teto tem fonte documental, só
+// mudou a fonte. Δconv e ciclo têm tetos próprios, aplicados em
 // deltasEfetivos().
-export const SLIDER_TICKET_MAX = CENARIOS.otimista.ticketPct;
-export const SLIDER_RAMPA_MAX = CENARIOS.otimista.rampaPct;
+export const FINE_TUNE_TICKET_MAX = 0.3;
+export const FINE_TUNE_RAMPA_MAX = 0.8;
 
-// Faixas de margem de contribuição (§4.1: "faixas; 30% quando 'não sei'").
-// Enumeração decidida em 15/08/2026: valor central da faixa entra no cálculo.
-export const FAIXAS_MARGEM: Record<FaixaMargemId, { label: string; pct: number }> = {
-  ate15: { label: "Até 15%", pct: 10 },
-  "15a25": { label: "15% a 25%", pct: 20 },
-  "25a35": { label: "25% a 35%", pct: 30 },
-  "35a45": { label: "35% a 45%", pct: 40 },
-  "45a60": { label: "45% a 60%", pct: 50 },
-  acima60: { label: "Acima de 60%", pct: 60 },
-  nao_sei: { label: "Não sei", pct: 30 },
+// Margem de contribuição é % LIVRE (o Excel usa fração livre; decisão de
+// 17/08/2026, superando as faixas de 15/08). O atalho "não sei" usa 30%.
+export const MARGEM_NAO_SEI = 30;
+
+// Valor central das faixas usadas até 17/08/2026 — vive SÓ para o parse de
+// estados salvos com `margemFaixa` (retrocompat em v: 2, sem migração).
+export const MARGEM_LEGADO: Record<FaixaMargemId, number> = {
+  ate15: 10,
+  "15a25": 20,
+  "25a35": 30,
+  "35a45": 40,
+  "45a60": 50,
+  acima60: 60,
+  nao_sei: 30,
 };
 
 export const CAMINHOS: Record<Caminho, { label: string; descricao: string }> = {

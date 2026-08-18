@@ -3,6 +3,7 @@
 // investimento (invariante 11). Métricas que não se somam são recalculadas
 // a partir dos totais.
 
+import { PRAZO_DEFAULT } from "./constants";
 import type { PropostaEfetiva } from "./calc";
 import type {
   CenarioSelecionado,
@@ -20,7 +21,10 @@ export type TimeParaConsolidar = {
   resultado: ResultadoTime;
 };
 
-export function consolidar(times: TimeParaConsolidar[]): ResultadoConsolidado {
+export function consolidar(
+  times: TimeParaConsolidar[],
+  prazoMeses: number = PRAZO_DEFAULT,
+): ResultadoConsolidado {
   const incompletos = times.filter((time) => time.resultado.status === "incompleto");
   if (incompletos.length > 0 || times.length === 0) {
     return {
@@ -63,12 +67,15 @@ export function consolidar(times: TimeParaConsolidar[]): ResultadoConsolidado {
       ? comCiclo.reduce((total, t) => total + t.ciclo * t.vendas, 0) / vendasComCiclo
       : null;
 
+  const paybackMeses = (precoAno / valorAno) * 12;
   return {
     status: "ok",
     valorAno,
     precoAno,
     roi: valorAno / precoAno,
-    paybackMeses: (precoAno / valorAno) * 12,
+    paybackMeses,
+    // Excel Account!C32: o contrato termina antes de a conta se pagar.
+    paybackExcedeContrato: paybackMeses > prazoMeses,
     G,
     mixCenarios: oks.map((t) => ({ timeId: t.id, nome: t.nome, sel: t.sel })),
     totalVendedores,

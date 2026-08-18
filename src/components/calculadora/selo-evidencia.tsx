@@ -72,11 +72,13 @@ export function SeloEvidencia({
         // linhas dentro da própria pílula. Ele vai inteiro para a linha de
         // baixo, nunca se desmonta.
         //
-        // Altura fixa de 20px em vez de `py-0.5` sobre um corpo de 10px sem
-        // line-height: 20 é exatamente o line-box do `text-sm` ao lado, então o
-        // selo para de empurrar a baseline nos oito pontos em que aparece
-        // colado a um título.
-        "inline-flex h-5 w-fit items-center whitespace-nowrap rounded-full border px-2 text-[10px] font-semibold leading-none",
+        // Altura por padding, não fixa, e `leading-4` em vez de `leading-none`:
+        // a combinação anterior (`h-5` + `leading-none` sobre 10px) cortava os
+        // descendentes das próprias palavras do vocabulário — o "ç" e o "j" de
+        // "Projeção" encostavam na borda de baixo da pílula. O corpo subiu para
+        // 12px pela mesma razão que o resto da calculadora (§8.12b): o leitor
+        // desta tela não enxerga 10px.
+        "inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold leading-4",
         cores,
         className,
       )}

@@ -7,8 +7,8 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { CAMPO_DEFS, CAMINHO_LABEL, MARGEM_LABEL } from "@/lib/calculadora/campos";
-import { CAMINHOS, FAIXAS_MARGEM } from "@/lib/calculadora/constants";
+import { CAMPO_DEFS, CAMINHO_LABEL } from "@/lib/calculadora/campos";
+import { CAMINHOS } from "@/lib/calculadora/constants";
 import { PASSOS } from "@/lib/calculadora/estado";
 import { CAMPOS_DA_ESTRUTURA } from "@/lib/calculadora/estrutura";
 import type {
@@ -16,30 +16,23 @@ import type {
   Caminho,
   EntradasTime,
   EstruturaCompartilhada,
-  FaixaMargemId,
 } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/form";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { CampoNumero } from "./campo-numero";
 import { CamposEstruturaSidebar } from "./estrutura-compartilhada";
-import { SeloEvidencia } from "./selo-evidencia";
-
-const FAIXA_OPTIONS = (Object.keys(FAIXAS_MARGEM) as FaixaMargemId[]).map((id) => ({
-  value: id,
-  label: FAIXAS_MARGEM[id].label,
-}));
 
 const CAMINHO_OPTIONS = (Object.keys(CAMINHOS) as Caminho[]).map((id) => ({
   value: id,
   label: CAMINHOS[id].label,
 }));
 
-// Sidebar "Seus números": edição rápida de qualquer campo depois do wizard —
+// Sidebar "Dados preenchidos": edição rápida de qualquer campo depois do wizard —
 // o resultado recalcula na hora (padrão do protótipo).
 //
 // Recolhida, muda de forma conforme a coluna: no desktop vira um rail vertical
-// clicável por inteiro e devolve os 304px ao resultado (quem alterna o
+// clicável por inteiro e devolve os 264px ao resultado (quem alterna o
 // `grid-cols` é o pai); no mobile a coluna já fica abaixo do resultado, então
 // recolher é sanfona — cabeçalho visível, campos fora.
 export function SeusNumerosSidebar({
@@ -78,7 +71,12 @@ export function SeusNumerosSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col rounded-sm border border-slate-200 bg-white",
+        // Superfície recuada de propósito: é apoio, não resposta. Em branco
+        // cheio com borda slate-200 ela empatava com o bloco do resultado —
+        // e, depois que o hero perdeu o wash, chegava a parecer o elemento
+        // principal da tela. Meio-tom sobre o fundo azulado da página deixa o
+        // branco como privilégio de quem carrega o número.
+        "flex flex-col rounded-sm border border-slate-200/70 bg-white/60",
         aberta && "lg:max-h-[calc(100dvh-8rem)]",
       )}
     >
@@ -89,14 +87,14 @@ export function SeusNumerosSidebar({
 
           Sem rótulo vertical: recolhido, o rail é só a seta de volta. O nome do
           bloco sobrevive no `aria-label` — quem usa leitor de tela continua
-          ouvindo "Abrir Seus números", que é onde o rótulo faz falta de fato. */}
+          ouvindo "Abrir Dados preenchidos", que é onde o rótulo faz falta de fato. */}
       {!aberta ? (
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={false}
           aria-controls="seus-numeros-campos"
-          aria-label="Abrir Seus números"
+          aria-label="Abrir Dados preenchidos"
           className="hidden w-full cursor-pointer items-center justify-center rounded-sm px-2 py-5 text-slate-400 transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 lg:flex"
         >
           <ChevronRightIcon className="h-5 w-5" aria-hidden />
@@ -105,31 +103,28 @@ export function SeusNumerosSidebar({
 
       <div
         className={cn(
-          "flex items-start justify-between gap-2 p-6 pb-4",
+          "flex items-center justify-between gap-2 p-6 pb-4",
           !aberta && "lg:hidden",
         )}
       >
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-700">Seus números</h3>
-            {/* Invariante 5: todo campo declara a origem. Aqui vale para o bloco
-                inteiro — tudo abaixo é digitado pelo cliente. */}
-            <SeloEvidencia selo="dado_do_cliente" />
-          </div>
-          {aberta ? (
-            <p className="text-xs text-slate-500">
-              Edite qualquer campo: o resultado recalcula na hora.
-            </p>
-          ) : null}
-        </div>
+        {/* Sem selo de origem nem linha de instrução: o próprio título já diz
+            que os dados são do cliente, e "edite qualquer campo" é o que um
+            formulário de campos editáveis comunica sozinho. Os dois juntos
+            gastavam três linhas de cabeçalho antes do primeiro campo. */}
+        <h3 className="text-sm font-semibold whitespace-nowrap text-slate-700">
+          Dados preenchidos
+        </h3>
 
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={aberta}
           aria-controls="seus-numeros-campos"
-          aria-label={aberta ? "Recolher Seus números" : "Abrir Seus números"}
-          className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+          aria-label={aberta ? "Recolher Dados preenchidos" : "Abrir Dados preenchidos"}
+          // Bounding box: os 44px de alvo de toque ficam, mas a margem negativa
+          // tira 16px do FLUXO, senão o botão manda na altura do cabeçalho e
+          // sobra um vão morto abaixo de um título de uma linha só.
+          className="-my-2 -mr-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
         >
           {/* A direção do gesto muda com o layout: no mobile a sanfona abre
               para baixo; no desktop o rail abre para a direita. */}
@@ -176,25 +171,12 @@ export function SeusNumerosSidebar({
           if (campos.length === 0) return null;
           return (
           <section key={passo.id} className="flex flex-col gap-3 border-t border-slate-100 pt-4">
-            <h4 className="text-xs font-semibold text-slate-500">
-              {passo.titulo}
-            </h4>
+            {/* Passo sem título não deixa cabeçalho vazio no fluxo: o fio de
+                cima já separa os grupos. */}
+            {passo.titulo ? (
+              <h4 className="text-xs font-semibold text-slate-500">{passo.titulo}</h4>
+            ) : null}
             {campos.map((campo) => {
-              if (campo === "margemFaixa") {
-                return (
-                  <Field key={campo} label={MARGEM_LABEL} htmlFor="sb-margemFaixa">
-                    <SelectMenu
-                      id="sb-margemFaixa"
-                      size="sm"
-                      options={FAIXA_OPTIONS}
-                      value={entradas.margemFaixa ?? ""}
-                      onChange={(valor) =>
-                        onChange("margemFaixa", valor === "" ? null : (valor as FaixaMargemId))
-                      }
-                    />
-                  </Field>
-                );
-              }
               if (campo === "caminho") {
                 return (
                   <Field key={campo} label={CAMINHO_LABEL} htmlFor="sb-caminho">
@@ -213,7 +195,7 @@ export function SeusNumerosSidebar({
               // Custos condicionais só aparecem quando o caminho os usa.
               if (campo === "custoExternoAno" && entradas.caminho !== "externo") return null;
               if (campo === "custoEventoAno" && entradas.caminho !== "evento") return null;
-              const def = CAMPO_DEFS[campo as Exclude<CampoId, "margemFaixa" | "caminho">];
+              const def = CAMPO_DEFS[campo as Exclude<CampoId, "caminho">];
               return (
                 <Field
                   key={campo}
@@ -250,7 +232,7 @@ export function SeusNumerosSidebar({
           className="inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-[#f8fafc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
         >
           <ArrowLeftIcon className="h-4 w-4" aria-hidden />
-          Voltar ao passo a passo
+          Voltar ao início
         </button>
         {/* Sem balão de ajuda aqui: quem chegou ao resultado já passou pelo
             wizard, onde o contexto de "por que mais de um time" é dado. */}
@@ -261,7 +243,7 @@ export function SeusNumerosSidebar({
             className="inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-full border border-dashed border-slate-300 bg-white px-4 text-sm font-medium text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <PlusIcon className="h-4 w-4" aria-hidden />
-            Adicionar outro time
+            Adicionar time
           </button>
         ) : null}
         {onRemoverTime ? (
@@ -271,7 +253,7 @@ export function SeusNumerosSidebar({
             className="inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <TrashIcon className="h-4 w-4" aria-hidden />
-            Remover este time
+            Remover time
           </button>
         ) : null}
       </div>

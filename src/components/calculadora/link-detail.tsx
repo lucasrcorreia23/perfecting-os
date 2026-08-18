@@ -14,8 +14,8 @@ import {
   UserPlusIcon,
 } from "@heroicons/react/24/outline";
 import { getCalculatorLinkUrl } from "@/lib/actions/calculator-links";
-import { CAMPO_DEFS, CAMINHO_LABEL, MARGEM_LABEL } from "@/lib/calculadora/campos";
-import { CAMINHOS, CENARIOS, FAIXAS_MARGEM, PLANOS } from "@/lib/calculadora/constants";
+import { CAMPO_DEFS, CAMINHO_LABEL } from "@/lib/calculadora/campos";
+import { CAMINHOS, CENARIOS, PLANOS } from "@/lib/calculadora/constants";
 import { PASSOS, parseEstado } from "@/lib/calculadora/estado";
 import {
   formatBRL,
@@ -26,6 +26,7 @@ import {
   formatPct,
 } from "@/lib/calculadora/format";
 import { linkStatus } from "@/lib/calculadora/link-status";
+import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
 import { computarModelo } from "@/lib/calculadora/modelo";
 import type { CampoId, EntradasTime } from "@/lib/calculadora/types";
 import type { Tables } from "@/lib/database.types";
@@ -36,12 +37,12 @@ import { Button } from "@/components/ui/button";
 import { CalculatorStatusChip } from "@/components/ui/calculator-status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Disclaimer } from "./disclaimer";
+import { CascataValor, ComparacaoCenarios } from "./graficos-resultado";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
   ChecagemRealidade,
   EficienciaCard,
-  EquacaoValor,
   HeroResultado,
   PerformanceCard,
   ResultadoIncompleto,
@@ -102,11 +103,6 @@ function descricaoEvento(event: EventRow): string | null {
 }
 
 function valorCampo(entradas: EntradasTime, campo: CampoId): string {
-  if (campo === "margemFaixa") {
-    return entradas.margemFaixa
-      ? `${FAIXAS_MARGEM[entradas.margemFaixa].label} (usa ${FAIXAS_MARGEM[entradas.margemFaixa].pct}%)`
-      : "—";
-  }
   if (campo === "caminho") {
     return entradas.caminho ? CAMINHOS[entradas.caminho].label : "—";
   }
@@ -327,7 +323,27 @@ export function LinkDetail({
                           />
                         </div>
                       </div>
-                      <EquacaoValor resultado={time.resultado} />
+                      <CascataValor resultado={time.resultado} />
+                      {/* Os três cenários lado a lado: o interno precisa saber
+                          qual faixa o cliente tinha à frente quando enviou. */}
+                      {(() => {
+                        const linhas = compararCenarios(
+                          time.entradas,
+                          time.proposta,
+                          time.precoMes,
+                          modelo.prazoMeses,
+                        );
+                        return linhas ? (
+                          <ComparacaoCenarios
+                            linhas={linhas}
+                            precoAno={time.resultado.precoAno}
+                            cenarioAtivo={
+                              time.sel.modo === "preset" ? time.sel.cenario : time.sel.base
+                            }
+                            personalizado={time.sel.modo === "personalizado"}
+                          />
+                        ) : null;
+                      })()}
                       <PaineisTrajetoria
                         margemMensalAtual={time.resultado.margemMensalAtual}
                         G={time.resultado.G}
@@ -376,11 +392,7 @@ export function LinkDetail({
                       return null;
                     }
                     const label =
-                      campo === "margemFaixa"
-                        ? MARGEM_LABEL
-                        : campo === "caminho"
-                          ? CAMINHO_LABEL
-                          : CAMPO_DEFS[campo].label;
+                      campo === "caminho" ? CAMINHO_LABEL : CAMPO_DEFS[campo].label;
                     return (
                       <div
                         key={campo}
