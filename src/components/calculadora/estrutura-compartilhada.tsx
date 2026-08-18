@@ -30,8 +30,12 @@ export function Alternador({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 rounded-sm border p-4 transition-colors",
-        ativa ? "border-[#2E63CD]/40 bg-[#2E63CD]/[0.04]" : "border-slate-200 bg-white",
+        "flex flex-col gap-2 rounded-sm transition-colors",
+        // Ligado é outra camada — a escolha reescreve o formulário — e ganha
+        // fundo tingido, sem borda: a cor já delimita. Desligado é só mais uma
+        // pergunta do passo, e um card branco bordado dentro do card branco do
+        // formulário eram duas molduras iguais encaixadas para separar nada.
+        ativa ? "bg-[#2E63CD]/[0.05] p-4" : "border-b border-slate-100 pb-4",
       )}
     >
       <button
@@ -64,7 +68,7 @@ export function Alternador({
           />
         </span>
       </button>
-      <p className="text-xs leading-5 text-slate-500">
+      <p className="text-sm leading-6 text-slate-600">
         {ativa
           ? "A estrutura é declarada uma vez para a conta. Os gestores e o custo da alternativa são rateados entre os times por número de vendedores — cada time mantém os próprios números de operação."
           : "Ative se a mesma equipe de gestores atende vários times. Sem isso, declarar os mesmos gestores em cada time contaria a mesma economia mais de uma vez."}

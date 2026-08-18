@@ -3,12 +3,19 @@ import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
 
 // Formulários (§8.10): label → ajuda → input, nessa ordem.
+//
+// Duas formas de dizer a mesma coisa, e a escolha não é de gosto: `help` põe a
+// explicação como linha visível sob o rótulo (o que o §8.10 pede) e `hint` a
+// guarda num ícone. O ícone existe para formulário longo de tela estreita —
+// e cobra um tab stop por campo, entre o rótulo e o input.
 export function Field({
   label,
   help,
   hint,
   error,
   htmlFor,
+  escala = "app",
+  alinhado = false,
   children,
 }: {
   label: string;
@@ -19,13 +26,68 @@ export function Field({
   hint?: string;
   error?: string;
   htmlFor?: string;
+  // `leitura` sobe ajuda e erro um degrau (§8.12b): a jornada da calculadora
+  // roda em `text-sm` com o cinza parando em slate-600, porque quem lê tem
+  // tipicamente 45+ anos e abre o link uma vez para decidir. Nela o `text-xs`
+  // fica reservado a selo e chip — usar o padrão do app aqui esconderia em
+  // 12px justamente a frase que explica o campo.
+  escala?: "app" | "leitura";
+  // Em grade de duas ou três colunas, os campos precisam dividir as MESMAS
+  // faixas: rótulo com rótulo, ajuda com ajuda, input com input. Com cada
+  // campo montando a própria pilha, uma ajuda de três linhas empurra só o seu
+  // input, e a linha inteira sai torta — foi o que apareceu quando a ajuda
+  // deixou de ser ícone e virou texto. `grid-rows-subgrid` faz o campo herdar
+  // as faixas do pai em vez de inventar as suas; o pai declara
+  // `grid-rows-[auto_auto_auto_auto]`.
+  alinhado?: boolean;
   children: ReactNode;
 }) {
+  const leitura = escala === "leitura";
   const labelEl = (
     <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">
       {label}
     </label>
   );
+
+  if (alinhado) {
+    return (
+      <div className="row-span-4 grid grid-rows-subgrid gap-y-1.5">
+        {hint ? (
+          <div className="relative flex items-center gap-1.5">
+            {labelEl}
+            <HintTooltip text={hint} />
+          </div>
+        ) : (
+          labelEl
+        )}
+        {/* Faixas vazias continuam ocupando a linha: é o que mantém o input
+            do vizinho na mesma altura quando um campo não tem ajuda. */}
+        {help ? (
+          <p
+            id={htmlFor ? `${htmlFor}-ajuda` : undefined}
+            className={cn(
+              leitura ? "text-sm leading-6 text-slate-600" : "text-xs text-slate-500",
+            )}
+          >
+            {help}
+          </p>
+        ) : (
+          <span aria-hidden />
+        )}
+        <div className="self-end">{children}</div>
+        {error ? (
+          <p
+            id={htmlFor ? `${htmlFor}-erro` : undefined}
+            className={cn("text-trend-negative", leitura ? "text-sm leading-6" : "text-xs")}
+          >
+            {error}
+          </p>
+        ) : (
+          <span aria-hidden />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -40,10 +102,29 @@ export function Field({
         ) : (
           labelEl
         )}
-        {help ? <p className="text-xs text-slate-500">{help}</p> : null}
+        {help ? (
+          <p
+            id={htmlFor ? `${htmlFor}-ajuda` : undefined}
+            className={cn(
+              leitura ? "text-sm leading-6 text-slate-600" : "text-xs text-slate-500",
+            )}
+          >
+            {help}
+          </p>
+        ) : null}
       </div>
       {children}
-      {error ? <p className="text-xs text-trend-negative">{error}</p> : null}
+      {error ? (
+        <p
+          id={htmlFor ? `${htmlFor}-erro` : undefined}
+          className={cn(
+            "text-trend-negative",
+            leitura ? "text-sm leading-6" : "text-xs",
+          )}
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

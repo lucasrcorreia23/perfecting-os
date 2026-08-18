@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
+  ExclamationCircleIcon,
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
@@ -62,6 +63,12 @@ import {
   ResultadoIncompleto,
 } from "./resultado-time";
 import { SecaoResultado } from "./secao-resultado";
+import {
+  errosPorCampo,
+  resumoDoErro,
+  validarPasso,
+  type ErroCampo,
+} from "@/lib/calculadora/validacao-passo";
 import { ResumoVerificavel } from "./resumo-verificavel";
 import { SeusNumerosSidebar } from "./seus-numeros-sidebar";
 import { StepperNav } from "./stepper-nav";
@@ -140,6 +147,10 @@ export function CalculadoraApp({
     if (tudoCompleto && prog.preenchidos > 0) return { modo: "resultado" };
     return { modo: "intro" };
   });
+
+  // Erros do passo em que a pessoa está. Só nascem quando ela TENTA avançar —
+  // validar enquanto digita acusaria campo vazio que ela ainda vai preencher.
+  const [errosPasso, setErrosPasso] = useState<ErroCampo[]>([]);
 
   const modelo = useMemo(() => computarModelo(estado), [estado]);
   const autosave = useAutosave({
@@ -349,8 +360,30 @@ export function CalculadoraApp({
     setView({ modo: "wizard", timeId, passo });
   }
 
+  // Foca e rola até o primeiro campo pendente. Sem isso a mensagem existe mas
+  // a pessoa ainda precisa caçar o campo — que é a lacuna que o erro por passo
+  // tinha e este por campo veio resolver.
+  function focarCampo(campo: string) {
+    requestAnimationFrame(() => {
+      const alvo =
+        document.getElementById(`campo-${campo}`) ??
+        document.querySelector<HTMLElement>(`[role="radiogroup"]`);
+      alvo?.focus();
+      alvo?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }
+
   function avancarWizard() {
     if (view.modo !== "wizard") return;
+
+    const pendencias = validarPasso(timeModelo.estadoTime.entradas, view.passo);
+    if (pendencias.length > 0) {
+      setErrosPasso(pendencias);
+      focarCampo(pendencias[0].campo);
+      return;
+    }
+    setErrosPasso([]);
+
     if (view.passo < 5) {
       setView({ modo: "wizard", timeId: view.timeId, passo: (view.passo + 1) as 2 | 3 | 4 | 5 });
       return;
@@ -365,7 +398,30 @@ export function CalculadoraApp({
     }
   }
 
+  // O passo 5 é opcional e agora diz isso: a saída limpa os dois campos (a
+  // regra é dois ou nenhum) e segue em frente, sem cobrar nada.
+  function pularFunil() {
+    if (view.modo !== "wizard") return;
+    setCampo(view.timeId, "cicloDias", null);
+    setCampo(view.timeId, "leadsMes", null);
+    setErrosPasso([]);
+    avancarDoPasso5();
+  }
+
+  function avancarDoPasso5() {
+    if (view.modo !== "wizard") return;
+    const indice = estado.times.findIndex((time) => time.id === view.timeId);
+    const proximo = estado.times[indice + 1];
+    if (proximo) {
+      irParaWizard(proximo.id, 1);
+    } else {
+      setTimeAtivoId(estado.times[0].id);
+      setView({ modo: "resultado" });
+    }
+  }
+
   function voltarWizard() {
+    setErrosPasso([]);
     if (view.modo !== "wizard") return;
     if (view.passo > 1) {
       setView({ modo: "wizard", timeId: view.timeId, passo: (view.passo - 1) as 1 | 2 | 3 | 4 });
@@ -522,20 +578,68 @@ export function CalculadoraApp({
 
               {/* Entradas CRUAS aqui: o formulário edita o que se persiste. As
                   derivadas (rateadas) alimentam só o resultado. */}
+              {/* Enter avança, como em qualquer formulário — mas não quando o
+                  alvo é um botão, senão a tecla dispararia a ação dele. */}
+              <div
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  const alvo = event.target as HTMLElement;
+                  if (alvo.tagName === "BUTTON" || alvo.tagName === "TEXTAREA") return;
+                  event.preventDefault();
+                  avancarWizard();
+                }}
+              >
               <PassoForm
                 passo={view.passo}
                 entradas={timeModelo.estadoTime.entradas}
-                onChange={(campo, valor) => setCampo(timeAtualId, campo, valor)}
+                erros={errosPorCampo(errosPasso)}
+                onChange={(campo, valor) => {
+                  // O erro daquele campo some assim que ele é tocado: manter a
+                  // frase vermelha embaixo de um campo já preenchido é ruído.
+                  setErrosPasso((atuais) => atuais.filter((erro) => erro.campo !== campo));
+                  setCampo(timeAtualId, campo, valor);
+                }}
                 multiTime={multiTime}
                 estrutura={estrutura}
                 onChangeEstrutura={setEstrutura}
                 vendedoresDaConta={vendedoresDaConta}
               />
+              </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
-                <Button variant="secondary" icon={ArrowLeftIcon} onClick={voltarWizard}>
-                  Voltar
-                </Button>
+              {/* Anúncio único para leitor de tela. A marcação por campo já
+                  está lá em cima; aqui é só o aviso de que algo travou. */}
+              {resumoDoErro(errosPasso) ? (
+                <p
+                  role="alert"
+                  className="flex items-start gap-2 rounded-sm bg-[#FEF2F2] p-4 text-sm leading-6 text-trend-negative"
+                >
+                  <ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                  {resumoDoErro(errosPasso)}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button variant="secondary" icon={ArrowLeftIcon} onClick={voltarWizard}>
+                    Voltar
+                  </Button>
+                  {/* Passo opcional com saída declarada: sem isto, "opcional"
+                      só existia no título e a pessoa ficava sem saber se podia
+                      seguir com os campos em branco. */}
+                  {view.passo === 5 ? (
+                    <button
+                      type="button"
+                      onClick={pularFunil}
+                      className={cn(
+                        "inline-flex min-h-[44px] cursor-pointer items-center rounded-full px-2 text-[13px] font-medium text-slate-600 sm:min-h-8",
+                        "transition-colors hover:text-slate-900 hover:underline hover:underline-offset-[3px]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                      )}
+                    >
+                      Não tenho esses dados — pular esta etapa
+                    </button>
+                  ) : null}
+                </div>
                 <div className="flex items-center gap-3">
                   {/* Atalho para sair do wizard antes do fim; some quando o
                       próprio botão primário já é "Ver resultado". */}

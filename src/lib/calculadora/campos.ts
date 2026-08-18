@@ -9,9 +9,13 @@ export type CampoFormato = "moeda" | "numero" | "percentual" | "horas" | "dias" 
 export type CampoDef = {
   id: CampoId;
   label: string;
-  // Explicação do campo. Não vai como linha de texto: o wizard mostra num
-  // ícone de info ao lado do label (Field.hint), senão cinco descrições por
-  // passo empurram o formulário para fora da tela.
+  // Explicação do campo, VISÍVEL sob o rótulo no wizard (`Field.help` com
+  // `escala="leitura"`). Já morou num ícone de info, pelo receio de cinco
+  // descrições por passo empurrarem o formulário para fora da tela — mas o
+  // custo era maior: uma frase de uma linha atrás de um alvo de 16px, num
+  // tab stop a mais por campo, para o leitor que §8.12b descreve. A sidebar do
+  // resultado segue com o ícone, onde a coluna tem 264px e a pessoa já
+  // entendeu o campo. Mantenha curto — uma linha.
   help?: string;
   // Dica dentro do campo: um exemplo do dado esperado, em cinza claro. É só
   // placeholder — nunca vira valor (vazio segue null, P4/P6). Os números vêm
@@ -118,12 +122,14 @@ export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
   custoExternoAno: {
     id: "custoExternoAno",
     label: "Custo anual do programa externo",
+    help: "O que você pagaria por ano em consultoria, curso ou treinamento contratado.",
     placeholder: "Ex.: 150.000",
     formato: "moeda",
   },
   custoEventoAno: {
     id: "custoEventoAno",
     label: "Custo anual com eventos e imersões",
+    help: "O que você gastaria por ano em convenções, workshops e imersões. Consideramos metade como camada de prática substituível.",
     placeholder: "Ex.: 80.000",
     formato: "moeda",
   },
@@ -143,10 +149,6 @@ export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
     formato: "numero",
   },
 };
-
-export const MARGEM_LABEL = "Margem de contribuição";
-export const MARGEM_HELP =
-  "O que sobra da receita depois dos custos diretos, em %. Se não souber, use o atalho: 30%.";
 
 // Por que simular mais de um time. Vive junto de cada botão "Adicionar time"
 // (stepper, consolidado e sidebar), num balão de ajuda — é contexto que se lê

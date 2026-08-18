@@ -38,6 +38,8 @@ export function CampoNumero({
   placeholder,
   onChange,
   autoFocus = false,
+  invalido = false,
+  descritoPor,
 }: {
   id: string;
   valor: number | null;
@@ -46,6 +48,10 @@ export function CampoNumero({
   placeholder?: string;
   onChange: (valor: number | null) => void;
   autoFocus?: boolean;
+  invalido?: boolean;
+  // Ids da ajuda e do erro, para o leitor de tela ler a explicação junto do
+  // campo em vez de a pessoa ter de caçá-la.
+  descritoPor?: string;
 }) {
   const [texto, setTexto] = useState(() => formatarDisplay(valor, formato));
   const [focado, setFocado] = useState(false);
@@ -65,7 +71,9 @@ export function CampoNumero({
     <div
       className={cn(
         "flex h-12 items-center gap-2 rounded-full border bg-white px-4 transition-colors",
-        "border-slate-200 focus-within:border-[#2E63CD]/40",
+        invalido
+          ? "border-trend-negative/50"
+          : "border-slate-200 focus-within:border-[#2E63CD]/40",
         // O anel é o indicador; a borda só acompanha. O `outline-none` do
         // `input` mata o foco nativo, então sem isto o campo era o único
         // controle da tela sem foco visível — e são 16 deles na sidebar.
@@ -81,6 +89,8 @@ export function CampoNumero({
         inputMode="decimal"
         autoComplete="off"
         autoFocus={autoFocus}
+        aria-invalid={invalido || undefined}
+        aria-describedby={descritoPor && descritoPor !== "" ? descritoPor : undefined}
         placeholder={placeholder}
         value={texto}
         onFocus={() => setFocado(true)}
