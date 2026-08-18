@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -293,7 +294,13 @@ export function ClientsView({
             </h2>
             <p className="text-xs text-slate-500">
               Links gerados sem cliente. Vincule ao perfil de um cliente quando a
-              conversa avançar — o preenchimento e o rastreio vão junto.
+              conversa avançar — o preenchimento e o rastreio vão junto.{" "}
+              <Link
+                href="/calculadoras/referencia"
+                className="text-[13px] font-medium text-primary hover:underline hover:underline-offset-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 rounded-full"
+              >
+                Referência de fórmulas
+              </Link>
             </p>
           </div>
           <LinksTable

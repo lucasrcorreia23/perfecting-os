@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   ArrowDownTrayIcon,
@@ -55,7 +56,13 @@ export function CalculadoraTab({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
           Links da calculadora de ROI de {clientName}. Quem abre monta a própria
-          proposta; acesso e resultado aparecem aqui.
+          proposta; acesso e resultado aparecem aqui.{" "}
+          <Link
+            href="/calculadoras/referencia"
+            className="text-[13px] font-medium text-primary hover:underline hover:underline-offset-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 rounded-full"
+          >
+            Referência de fórmulas
+          </Link>
         </p>
         <div className="flex items-center gap-2">
           {avulsas.length > 0 ? (
