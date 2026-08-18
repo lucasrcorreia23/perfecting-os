@@ -355,3 +355,59 @@ em `environment: "node"`, sem jsdom nem testing-library — os 368 testes são d
 pura. Cobrir um invariante de renderização exigiria adicionar essas dependências e mudar
 o ambiente da suíte, decisão que excede uma correção de UI. Enquanto isso não for
 decidido, o invariante 10 no modal está protegido só por revisão.
+
+---
+
+## Incoerências do Template de 18/08/2026 (a corrigir na planilha)
+
+Encontradas na auditoria do `Perfecting_ROI_Calculator_Template.xlsx` (SHA `1f17a03a…`)
+contra o `Referencia-Completa-Formulas-ROI-Perfecting.pdf` (SHA `42d8f5f7…`), ambos
+arquivados em `docs/referencia/`. São da planilha, não do nosso código — mas é a planilha
+que o time lê.
+
+**E-24 — A aba comercial contradiz o motor da própria planilha.** A "Tabela de Preços por
+Tier" traz Tier 2 = 263–656 h e Tier 3 = 657–1.243 h; a aba Premissas traz `C31 = 573`, e
+é ela que o staircase de `Conta!C18` lê. Um cliente entre 574 e 656 h/mês recebe um preço
+que a tabela ao lado desmente. Decisão de 18/08: vale a tabela comercial (656), e
+`ESCADA_PRECO` foi ajustada. **Enquanto `Premissas!C31` não virar 656, nenhuma planilha
+reproduz a nossa escada** — o golden FIESC deixou de ser um teste contra fonte externa e
+virou teste de regressão do nosso próprio motor. É a errata mais cara desta lista.
+
+**E-25 — Rótulos da coluna B do Motor dessincronizados das fórmulas.** O PDF documenta as
+fórmulas por célula e acerta; os rótulos da planilha deslizaram. `B71` diz "Valor anual
+total da equipe" onde o PDF documenta `C72`; `B73`/`B74` dizem "ROI"/"Payback" onde o PDF
+documenta `C81`/`C82`. Quem cruzar rótulo com fórmula erra por uma linha.
+
+**E-26 — Duas linhas diferentes com o mesmo nome.** `B39` e `B41` são ambas "Eficiência
+(R$/ano)". Pelo PDF, `C39` é a economia de coaching (bruta) e `C41` é ela limitada pelo
+custo contratual (`=MIN(C40,C39)`). São a entrada e a saída do teto, com o mesmo rótulo.
+Registre-se ainda que os nomes estão trocados em relação aos nossos: o que a planilha
+chama de "economia de coaching" é o nosso `tetoEficienciaAno`, e o que ela chama de "custo
+contratual (teto)" é o nosso `caminhoAno`. A conta (o `MIN` entre os dois) é idêntica.
+
+**E-27 — Tradução incompleta no Motor.** Sobraram rótulos em inglês em `B21` ("Manager
+cost per hour"), `B40`, `B42`, `B75`, `B76`, `B78`, `B83` e `B87`.
+
+**E-28 — Três nomes para o plano de 2 h/assento.** "Essencial" em `Premissas!B37`, "Leve"
+na aba comercial, e "Essencial" também era o nome de um NÍVEL DE SERVIÇO no nosso código.
+Resolvido do nosso lado adotando Leve/Padrão/Intensivo (decisão de 18/08), o que liberou
+"Essencial" para o nível de serviço. A planilha segue com os dois nomes.
+
+**E-29 — O quirk `=C19` sobreviveu pela metade.** Na aba Comparação de Cenários, Realista
+e Otimista agora recalculam o ganho de ciclo com o delta do próprio cenário, mas o
+Conservador ainda herda o do cenário ativo (`=SUM(Motor!C68:L68)`). Nós recalculamos os
+três; o teste anti-quirk continua em `cenarios-comparacao.test.ts`.
+
+**Verificado sem divergência.** Toda a aba Premissas bate com `constants.ts`: encargos
+1,75; jornada 200 h; supervisão residual 0,25; haircut 0,7 em rampa, ciclo e conversão (e
+nenhum em ticket); `PCT_EVENTO_SUBSTITUIVEL` 0,5; fator de escopo 2,1 na faixa [0,25; 6];
+piso R$ 13.000; 22 e 264 dias úteis; limite de realismo 0,25; tetos de ajuste fino
+0,30/0,80/0,30 e conversão dinâmica `min(5; c×0,4; 100−c)`; os três presets de cenário; e
+desconto 0 nos quatro prazos. As taxas da escada (98/82/70/60) e as fronteiras 262 e 1.243
+também batem — só a do meio mudou.
+
+**Nota sobre `PCT_EVENTO_SUBSTITUIVEL`.** Continua marcada `[H]` em `constants.ts`, mas
+agora tem lastro documental: aparece em `Premissas!C15` sob o cabeçalho "Fonte: COGS V1
+(ratificado 14/08)". Fica como pendência de decisão explícita se isso conta como a
+ratificação que faltava — o bloco onde ela vive chama-se "PREMISSAS DECLARADAS —
+EDITÁVEIS", o que sugere premissa ajustável, não constante ratificada.
