@@ -19,7 +19,7 @@ import type { CampoId, CenarioSelecionado, EntradasTime } from "@/lib/calculador
 
 // Caso de referência do §14 do V5 — verificação independente reproduzida
 // integralmente. Qualquer divergência aqui é incidente de racional (R2).
-// A proposta (Prática, 30 assentos) agora é escolhida pelo VISITANTE; o que
+// A proposta (Padrão, 30 assentos) agora é escolhida pelo VISITANTE; o que
 // muda é só a origem dos dados, nunca a matemática.
 function entradasGolden(): EntradasTime {
   return {
@@ -562,14 +562,19 @@ function resultadoFiesc() {
 }
 
 describe("caso de referência FIESC (Excel v4.1)", () => {
-  it("escada sem piso: 800 h/mês → R$ 67.068/mês", () => {
+  it("escada sem piso: 800 h/mês → R$ 68.064/mês", () => {
     const preco = precoConta(TIMES_FIESC);
     expect(preco.horasMes).toBe(800);
-    // 262 × 98 + 311 × 82 + 227 × 70 = 25.676 + 25.502 + 15.890
-    expect(preco.bruto).toBeCloseTo(67_068, 4);
+    // 262 × 98 + 394 × 82 + 144 × 70 = 25.676 + 32.308 + 10.080
+    //
+    // Era 67.068 (262×98 + 311×82 + 227×70) enquanto o Tier 2 ia até 573 h.
+    // Com a fronteira em 656 (Template, 18/08/2026) 83 horas voltam de R$ 70
+    // para R$ 82. ATENÇÃO: este número não sai mais de nenhuma planilha — a
+    // aba Premissas do Template ainda traz 573. Ver ESCADA_PRECO.
+    expect(preco.bruto).toBeCloseTo(68_064, 4);
     expect(preco.pisoAplicado).toBe(false);
-    expect(preco.mensal).toBeCloseTo(67_068, 4);
-    expect(preco.taxaCombinada).toBeCloseTo(83.835, 6);
+    expect(preco.mensal).toBeCloseTo(68_064, 4);
+    expect(preco.taxaCombinada).toBeCloseTo(85.08, 6);
   });
 
   it("fator de escopo declarado = 120 ÷ 204 = 0,588 (treino em grupo)", () => {
@@ -595,13 +600,13 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
 
   it("fecha ROI, payback e checagem de realidade do Account", () => {
     const r = resultadoFiesc();
-    expect(r.roi).toBeCloseTo(0.43847877880423, 10);
+    expect(r.roi).toBeCloseTo(0.43206239328929, 10);
     // Engine!C64 = 20 oportunidades ociosas, C65 = 3 vendas, C66 = 0,789 →
     // C69 FALSO: quem definiu a parcela foi a capacidade, não o funil.
     expect(r.tetoFunil).toMatchObject({ limitou: false, oportunidadesOciosasMes: 20 });
     expect(r.tetoFunil!.tetoVendasMes).toBeCloseTo(3, 10);
     expect(r.tetoFunil!.ganhoCapacidadeVendasMes).toBeCloseTo(0.789473684210525, 10);
-    expect(r.paybackMeses).toBeCloseTo(27.367344966443, 10);
+    expect(r.paybackMeses).toBeCloseTo(27.77376644295304, 10);
     expect(r.checagemRealidadePct).toBeCloseTo(11.4842105263158, 6);
     expect(r.checagemAlerta).toBe(false);
   });
@@ -612,7 +617,7 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
     expect(aviso).toBeDefined();
     if (aviso?.tipo === "payback_excede_contrato") {
       expect(aviso.prazoMeses).toBe(3);
-      expect(aviso.paybackMeses).toBeCloseTo(27.367344966443, 6);
+      expect(aviso.paybackMeses).toBeCloseTo(27.77376644295304, 6);
     }
   });
 

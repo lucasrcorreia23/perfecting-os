@@ -17,18 +17,28 @@ function times(
 }
 
 describe("escada progressiva (§4.9)", () => {
-  it("é marginal por faixa, com as fronteiras 262/573/1.243", () => {
+  it("é marginal por faixa, com as fronteiras 262/656/1.243", () => {
     expect(precoEscada(120).bruto).toBe(120 * 98);
     expect(precoEscada(262).bruto).toBe(262 * 98);
     expect(precoEscada(263).bruto).toBe(262 * 98 + 82);
+    expect(precoEscada(656).bruto).toBe(262 * 98 + 394 * 82);
+    expect(precoEscada(657).bruto).toBe(262 * 98 + 394 * 82 + 70);
+    expect(precoEscada(1243).bruto).toBe(262 * 98 + 394 * 82 + 587 * 70);
+    expect(precoEscada(1244).bruto).toBe(262 * 98 + 394 * 82 + 587 * 70 + 60);
+  });
+
+  // A faixa que a mudança de 573 para 656 move (18/08/2026). Abaixo de 574 h
+  // nada muda; de 656 em diante a diferença trava em +R$ 996/mês, porque são
+  // 83 horas que saem de R$ 70 e voltam para R$ 82.
+  it("cobra as horas de 574 a 656 no Tier 2, não no Tier 3", () => {
     expect(precoEscada(573).bruto).toBe(262 * 98 + 311 * 82);
-    expect(precoEscada(574).bruto).toBe(262 * 98 + 311 * 82 + 70);
-    expect(precoEscada(1243).bruto).toBe(262 * 98 + 311 * 82 + 670 * 70);
-    expect(precoEscada(1244).bruto).toBe(262 * 98 + 311 * 82 + 670 * 70 + 60);
+    expect(precoEscada(574).bruto - (262 * 98 + 311 * 82)).toBe(82);
+    expect(precoEscada(656).bruto - (262 * 98 + 311 * 82 + 83 * 70)).toBe(83 * 12);
+    expect(precoEscada(657).bruto - precoEscada(656).bruto).toBe(70);
   });
 
   it("o extrato soma exatamente o bruto", () => {
-    for (const horas of [50, 262, 300, 573, 800, 1243, 2000]) {
+    for (const horas of [50, 262, 300, 573, 656, 800, 1243, 2000]) {
       const { bruto, extrato } = precoEscada(horas);
       const soma = extrato.reduce((total, faixa) => total + faixa.subtotal, 0);
       expect(soma).toBeCloseTo(bruto, 9);

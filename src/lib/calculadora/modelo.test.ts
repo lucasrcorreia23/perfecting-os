@@ -68,7 +68,7 @@ describe("assentos efetivos (default = o time inteiro)", () => {
 });
 
 describe("computarModelo — golden §14 com a proposta escolhida pelo visitante", () => {
-  it("com o default (30 assentos, Prática, 3 meses) fecha 1,951× e 6,15 meses", () => {
+  it("com o default (30 assentos, Padrão, 3 meses) fecha 1,951× e 6,15 meses", () => {
     const modelo = computarModelo(estadoGolden());
     expect(modelo.preco.horasMes).toBe(120);
     expect(modelo.preco.mensal).toBe(13_000);

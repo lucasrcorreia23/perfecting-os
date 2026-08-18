@@ -6,17 +6,34 @@
 import type { Caminho, Cenario, FaixaMargemId, PlanoId } from "./types";
 
 // Planos definem consumo, não preço (§4.9).
+//
+// Nomes da aba "Tabela de Preços por Tier" do Template (18/08/2026). As CHAVES
+// não acompanham o rename: `proposta.plano` é persistido no estado do link, e
+// trocá-las descartaria a proposta de todo link já salvo — o mesmo motivo pelo
+// qual `v: 2` não é bumpado.
+//
+// O rename também desfaz uma colisão: "Essencial" nomeava um plano E um nível
+// de serviço (NIVEIS_SERVICO, abaixo), e o resumo chegava a dizer "O que está
+// incluído (Essencial)" com o plano Intensivo selecionado.
 export const PLANOS: Record<PlanoId, { label: string; horasMes: number }> = {
-  essencial: { label: "Essencial", horasMes: 2 },
-  pratica: { label: "Prática", horasMes: 4 },
+  essencial: { label: "Leve", horasMes: 2 },
+  pratica: { label: "Padrão", horasMes: 4 },
   intensivo: { label: "Intensivo", horasMes: 8 },
 };
 
 // Escada progressiva sobre o total de horas da conta, marginal por faixa
 // (§4.9). As faixas espelham as capacidades dos tiers de voz.
+//
+// A fronteira do Tier 2 é 656 h — valor da aba "Tabela de Preços por Tier" do
+// Template (18/08/2026), que é a tabela que vai ao cliente. A aba Premissas do
+// MESMO arquivo traz 573 em C31, e é ela que o staircase da aba Conta lê:
+// dentro da planilha as duas se contradizem. Decisão do decisor em 18/08: vale
+// a tabela comercial. Consequência a não esquecer — enquanto Premissas!C31 não
+// virar 656, NENHUMA planilha reproduz a nossa escada, e o golden FIESC deixa
+// de ser "o que o Excel devolve" para ser "o que o nosso motor devolve".
 export const ESCADA_PRECO: { ateHoras: number; taxaHora: number }[] = [
   { ateHoras: 262, taxaHora: 98 },
-  { ateHoras: 573, taxaHora: 82 },
+  { ateHoras: 656, taxaHora: 82 },
   { ateHoras: 1243, taxaHora: 70 },
   { ateHoras: Infinity, taxaHora: 60 },
 ];

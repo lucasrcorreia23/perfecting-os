@@ -166,10 +166,12 @@ describe("FAQ de CFO", () => {
   it("usa o payback real dos três cenários, não o do cenário ativo", () => {
     const ctx = contextoFiesc();
     const texto = textoDe(perguntasCfo(ctx), "payback");
-    // Conservador bate com o Excel; realista e otimista divergem da planilha
-    // de propósito, porque lá o ganho de ciclo não era recalculado por
-    // cenário (o quirk `=C19`). Os números vêm da comparação, não do texto.
-    expect(texto).toContain("27,4 meses");
+    // O Conservador batia com o Excel enquanto o Tier 2 ia até 573 h; com a
+    // fronteira em 656 (Template, 18/08/2026) o preço subiu e o payback com
+    // ele. Realista e otimista já divergiam da planilha de propósito, porque
+    // lá o ganho de ciclo não era recalculado por cenário (o quirk `=C19`).
+    // Os números vêm da comparação, não do texto.
+    expect(texto).toContain("27,8 meses");
     for (const linha of ctx.comparacao!) {
       expect(texto).toContain(formatMeses(linha.paybackMeses));
     }
@@ -198,11 +200,11 @@ describe("FAQ de CFO", () => {
   });
 
   it("calcula a exposição total do contrato pelo prazo escolhido", () => {
-    // 67.068 × 3 = 201.204
-    expect(textoDe(perguntasCfo(contextoFiesc(3)), "contrato")).toContain("R$ 201.204");
-    // 67.068 × 24 = 1.609.632
+    // 68.064 × 3 = 204.192
+    expect(textoDe(perguntasCfo(contextoFiesc(3)), "contrato")).toContain("R$ 204.192");
+    // 68.064 × 24 = 1.633.536
     expect(textoDe(perguntasCfo(contextoFiesc(24)), "contrato")).toContain(
-      "R$ 1.609.632",
+      "R$ 1.633.536",
     );
   });
 

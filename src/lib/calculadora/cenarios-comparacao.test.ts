@@ -49,8 +49,8 @@ describe("comparação de cenários (Excel, aba Scenario Comparison)", () => {
     );
     if (direto.status !== "ok") throw new Error("deveria estar completo");
     expect(linha.valorAno).toBeCloseTo(direto.valorAno, 6);
-    expect(linha.roi).toBeCloseTo(0.43847877880423, 10);
-    expect(linha.paybackMeses).toBeCloseTo(27.367344966443, 10);
+    expect(linha.roi).toBeCloseTo(0.43206239328929, 10);
+    expect(linha.paybackMeses).toBeCloseTo(27.77376644295304, 10);
   });
 
   it("a eficiência é invariante: deltas não tocam o contrafactual", () => {
