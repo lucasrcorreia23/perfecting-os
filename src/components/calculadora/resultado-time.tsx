@@ -87,7 +87,13 @@ const TOM = {
     // diferentes, então os dois convivem sem depender da ordem das classes.
     // O gradiente morre em 60%: passando disso o canto inferior direito perde
     // o branco e o wash vira fundo tingido, que é outra coisa.
-    card: "rounded-md border border-slate-200 bg-white p-6 sm:p-8",
+    //
+    // O que distingue este bloco é a SUPERFÍCIE, não um brilho atrás do glifo.
+    // O halo radial verde que ficava sob o múltiplo era decoração: sem deslocamento
+    // e sem borrão que signifique profundidade, ele só pintava um oval em volta de
+    // um número que já é o maior da página. Tirado, o destaque continua inteiro —
+    // e passa a valer para o bloco todo em vez de um caractere.
+    card: "rounded-md border border-slate-200 bg-white bg-linear-to-br from-primary/8 to-transparent to-60% p-6 sm:p-8",
     gap: "gap-6",
     titulo: "text-slate-800",
     nota: "text-slate-500",
@@ -193,34 +199,31 @@ export function HeroResultado({
             <span className={cn("text-sm", cores.rotulo)}>investimento no ano</span>
           </div>
 
-          <span className={cn("text-2xl font-light sm:text-3xl", cores.nota)} aria-hidden>
-            =
-          </span>
+          {/* O igual anda GRUPADO com o resultado. Solto, ele era só mais um
+              item do wrap: em coluna estreita a conta quebrava depois dele e a
+              primeira linha terminava num operador pendurado, sem nada à
+              direita, enquanto o múltiplo descia sozinho. Operador e resultado
+              são uma coisa só — quebram juntos ou não quebram. */}
+          <div className="flex items-center gap-x-5">
+            <span className={cn("text-2xl font-light sm:text-3xl", cores.nota)} aria-hidden>
+              =
+            </span>
 
-          {/* `relative` para o balão do tooltip se ancorar aqui. */}
-          <div className="relative flex flex-col gap-1">
-            {/* Halo radial atrás do múltiplo: o card é branco de ponta a ponta
-                e o número é o único lugar da tela que merece um fundo. Fica no
-                fluxo antes do conteúdo (que é `relative`), então não precisa de
-                z-index negativo — que sumiria atrás do `bg-white` do card.
-                `to-70%` mata o verde antes da borda: passando disso o halo
-                vira mancha com contorno visível em vez de brilho. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 -z-0 h-[220%] w-[150%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial from-trend-positive/14 to-transparent to-70%"
-            />
-            <span className={cn("relative font-semibold tabular-nums", cores.numero)}>
-              {formatX(roi)}
-            </span>
-            <span
-              className={cn(
-                "relative flex items-center justify-center gap-1.5 text-sm",
-                cores.rotulo,
-              )}
-            >
-              no primeiro ano
-              {racional ? <HintTooltip text={racional} align="right" /> : null}
-            </span>
+            {/* `relative` para o balão do tooltip se ancorar aqui. */}
+            <div className="relative flex flex-col gap-1">
+              <span className={cn("font-semibold tabular-nums", cores.numero)}>
+                {formatX(roi)}
+              </span>
+              <span
+                className={cn(
+                  "flex items-center justify-center gap-1.5 text-sm",
+                  cores.rotulo,
+                )}
+              >
+                no primeiro ano
+                {racional ? <HintTooltip text={racional} align="right" /> : null}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -262,7 +265,7 @@ export function HeroResultado({
       ) : null}
 
       {checagem ? (
-        <div className={cn("flex flex-col gap-2 border-t pt-4", cores.checagem)}>
+        <div className={cn("flex flex-col gap-3 border-t pt-6", cores.checagem)}>
           <p
             className={cn(
               "flex items-start gap-2 text-sm leading-6",
@@ -416,9 +419,14 @@ function LinhaCompacta({
         ) : null}
         {selo ? <SeloEvidencia selo={selo} /> : null}
       </dt>
+      {/* `ml-auto`: quando o rótulo é longo e o valor cai para a linha de
+          baixo, `justify-between` sozinho o joga para a esquerda e a coluna de
+          valores deixa de existir bem no meio da lista — algumas linhas lidas à
+          direita, outras à esquerda. Empurrado, ele guarda o mesmo eixo em
+          qualquer uma das duas situações. */}
       <dd
         className={cn(
-          "text-sm font-semibold tabular-nums",
+          "ml-auto text-sm font-semibold tabular-nums",
           tom === "positivo" ? "text-trend-positive" : "text-slate-900",
         )}
       >

@@ -71,7 +71,9 @@ function Slider({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 rounded-full",
         )}
       />
-      <p className="text-xs text-slate-400">{faixaTexto} · mover recalcula o ROI na hora</p>
+      <p className="text-sm leading-6 text-slate-600">
+        {faixaTexto} · mover recalcula o ROI na hora
+      </p>
     </div>
   );
 }
@@ -243,12 +245,12 @@ export function CenarioSliders({
             onChange={(valor) => aplicarDelta({ cicloDiasMenos: valor })}
           />
         ) : temCiclo ? (
-          <p className="text-xs text-slate-400">
+          <p className="text-sm leading-6 text-slate-600">
             Com ciclo abaixo de {CICLO_DIAS_MINIMO} dias, a redução usa o percentual do
             cenário (até {REDUCAO_CICLO_MAX * 100}%) — dias inteiros seriam grossos demais.
           </p>
         ) : (
-          <p className="text-xs text-slate-400">
+          <p className="text-sm leading-6 text-slate-600">
             A alavanca de ciclo aparece quando o passo de funil (ciclo + oportunidades)
             estiver preenchido.
           </p>

@@ -61,7 +61,7 @@ export function QuantoCusta({
       : null;
 
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-700">
@@ -69,24 +69,34 @@ export function QuantoCusta({
           </h3>
           <SeloEvidencia selo="dado_do_cliente" />
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-sm leading-6 text-slate-600">
           {readOnly
             ? "Plano, assentos e prazo escolhidos por quem preencheu a calculadora."
             : "Planos definem consumo de prática, não preço: o preço vem do volume total de horas. Mexa à vontade: tudo recalcula na hora."}
         </p>
       </div>
 
-      {/* Proposta por time: plano + assentos */}
-      <div className="flex flex-col gap-3">
+      {/* Proposta por time: plano + assentos.
+
+          Sem caixa tingida em volta. A seção já é um painel branco com borda, e
+          os botões de plano trazem a própria borda: com o tingido no meio eram
+          três superfícies encaixadas para dizer uma coisa só — que estes
+          controles andam juntos. Isso a proximidade resolve de graça. Entre
+          times o que separa é um fio, que ali significa "outro time", e não
+          mais uma moldura. */}
+      <div className="flex flex-col gap-6">
         {times.map((time) => {
           const horasTime = time.proposta.assentos * PLANOS[time.proposta.plano].horasMes;
           return (
             <div
               key={time.id}
-              className="flex flex-col gap-4 rounded-sm bg-slate-50/60 p-5"
+              className={cn(
+                "flex flex-col gap-4",
+                multiTime && "border-t border-slate-100 pt-6 first:border-t-0 first:pt-0",
+              )}
             >
               {multiTime ? (
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-sm font-semibold text-slate-700">
                   {time.nome}
                 </span>
               ) : null}
@@ -120,7 +130,7 @@ export function QuantoCusta({
                       >
                         {PLANOS[plano].label}
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-sm text-slate-600">
                         {PLANOS[plano].horasMes} h de prática por vendedor/mês
                       </span>
                     </button>
@@ -128,7 +138,7 @@ export function QuantoCusta({
                 })}
               </div>
 
-              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label
                     htmlFor={`assentos-${time.id}`}
@@ -150,7 +160,7 @@ export function QuantoCusta({
                       {time.proposta.assentos > 0 ? time.proposta.assentos : "—"}
                     </span>
                   )}
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm leading-6 text-slate-600">
                     {time.assentosLimitados
                       ? `Travado no tamanho do time (${time.proposta.assentos}): assento acima do time não é cobrado, porque não gera retorno.`
                       : time.assentosDefault && time.proposta.assentos > 0
@@ -158,9 +168,14 @@ export function QuantoCusta({
                         : "Você pode começar com um grupo menor e expandir."}
                   </p>
                 </div>
-                <div className="flex flex-col gap-1 sm:text-right">
-                  <span className="text-xs text-slate-500">Prática contratada</span>
-                  <span className="text-sm font-semibold tabular-nums text-slate-900">
+                <div className="flex flex-col gap-2 sm:text-right">
+                  <span className="text-sm font-medium text-slate-700">
+                    Prática contratada
+                  </span>
+                  {/* Mesma caixa de linha do campo ao lado (h-11 / sm:h-10 em
+                      `CampoNumero`), para o valor derivado assentar na altura do
+                      valor digitado em vez de flutuar entre ele e a ajuda. */}
+                  <span className="flex h-11 items-center text-sm font-semibold tabular-nums text-slate-900 sm:h-10 sm:justify-end">
                     {horasTime > 0 ? `${formatNumero(horasTime, 0)} h/mês` : "—"}
                   </span>
                 </div>
@@ -173,19 +188,19 @@ export function QuantoCusta({
       {/* Investimento */}
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-6">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-slate-500">Investimento</span>
+          <span className="text-sm text-slate-600">Investimento</span>
           {/* Preço fica slate: custo nunca é verde nem vermelho. Com os ganhos
               em verde, o contraste já diz qual dos dois é qual. */}
           <span className="text-(length:--text-score-md) font-semibold leading-9 tabular-nums text-slate-900">
             {preco.horasMes > 0 ? `${formatBRL(preco.mensal)}/mês` : "—"}
           </span>
           {preco.pisoAplicado && preco.horasMes > 0 ? (
-            <span className="text-xs text-slate-500">
+            <span className="text-sm text-slate-600">
               cobrança mínima por conta de {formatBRL(13_000)}
             </span>
           ) : null}
           {precoParcial ? (
-            <span className="text-xs text-slate-500">
+            <span className="text-sm leading-6 text-slate-600">
               {foraDoPreco.length === 1
                 ? `${foraDoPreco[0].nome} ainda está incompleto e entra no preço quando fechar o preenchimento.`
                 : `${foraDoPreco.length} times ainda incompletos entram no preço quando fecharem o preenchimento.`}
@@ -194,14 +209,14 @@ export function QuantoCusta({
         </div>
         {gran ? (
           <div className="flex flex-col gap-1 text-right">
-            <span className="text-xs text-slate-500">Por vendedor, por dia útil</span>
+            <span className="text-sm text-slate-600">Por vendedor, por dia útil</span>
             <span className="text-sm font-semibold tabular-nums text-slate-900">
               {formatBRL(gran.custoDiaPorVendedor, 2)} investidos ·{" "}
               <span className="text-trend-positive">
                 {formatBRL(gran.retornoDiaPorAssento, 2)} de retorno projetado
               </span>
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-sm leading-6 text-slate-600">
               {formatX(gran.retornoDiaPorAssento / gran.custoDiaPorVendedor)} por dia, o
               mesmo ROI da conta, só muda a régua
             </span>
@@ -246,7 +261,7 @@ export function QuantoCusta({
                   </div>
                 ) : null}
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm leading-6 text-slate-600">
                 {formatNumero(preco.horasMes, 0)} h de prática/mês · taxa efetiva de{" "}
                 {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais horas, menor a taxa:
                 a escada é progressiva por faixa.
@@ -258,9 +273,7 @@ export function QuantoCusta({
 
       {/* Prazo */}
       <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
-        <span className="text-xs font-semibold text-slate-500">
-          Prazo do contrato
-        </span>
+        <h3 className="text-sm font-semibold text-slate-700">Prazo do contrato</h3>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {PRAZOS_MESES.map((prazo) => {
             const ativo = prazoMeses === prazo;
@@ -290,14 +303,14 @@ export function QuantoCusta({
                 >
                   {prazo} meses
                 </span>
-                <span className="text-xs text-slate-500">
+                <span className="text-sm leading-6 text-slate-600">
                   {PRAZO_COPY[prazo]}
                 </span>
               </button>
             );
           })}
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-sm leading-6 text-slate-600">
           Prazo não altera preço: compra trava de reajuste (12m+) e nível de serviço
           (24m).
         </p>
@@ -307,12 +320,12 @@ export function QuantoCusta({
       <div className="flex flex-col gap-4 border-t border-slate-100 pt-6 text-sm">
         <div className="flex items-baseline justify-between gap-4">
           <span className="text-slate-600">O que está incluído ({nivel.nome})</span>
-          <span className="text-right text-xs text-slate-500">{nivel.incluso}</span>
+          <span className="text-right text-slate-600">{nivel.incluso}</span>
         </div>
         {/* O degrau que o prazo de 24 meses compra (§4.9) — sem efeito sobre
             preço, mas a tela promete e agora entrega. */}
         {preco.nivelPorPrazo ? (
-          <p className="text-xs text-trend-positive">
+          <p className="text-sm leading-6 text-trend-positive">
             Um degrau acima do que os assentos dariam: incluído no contrato de 24 meses.
           </p>
         ) : null}
@@ -322,8 +335,10 @@ export function QuantoCusta({
             {preco.horasMes > 0 ? `${formatNumero(preco.horasMes * prazoMeses, 0)} h` : "—"}
           </span>
         </div>
-        <div className="flex items-baseline justify-between gap-4">
-          <span className="text-slate-600">Total do contrato ({prazoMeses} meses)</span>
+        <div className="flex items-baseline justify-between gap-4 border-t border-slate-100 pt-4">
+          <span className="font-medium text-slate-900">
+            Total do contrato ({prazoMeses} meses)
+          </span>
           <span className="tabular-nums font-semibold text-slate-900">
             {preco.horasMes > 0 ? formatBRL(preco.mensal * prazoMeses) : "—"}
           </span>

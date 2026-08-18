@@ -713,6 +713,12 @@ export function CalculadoraApp({
                       titulo="De onde vem o número"
                       descricao="As duas metades da soma."
                       divisor
+                      // Quatro sub-tópicos (o par, a cascata, os parâmetros e a
+                      // faixa dos cenários) na seção mais alta da página. Com o
+                      // `gap-6` padrão eles ficavam à mesma distância uns dos
+                      // outros que o título fica do primeiro — nenhuma cadência,
+                      // e 1.700px de blocos de peso igual.
+                      ritmo="amplo"
                     >
                       {/* Container query, não breakpoint de viewport: o que
                           decide se cabem duas colunas é a largura DESTA coluna

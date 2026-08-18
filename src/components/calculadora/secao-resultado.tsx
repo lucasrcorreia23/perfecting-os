@@ -24,6 +24,15 @@ import { cn } from "@/lib/utils";
 // - "painel" (padrão) — bloco branco com borda e padding próprios.
 // - "solta"          — sem superfície, para o hero, que já é o próprio card.
 //
+// `ritmo`: o intervalo ENTRE os sub-blocos do corpo. "normal" (24px) serve a
+// uma seção de um assunto só. "amplo" (40px) existe para a seção longa, onde
+// quatro sub-tópicos empilhados no mesmo 24px que separa o título do primeiro
+// deles davam a todos o mesmo peso — sem cadência, o olho não encontra onde um
+// assunto acaba e o próximo começa. O corpo é um filho só do `section`, e não
+// os sub-blocos soltos: cabeçalho e corpo são duas coisas, e é o corpo que tem
+// ritmo próprio (o intervalo do título para o conteúdo continua em 24px,
+// menor que o ar acima do título — cabeçalho respira mais em cima que embaixo).
+//
 // `divisor`: fio sob o cabeçalho. Opt-in, não padrão — só ganha fio a seção
 // cujo conteúdo tem estrutura interna que o cabeçalho precisa encimar (o par
 // Eficiência/Performance, que é uma grade de duas colunas). Numa seção de bloco
@@ -37,6 +46,7 @@ export function SecaoResultado({
   children,
   moldura = "painel",
   divisor = false,
+  ritmo = "normal",
 }: {
   id?: string;
   titulo: string;
@@ -45,6 +55,7 @@ export function SecaoResultado({
   children: ReactNode;
   moldura?: "painel" | "solta";
   divisor?: boolean;
+  ritmo?: "normal" | "amplo";
 }) {
   return (
     // scroll-mt: as âncoras do hero param abaixo da barra de progresso fixa.
@@ -70,7 +81,14 @@ export function SecaoResultado({
         </div>
         {acao}
       </div>
-      {children}
+      <div
+        className={cn(
+          "flex flex-col",
+          ritmo === "amplo" ? "gap-10" : "gap-6",
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }

@@ -551,6 +551,13 @@ export function MedidorChecagem({ pct }: { pct: number }) {
   const x = (valor: number) => 4 + (Math.min(valor, escalaMax) / escalaMax) * plotW;
   const trilhoY = MEDIDOR_TRILHO_Y;
   const trilhoH = MEDIDOR_TRILHO_H;
+  // O rótulo do valor mora onde o valor termina. Ancorado na origem do trilho
+  // (x = 4) ele nomeava a ponta esquerda de uma barra que acaba lá na direita:
+  // dois números na mesma régua, cada um numa extremidade, e nada dizendo qual
+  // é qual. Perto da origem a âncora vira "start" para o texto não sair do
+  // viewBox.
+  const xPct = x(pct);
+  const pctPertoDaOrigem = xPct < 40;
 
   return (
     <svg
@@ -569,20 +576,28 @@ export function MedidorChecagem({ pct }: { pct: number }) {
         fill={SLATE_500}
         fillOpacity={0.8}
       />
-      {/* O limite de 25% como régua vertical: é o número que o CFO conhece. */}
+      {/* O limite de 25% como régua vertical: é o número que o CFO conhece.
+          Traço inteiro, não tracejado: sobre 20px de altura o dash virava três
+          pontinhos soltos que liam como sujeira acima da barra, não como marca. */}
       <line
         x1={x(limite)}
         x2={x(limite)}
-        y1={trilhoY - 5}
-        y2={trilhoY + trilhoH + 5}
+        y1={trilhoY - 6}
+        y2={trilhoY + trilhoH + 6}
         stroke={SLATE_400}
         strokeWidth={1.5}
-        strokeDasharray="3 3"
       />
-      <text x={x(limite) + 6} y={trilhoY + trilhoH + 15} fontSize={13} fill={SLATE_400}>
+      <text x={x(limite) + 6} y={trilhoY + trilhoH + 16} fontSize={13} fill={SLATE_400}>
         limite de {formatPct(limite, 0)}
       </text>
-      <text x={4} y={trilhoY - 7} fontSize={13} fill={SLATE_400}>
+      <text
+        x={pctPertoDaOrigem ? 4 : xPct}
+        y={trilhoY - 8}
+        fontSize={13}
+        fontWeight={600}
+        textAnchor={pctPertoDaOrigem ? "start" : "end"}
+        fill={SLATE_700}
+      >
         {formatPct(pct, 1)}
       </text>
     </svg>
