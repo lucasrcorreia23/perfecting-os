@@ -22,6 +22,7 @@ import type { LinhaCenario } from "./cenarios-comparacao";
 import {
   CENARIOS,
   CHECAGEM_ALERTA,
+  COI_HORAS_COACHING_MIN,
   ENCARGOS,
   HAIRCUT,
   MAX_TIMES,
@@ -42,6 +43,7 @@ import type {
   EntradasTime,
   PlanoId,
   PrecoConta,
+  ResultadoCoi,
   ResultadoTime,
 } from "./types";
 
@@ -54,6 +56,9 @@ export type FaqContexto = {
   preco: PrecoConta;
   prazoMeses: number;
   comparacao: LinhaCenario[] | null;
+  // Custo da inação do time em foco. `null` enquanto ele estiver incompleto —
+  // a resposta existe sem número, como todas as outras.
+  coi: ResultadoCoi | null;
   multiTime: boolean;
 };
 
@@ -264,6 +269,24 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
 
   // 11 ------------------------------------------------------------------
   perguntas.push({
+    id: "custo-inacao",
+    grupo: "numero",
+    pergunta: "O custo de não agir não está inflado?",
+    paragrafos: [
+      `Ele é medido com os seus números, não com médias de mercado: a lacuna sai da diferença entre a prática que hoje chega ao time e o mínimo de ${COI_HORAS_COACHING_MIN} h por vendedor ao mês. Onde a prática já cobre esse mínimo, a linha correspondente é zero — não existe crédito por cobrir mais do que o necessário.`,
+      `Cada uma das cinco linhas carrega exatamente um desconto de conservadorismo declarado, e nenhuma delas usa receita: tudo é convertido à sua margem de contribuição antes de aparecer. A reposição de quem sai ainda é travada pelo número de contratações que você declarou — ninguém perde mais gente do que repõe.`,
+      ctx.coi
+        ? `Nesta simulação a lacuna soma ${formatBRL(ctx.coi.totalAno)} por ano, ${formatPct(ctx.coi.checagemPct, 1)} da margem anual do time. ${
+            ctx.coi.checagemAlerta
+              ? `Acima dos ${formatPct(CHECAGEM_ALERTA * 100, 0)} que usamos como limite, vale conferir os dados de estrutura antes de levar o número adiante.`
+              : `Fica abaixo dos ${formatPct(CHECAGEM_ALERTA * 100, 0)} que usamos como limite de plausibilidade.`
+          } Nada disso entra no retorno: o valor do programa aparece descontado dessa lacuna, nunca somado a ela — seria contar a mesma economia duas vezes.`
+        : "Nada disso entra no retorno: quando o resultado aparecer, o valor do programa será mostrado descontado dessa lacuna, nunca somado a ela — seria contar a mesma economia duas vezes.",
+    ],
+  });
+
+  // 12 ------------------------------------------------------------------
+  perguntas.push({
     id: "governanca",
     grupo: "decisao",
     pergunta: "O que eu levo para o comitê?",
@@ -276,7 +299,7 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     ],
   });
 
-  // 12 ------------------------------------------------------------------
+  // 13 ------------------------------------------------------------------
   perguntas.push({
     id: "tamanho",
     grupo: "programa",

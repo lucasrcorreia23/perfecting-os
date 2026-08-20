@@ -48,6 +48,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { CelebracaoModal } from "./celebracao-modal";
 import { CenarioSliders } from "./cenario-sliders";
 import { ConsolidadoView } from "./consolidado-view";
+import { CustoInacao } from "./custo-inacao";
 import { Disclaimer } from "./disclaimer";
 import { CalculadoraFooter } from "./footer";
 import { EnviarBar } from "./enviar-bar";
@@ -346,6 +347,7 @@ export function CalculadoraApp({
         preco: modelo.preco,
         prazoMeses: modelo.prazoMeses,
         comparacao,
+        coi: timeModelo.coi,
         multiTime,
       }),
     [timeModelo, modelo.preco, modelo.prazoMeses, comparacao, multiTime],
@@ -948,6 +950,22 @@ export function CalculadoraApp({
                     />
                   </div>
                 )}
+
+                {/* Enquadra o preço que vem logo abaixo: o leitor já viu de
+                    onde vem o número, e agora vê o tamanho do problema que ele
+                    endereça. Nunca somado ao ROI — ver `coi.ts`. */}
+                {timeModelo.coi ? (
+                  <SecaoResultado
+                    id="o-que-esta-em-jogo"
+                    titulo="O que está em jogo hoje"
+                    descricao="A lacuna que o programa endereça, medida com os seus números."
+                  >
+                    <CustoInacao
+                      coi={timeModelo.coi}
+                      onIrParaPasso={(passo) => irParaWizard(timeAtualId, passo)}
+                    />
+                  </SecaoResultado>
+                ) : null}
 
                 <SecaoResultado
                   id="quanto-custa"

@@ -33,6 +33,18 @@ import {
   PCT_EVENTO_SUBSTITUIVEL,
   PLANOS,
   PRAZO_DEGRAU_SERVICO,
+  COI_CUSTO_SUBSTITUICAO,
+  COI_DELTA_ATTAINMENT,
+  COI_FRACAO_COACHAVEL,
+  COI_HAIRCUT,
+  COI_HORAS_COACHING_MIN,
+  COI_HORAS_PERDIDAS_SEMANA,
+  COI_NO_DECISION,
+  COI_RAMPA_EXTENSAO_MESES,
+  COI_RAMPA_PRODUTIVIDADE,
+  COI_RETENCAO_COM,
+  COI_RETENCAO_SEM,
+  COI_SEMANAS_ESPERA,
   REDUCAO_CICLO_MAX,
   SUPERVISAO,
   TAXA_MINIMA,
@@ -52,6 +64,7 @@ export type SecaoId =
   | "preco"
   | "conta"
   | "referencia-nao-somada"
+  | "coi"
   | "fora-da-planilha";
 
 export type EntradaReferencia = {
@@ -132,6 +145,12 @@ export const SECOES: { id: SecaoId; titulo: string; descricao: string }[] = [
       "Números que a tela mostra para dar contexto e que ficam DE FORA do valor anual, de propósito.",
   },
   {
+    id: "coi",
+    titulo: "Custo da Inação (não somado ao ROI)",
+    descricao:
+      "A leitura contrafactual: quanto vaza hoje. Vem da aba “Custo da Inação” de ROI_Perfecting_Corrigido.xlsx (19/08/2026), que é INSUMO e não fonte — o Template e o PDF seguem mandando no motor. Nada daqui entra no valor anual.",
+  },
+  {
     id: "fora-da-planilha",
     titulo: "Fora da planilha",
     descricao:
@@ -170,7 +189,7 @@ export const REFERENCIA: EntradaReferencia[] = [
       "peso_i = vendedores_i ÷ Σ vendedores\n\nrateados por peso: nº de gestores, custo externo/ano, custo de evento/ano\npassam inalterados: horas por gestor, vendedores por gestor, salário do gestor",
     explicacao:
       "Quando os mesmos gestores atendem vários times, declarar a estrutura em cada um contaria a mesma economia N vezes. O rateio é uma transformação pura aplicada ANTES do cálculo, então nem o motor nem o consolidado sabem que ele existe. O fator de escopo é indiferente ao rateio: o nº de gestores aparece no numerador e no denominador da fração e cancela.",
-    codigo: "estrutura.ts#ratearEstrutura",
+    codigo: "estrutura.ts#aplicarEstrutura",
   },
   {
     id: "gate-completude",
@@ -555,6 +574,97 @@ retorno por assento/dia      = (valor anual ÷ assentos) ÷ ${num(DIAS_UTEIS_ANO
   },
 
   // ── Fora da planilha ────────────────────────────────────────────────────
+  // ── Custo da Inação ─────────────────────────────────────────────────────
+  {
+    id: "coi-fora-do-roi",
+    secao: "coi",
+    celula: "Custo da Inação!B100",
+    titulo: "Por que o custo da inação não se soma ao ROI",
+    formula:
+      "recuperado = min(valor_ano; COI_total)\nresidual   = max(0; COI_total − valor_ano)\n\nem lugar nenhum: COI_total + valor_ano",
+    explicacao:
+      "O COI é uma leitura contrafactual (o que se perde sem o programa) e o ROI é atribuição (o que o programa devolve). Os dois medem os mesmos mecanismos — rampa, conversão, ciclo — por lados opostos. A tela põe um CONTRA o outro e nunca lado a lado.",
+    codigo: "coi.ts#calcCoi",
+    divergencia:
+      "A nota metodológica ① da aba declara o COI “ADITIVO ao ROI”. Isso viola o invariante 1 do V5 (contrafactual ⊻ atribuição) e conta a mesma economia duas vezes. Somados como a planilha pede, os dois goldens dariam um custo da inação de 5,88× (§14) e 2,62× (FIESC) o valor que o próprio motor promete na linha de cima.",
+  },
+  {
+    id: "coi-cobertura",
+    secao: "coi",
+    celula: "Custo da Inação!C8–C11 e C62–C67",
+    titulo: "Lacuna de prática e capacidade do gestor",
+    formula: `horas_entregues = vendedores_por_gestor × gestores × prática_por_vendedor_hoje\nhoras_necessárias = vendedores × ${num(COI_HORAS_COACHING_MIN)} h/mês\npct_atendida = min(1; entregues ÷ necessárias)\nnão_atendidos = vendedores × (1 − pct_atendida)\n\ncapacidade = gestores × horas_de_treino_por_gestor\ngap = max(0; necessárias − capacidade)`,
+    explicacao:
+      "Duas perguntas diferentes, e é isso que as torna úteis: quanto da prática mínima CHEGA ao vendedor, e se o gestor sequer TEM as horas. No §14 o gestor tem 60 h para 60 h de demanda e ainda assim só 27 h viram prática (o problema é escopo); no FIESC a prática chega inteira mas o gestor tem 120 h para 200 h (o problema é capacidade).",
+    codigo: "coi.ts#calcCoi",
+    divergencia:
+      "A aba mede a Dimensão 1 em cabeças (vendedores cobertos por gestor) e o Diagnóstico em horas: no §14 dão 40% e 0%, no FIESC dão −2% e 40%. Uma das duas está sempre errada. Medimos em horas dos dois lados. Descartamos também o primeiro ramo de C9, que multiplica horas por gestores e devolve h·gestor onde o rótulo pede vendedores — e que, sendo o primeiro, encobre o segundo ramo, que é o correto.",
+  },
+  {
+    id: "coi-subperformance",
+    secao: "coi",
+    celula: "Custo da Inação!C15–C21",
+    titulo: "Quota que não se bate sem prática",
+    formula: `receita_por_vendedor × (${pct(COI_DELTA_ATTAINMENT)} × ${pct(COI_HAIRCUT)}) × não_atendidos × 12 × margem`,
+    explicacao: `Quem pratica toda semana bate mais quota do que quem pratica por trimestre. O delta declarado é de ${pct(COI_DELTA_ATTAINMENT)} de quota attainment, com haircut de ${pct(COI_HAIRCUT)} — a mesma lógica anti-otimismo dos haircuts do motor. Só incide sobre os vendedores que não recebem a prática mínima.`,
+    codigo: "constants.ts#COI_DELTA_ATTAINMENT",
+    divergencia:
+      "A planilha devolve RECEITA; multiplicamos pela margem. Todo o motor trabalha em margem, e receita contra margem na mesma tela compara grandezas diferentes.",
+  },
+  {
+    id: "coi-rampa",
+    secao: "coi",
+    celula: "Custo da Inação!C25–C31",
+    titulo: "Rampa mais longa nas novas contratações",
+    formula: `(${num(COI_RAMPA_EXTENSAO_MESES)} meses × ${pct(COI_HAIRCUT)}) × contratações_ano × (receita_por_vendedor × ${pct(COI_RAMPA_PRODUTIVIDADE)}) × margem`,
+    explicacao: `Sem coaching estruturado a rampa se estende em ${num(COI_RAMPA_EXTENSAO_MESES)} meses, com haircut de ${pct(COI_HAIRCUT)}. Cada mês a mais rende ${pct(COI_RAMPA_PRODUTIVIDADE)} da receita plena — vendedor em rampa produz, só que menos.`,
+    codigo: "constants.ts#COI_RAMPA_EXTENSAO_MESES",
+    divergencia: "Em margem, não em receita — mesma correção da linha acima.",
+  },
+  {
+    id: "coi-turnover",
+    secao: "coi",
+    celula: "Custo da Inação!C35–C42",
+    titulo: "Reposição de quem sai por falta de coaching",
+    formula: `saídas = min(contratações_ano; não_atendidos × (${pct(COI_RETENCAO_COM)} − ${pct(COI_RETENCAO_SEM)}) × ${pct(COI_HAIRCUT)})\ncusto  = salário_vendedor × encargos × ${num(COI_CUSTO_SUBSTITUICAO)} × 12\n\nsem salário do vendedor ⇒ travessão, nunca zero`,
+    explicacao: `A diferença de retenção declarada entre times com e sem coaching frequente é de ${pct(COI_RETENCAO_COM - COI_RETENCAO_SEM)}. Repor alguém custa ${num(COI_CUSTO_SUBSTITUICAO)}× o salário anual carregado — o piso da faixa de mercado. Já é folha, então não multiplica por margem.`,
+    codigo: "constants.ts#COI_RETENCAO_COM",
+    divergencia:
+      "Duas travas que a aba não tem: aplicamos os p.p. só sobre os vendedores não atendidos (a planilha aplica sobre o time inteiro, inclusive sobre quem já recebe coaching), e travamos o total nas contratações do ano — ninguém perde mais gente do que repõe. Aplicamos também o haircut, que a nota ② promete “em cada dimensão” e a planilha só usa em duas.",
+  },
+  {
+    id: "coi-no-decision",
+    secao: "coi",
+    celula: "Custo da Inação!C46–C50",
+    titulo: "Negócios que morrem sem decisão",
+    formula: `(receita_mensal ÷ ticket) × ${pct(COI_NO_DECISION)} × ${pct(COI_FRACAO_COACHAVEL)} × ticket × 12 × margem`,
+    explicacao: `A maioria das perdas B2B não vai para o concorrente, vai para o status quo: ${pct(COI_NO_DECISION)} dos negócios perdidos, pela premissa declarada. Destes, ${pct(COI_FRACAO_COACHAVEL)} seriam ganhos com coaching de discovery. Esse ${pct(COI_FRACAO_COACHAVEL)} É o haircut desta dimensão — empilhar outro por cima seria conservadorismo duplo, que engana tanto quanto o otimismo.`,
+    codigo: "constants.ts#COI_NO_DECISION",
+    divergencia: "Em margem, não em receita — mesma correção das linhas acima.",
+  },
+  {
+    id: "coi-fila",
+    secao: "coi",
+    celula: "Custo da Inação!C54–C58",
+    titulo: "Espera por uma vaga na agenda do gestor",
+    formula: `não_atendidos × ${num(COI_SEMANAS_ESPERA)} semanas × ${num(COI_HORAS_PERDIDAS_SEMANA)} h × (salário_vendedor × encargos ÷ jornada) × 12 × ${pct(COI_HAIRCUT)}\n\nsem salário do vendedor ⇒ travessão`,
+    explicacao: `Quem não é atendido espera, em média, ${num(COI_SEMANAS_ESPERA)} semanas por uma hora de coaching, e cada semana de espera custa ${num(COI_HORAS_PERDIDAS_SEMANA)} h de produtividade subótima. Folha, não receita.`,
+    codigo: "constants.ts#COI_SEMANAS_ESPERA",
+    divergencia:
+      `Aplicamos o haircut de ${pct(COI_HAIRCUT)} que a nota ② promete e a aba esquece nesta dimensão.`,
+  },
+  {
+    id: "coi-total",
+    secao: "coi",
+    celula: "Custo da Inação!C71–C76 e C81–C85",
+    titulo: "Total, o que se recupera e a régua de coerência",
+    formula:
+      "total = Σ dimensões preenchidas (travessão não vira zero na soma)\ncada dimensão travada em zero: cobertura acima do mínimo não vira crédito\n\ncoerência = total ÷ margem anual, alerta acima de 25%",
+    explicacao:
+      "A mesma régua do §4.7, respondendo outra pergunta: ali o alerta protege contra um GANHO implausível; aqui avisa que a LACUNA ficou grande demais para a margem declarada, o que quase sempre é dado de estrutura torto. A planilha publica em vez disso uma razão COI ÷ investimento, que compara a perda anual com o preço e sempre favorece a compra.",
+    codigo: "coi.ts#calcCoi",
+  },
+
   {
     id: "nivel-servico",
     secao: "fora-da-planilha",

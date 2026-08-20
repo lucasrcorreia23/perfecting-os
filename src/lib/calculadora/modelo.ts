@@ -4,6 +4,7 @@
 // autosave (result_summary) e pelo detalhe interno (render do mesmo cálculo).
 
 import { calcResultadoTime, camposFaltando } from "./calc";
+import { calcCoi } from "./coi";
 import { consolidar, type TimeParaConsolidar } from "./consolidado";
 import { progresso } from "./estado";
 import { aplicarEstrutura } from "./estrutura";
@@ -13,6 +14,7 @@ import type {
   EstadoCalculadora,
   EstadoTime,
   PrecoConta,
+  ResultadoCoi,
   ResultadoConsolidado,
 } from "./types";
 
@@ -41,6 +43,10 @@ export type TimeModelo = TimeParaConsolidar & {
   assentosDefault: boolean;
   // true quando a escolha do visitante foi travada no tamanho do time.
   assentosLimitados: boolean;
+  // Custo da inação: leitura contrafactual, derivada DEPOIS do resultado e
+  // nunca de volta para dentro dele (invariante 1). `null` enquanto o time
+  // estiver incompleto — sem gating não há números, nem aqui.
+  coi: ResultadoCoi | null;
   estadoTime: EstadoTime;
 };
 
@@ -107,6 +113,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
         time.proposta.assentos !== null &&
         assentos !== null &&
         assentos < time.proposta.assentos,
+      coi: resultado.status === "ok" ? calcCoi(time.entradas, resultado) : null,
       // O time CRU, como está persistido — é o que os formulários editam. As
       // entradas rateadas ficam em `entradas`, para exibir o resultado.
       estadoTime: estadoBruto.times[index],

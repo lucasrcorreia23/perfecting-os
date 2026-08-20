@@ -92,6 +92,9 @@ export function ResumoVerificavel({
       : null;
   const custoDiaPerfecting = !multiTime ? (ok?.granularidade.custoDiaPorVendedor ?? null) : null;
 
+  // Custo da inação do time único. Derivado em `computarModelo`; aqui só se lê.
+  const coi = !multiTime ? primeiro.coi : null;
+
   // A oferta é tabela de verdade (rótulo → valor), não lista de linhas soltas:
   // é a parte do resumo que se lê de relance no papel.
   const linhasOferta: { rotulo: string; valor: string; nota?: string }[] = [
@@ -197,6 +200,22 @@ export function ResumoVerificavel({
               {formatBRL(custoDiaGestor, 2)}
             </span>{" "}
             se um gestor conduzisse a mesma prática.
+          </p>
+        ) : null}
+
+        {/* Uma linha só do Custo da Inação, e só no time único — a mesma
+            regra da régua diária acima. O bloco inteiro não imprime; esta
+            frase imprime porque mora sob `#resumo-verificavel`, e sem ela a
+            folha perderia a única leitura contrafactual da tela. Recupera, não
+            soma: o invariante 1 vale no papel também. */}
+        {!multiTime && coi !== null && coi.totalAno > 0 ? (
+          <p className="text-base leading-7 text-slate-700">
+            A lacuna estimada hoje é de{" "}
+            <span className="font-medium tabular-nums">{formatBRL(coi.totalAno)}</span> por
+            ano, e o programa recupera{" "}
+            <span className="font-medium tabular-nums">{formatBRL(coi.recuperadoAno)}</span>{" "}
+            dela. Essa leitura não entra no retorno acima — é a mesma operação vista pelo
+            outro lado.
           </p>
         ) : null}
 

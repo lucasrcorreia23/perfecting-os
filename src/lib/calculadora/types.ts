@@ -120,6 +120,51 @@ export type LinhaNaoSomada = {
   };
 };
 
+// Custo da Inação (COI). É uma leitura CONTRAFACTUAL — quanto vaza hoje — e
+// por isso não entra em `ResultadoTime`: o invariante 1 do V5 é contrafactual
+// ⊻ atribuição, e o ROI já é a atribuição. `calcCoi` põe o total CONTRA o
+// `valorAno`, nunca ao lado dele.
+export type DimensaoCoiId =
+  | "subperformance"
+  | "rampa_estendida"
+  | "turnover"
+  | "no_decision"
+  | "fila";
+
+export type DimensaoCoi = {
+  id: DimensaoCoiId;
+  // null = depende de `salarioVendedor`, que é opcional (travessão, igual a
+  // LinhaNaoSomada). Nunca zero indevido.
+  valorAno: number | null;
+};
+
+export type ResultadoCoi = {
+  // Quanto da prática mínima CHEGA ao vendedor. Uma métrica só, em horas: a
+  // planilha mede a Dimensão 1 em cabeças e o Diagnóstico em horas, e as duas
+  // se contradizem nos dois goldens (E-31).
+  cobertura: {
+    horasEntreguesMes: number; // Motor!C25
+    horasNecessariasMes: number;
+    pctAtendida: number; // min(1, entregues / necessárias)
+    vendedoresNaoAtendidos: number;
+  };
+  // Leitura DIFERENTE, e é isso que a torna útil: se o gestor sequer tem as
+  // horas. No §14 ele tem (o problema é escopo); no FIESC não tem.
+  capacidade: {
+    horasDisponiveisMes: number; // Motor!C23
+    horasNecessariasMes: number;
+    gapHorasMes: number;
+    pctNaoAtendida: number;
+  };
+  dimensoes: DimensaoCoi[]; // 5, sempre na mesma ordem
+  totalAno: number;
+  recuperadoAno: number; // min(valorAno, totalAno)
+  residualAno: number; // max(0, totalAno − valorAno)
+  pctRecuperado: number; // 0 quando totalAno === 0
+  checagemPct: number; // totalAno / margem anual × 100
+  checagemAlerta: boolean; // > CHECAGEM_ALERTA × 100
+};
+
 export type ParcelasPerformance = {
   margemTicketAno: number;
   margemRampaAno: number;

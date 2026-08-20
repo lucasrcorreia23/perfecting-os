@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   CENARIOS,
   CHECAGEM_ALERTA,
+  COI_CUSTO_SUBSTITUICAO,
+  COI_DELTA_ATTAINMENT,
+  COI_FRACAO_COACHAVEL,
+  COI_HAIRCUT,
+  COI_HORAS_COACHING_MIN,
+  COI_HORAS_PERDIDAS_SEMANA,
+  COI_NO_DECISION,
+  COI_RAMPA_EXTENSAO_MESES,
+  COI_RAMPA_PRODUTIVIDADE,
+  COI_RETENCAO_COM,
+  COI_RETENCAO_SEM,
+  COI_SEMANAS_ESPERA,
   ENCARGOS,
   ESCADA_PRECO,
   FATOR_ESCOPO_PREMISSA,
@@ -15,6 +27,15 @@ import {
   TAXA_MINIMA,
 } from "./constants";
 import { CICLO_DIAS_MINIMO } from "./calc";
+import * as modCalc from "./calc";
+import * as modCenarios from "./cenarios-comparacao";
+import * as modCoi from "./coi";
+import * as modConsolidado from "./consolidado";
+import * as modConstants from "./constants";
+import * as modEstrutura from "./estrutura";
+import * as modModelo from "./modelo";
+import * as modPreco from "./preco";
+import * as modTrajetoria from "./trajetoria";
 import {
   REFERENCIA,
   SECOES,
@@ -54,20 +75,29 @@ describe("referência de fórmulas — integridade", () => {
     }
   });
 
-  it("só aponta para arquivos que existem no motor", () => {
-    const modulos = new Set([
-      "calc.ts",
-      "constants.ts",
-      "consolidado.ts",
-      "estrutura.ts",
-      "modelo.ts",
-      "preco.ts",
-      "trajetoria.ts",
-      "cenarios-comparacao.ts",
-    ]);
+  // Valida o ARQUIVO e o SÍMBOLO. Só o arquivo deixava passar ponteiro para
+  // função inexistente — foi assim que `estrutura.ts#ratearEstrutura` (o nome
+  // certo é `aplicarEstrutura`) sobreviveu à auditoria de 18/08/2026.
+  it("só aponta para símbolos que existem no motor", () => {
+    const modulos: Record<string, Record<string, unknown>> = {
+      "calc.ts": modCalc,
+      "cenarios-comparacao.ts": modCenarios,
+      "coi.ts": modCoi,
+      "consolidado.ts": modConsolidado,
+      "constants.ts": modConstants,
+      "estrutura.ts": modEstrutura,
+      "modelo.ts": modModelo,
+      "preco.ts": modPreco,
+      "trajetoria.ts": modTrajetoria,
+    };
     for (const entrada of REFERENCIA) {
-      const arquivo = entrada.codigo.split("#")[0];
-      expect(modulos.has(arquivo), `${entrada.id} aponta para ${arquivo}`).toBe(true);
+      const [arquivo, simbolo] = entrada.codigo.split("#");
+      const modulo = modulos[arquivo];
+      expect(modulo, `${entrada.id} aponta para ${arquivo}`).toBeDefined();
+      expect(
+        Object.hasOwn(modulo, simbolo),
+        `${entrada.id} aponta para ${arquivo}#${simbolo}, que não é exportado`,
+      ).toBe(true);
     }
   });
 });
@@ -119,6 +149,37 @@ describe("referência de fórmulas — números vêm das constantes", () => {
     }
   });
 
+  it("cita as constantes do custo da inação como estão em constants.ts", () => {
+    const coi = REFERENCIA.filter((e) => e.secao === "coi")
+      .map((e) => [e.formula, e.explicacao, e.divergencia ?? ""].join(" "))
+      .join("\n");
+    // Mesma formatação da referência: `0.29 * 100` dá 28,999… em ponto
+    // flutuante, e comparar a string crua acusaria uma divergência que não
+    // existe.
+    const comoNaTela = (v: number) =>
+      `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+    for (const fracao of [
+      COI_DELTA_ATTAINMENT,
+      COI_HAIRCUT,
+      COI_NO_DECISION,
+      COI_FRACAO_COACHAVEL,
+      COI_RAMPA_PRODUTIVIDADE,
+      COI_RETENCAO_COM,
+      COI_RETENCAO_SEM,
+    ]) {
+      expect(coi, String(fracao)).toContain(comoNaTela(fracao));
+    }
+    for (const n of [
+      COI_HORAS_COACHING_MIN,
+      COI_RAMPA_EXTENSAO_MESES,
+      COI_CUSTO_SUBSTITUICAO,
+      COI_SEMANAS_ESPERA,
+      COI_HORAS_PERDIDAS_SEMANA,
+    ]) {
+      expect(coi, String(n)).toContain(String(n).replace(".", ","));
+    }
+  });
+
   it("reproduz os planos com os nomes e as horas vivos", () => {
     const planos = REFERENCIA.find((e) => e.id === "horas-plano");
     expect(planos).toBeDefined();
@@ -129,7 +190,7 @@ describe("referência de fórmulas — números vêm das constantes", () => {
 });
 
 describe("referência de fórmulas — divergências declaradas", () => {
-  it("as três divergências deliberadas estão registradas", () => {
+  it("as três divergências do motor estão registradas", () => {
     const comDivergencia = REFERENCIA.filter((e) => e.divergencia);
     const ids = comDivergencia.map((e) => e.id);
     // Gating aceita zero + custo do evento exigido; quirk do ciclo no
@@ -137,6 +198,38 @@ describe("referência de fórmulas — divergências declaradas", () => {
     expect(ids).toContain("gate-completude");
     expect(ids).toContain("comparacao-cenarios");
     expect(ids).toContain("escada");
+  });
+
+  it("as cinco divergências do custo da inação estão registradas", () => {
+    const ids = REFERENCIA.filter((e) => e.secao === "coi" && e.divergencia).map(
+      (e) => e.id,
+    );
+    // Não somado ao ROI; cobertura em horas (e o ramo quebrado de C9); margem
+    // em vez de receita, nas três dimensões que saem em receita; travas do
+    // turnover; haircut que a aba esquece na fila.
+    for (const id of [
+      "coi-fora-do-roi",
+      "coi-cobertura",
+      "coi-subperformance",
+      "coi-rampa",
+      "coi-turnover",
+      "coi-no-decision",
+      "coi-fila",
+    ]) {
+      expect(ids, id).toContain(id);
+    }
+  });
+
+  // O COI é contrafactual e o ROI é atribuição: o invariante 1 do V5 manda
+  // escolher um dos dois. A referência não pode sugerir soma em lugar nenhum.
+  it("a referência do COI nunca promete soma com o ROI", () => {
+    const coi = REFERENCIA.filter((e) => e.secao === "coi");
+    expect(coi.length).toBeGreaterThan(0);
+    for (const entrada of coi) {
+      const texto = [entrada.formula, entrada.explicacao].join(" ");
+      expect(texto, entrada.id).not.toMatch(/somad[oa] ao ROI(?! )/i);
+      expect(texto, entrada.id).not.toMatch(/COI \+ |aditiv[oa] ao ROI/i);
+    }
   });
 
   it("a divergência da escada nomeia os dois números em disputa", () => {

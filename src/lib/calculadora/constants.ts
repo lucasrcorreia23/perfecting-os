@@ -199,3 +199,30 @@ export const PRAZO_COPY: Record<number, string> = {
   12: "Preço por hora travado por 12 meses, sem reajuste no meio do contrato.",
   24: "Preço travado por 24 meses e nível de serviço um degrau acima do que os assentos dariam.",
 };
+
+// ── Custo da Inação (COI) ────────────────────────────────────────────────────
+// Aba "Custo da Inação" de `ROI_Perfecting_Corrigido.xlsx` (19/08/2026) e o
+// bloco `Premissas!B68–E73` que nasceu com ela. Aquele arquivo é INSUMO, não
+// fonte: o Template (SHA `1f17a03a…`) e o PDF seguem mandando no motor — ver a
+// auditoria E-30…E-36 em `docs/calculadora-erratas-v5.md`.
+//
+// São benchmarks de mercado, não custo interno: o §9 e o invariante 13 seguem
+// de pé. Todas [H] — as fontes citadas na planilha (MySalesCoach 2026, Ebsta
+// 2024, Gartner 2024, Dixon/McKenna, Deloitte 2023, CareerTrainer.ai 2026)
+// aparecem só na referência interna, pendentes de ratificação do decisor.
+//
+// O terceiro ramo de `Custo da Inação!C9` (cobertura de 28% como fallback) NÃO
+// entra: o gating já garante os campos reais, e um fallback silencioso viraria
+// número inventado na tela de quem decide.
+export const COI_DELTA_ATTAINMENT = 0.29; // C15 — p.p. de quota attainment
+export const COI_HAIRCUT = 0.5; // C16 e C27 — anti-otimismo do COI
+export const COI_HORAS_COACHING_MIN = 2; // Premissas!C73 — h/vendedor/mês
+export const COI_RAMPA_EXTENSAO_MESES = 1.4; // C26 — rampa sem coaching
+export const COI_RAMPA_PRODUTIVIDADE = 0.5; // C30 — vendedor em rampa rende
+export const COI_RETENCAO_COM = 0.74; // C35
+export const COI_RETENCAO_SEM = 0.34; // C36
+export const COI_CUSTO_SUBSTITUICAO = 1; // C40 — × salário anual carregado
+export const COI_NO_DECISION = 0.5; // C46 — deals perdidos para o status quo
+export const COI_FRACAO_COACHAVEL = 0.2; // C47 — é o haircut da dimensão
+export const COI_SEMANAS_ESPERA = 2; // C55
+export const COI_HORAS_PERDIDAS_SEMANA = 0.5; // C56

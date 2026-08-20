@@ -411,3 +411,86 @@ agora tem lastro documental: aparece em `Premissas!C15` sob o cabeçalho "Fonte:
 (ratificado 14/08)". Fica como pendência de decisão explícita se isso conta como a
 ratificação que faltava — o bloco onde ela vive chama-se "PREMISSAS DECLARADAS —
 EDITÁVEIS", o que sugere premissa ajustável, não constante ratificada.
+
+## Auditoria de `ROI_Perfecting_Corrigido.xlsx` (19/08/2026)
+
+Diff célula a célula contra o `Perfecting_ROI_Calculator_Template.xlsx` (SHA `1f17a03a…`),
+ignorando valores em cache. O arquivo novo (SHA `40203d34…`, duas cópias idênticas em
+`~/Downloads`) é **insumo, não fonte**: o Template e o PDF seguem mandando no motor, e o
+arquivo não foi copiado para `docs/referencia/` — uma segunda planilha ali passaria a
+competir com a fonte. O que ele traz de aproveitável é a aba **Custo da Inação**, absorvida
+em `src/lib/calculadora/coi.ts` com cinco correções declaradas (abaixo, e em
+`referencia.ts` seção `coi`).
+
+**E-30 — `Motor!C52` regrediu: o ciclo de vendas virou contagem de contratações.** A
+fórmula passou de `IF(N(Equipes!C45)>0,Equipes!C45,"")` (ciclo de vendas atual, em dias)
+para `IF(N(Equipes!C36)>0,Equipes!C36,"")` (novos vendedores por ano). As células vizinhas
+provam que `C52` é o ciclo: `C53 = N(C52)>=7` é a bifurcação dos sete dias, `C54 =
+ROUND(C52*0,3)` é o teto de `REDUCAO_CICLO_MAX`, e `C56 = C55/C52` só significa alguma
+coisa como fração de dias. A causa é E-25: o rótulo `B52` já dizia "Novos vendedores/ano"
+por deslize, e a fórmula foi reescrita para casar com o rótulo errado em vez de o rótulo
+ser corrigido. **Nosso `deltasEfetivos` não muda** — seguir a planilha aqui faria a
+bifurcação de ciclo disparar pelo número de contratações.
+
+**E-31 — a aba COI mede a mesma lacuna em duas unidades incompatíveis.** A Dimensão 1 mede
+cobertura em cabeças (`vendedores cobertos por gestor`); o Diagnóstico de bandwidth mede em
+horas. Nos dois goldens elas se contradizem: no §14 dão 40% e 0% de lacuna, no FIESC dão
+−2% e 40%. Uma das duas está sempre errada. Nós medimos em horas dos dois lados —
+`horas_entregues = vendedores_por_gestor × gestores × prática_por_vendedor_hoje` contra
+`vendedores × 2 h/mês` — e mantemos o bandwidth como leitura **separada e diferente**: se o
+gestor sequer tem as horas. No §14 ele tem (o problema é escopo); no FIESC não tem.
+
+**E-32 — `Custo da Inação!C9` tem um ramo dimensionalmente errado que encobre o certo.** O
+primeiro ramo é `Motor!C23*Motor!C9` — horas de treino × gestores × gestores, que devolve
+h·gestor onde o rótulo pede vendedores. O segundo ramo, `Equipes!C24*Motor!C9`, é o
+correto, e por ser o segundo nunca é alcançado quando o Motor está preenchido. Descartado.
+
+**E-33 — três dimensões do COI saem em receita, contra um motor inteiro em margem.** As
+dimensões 2 (sub-performance), 3 (rampa estendida) e 5 (live-learning) devolvem receita;
+todo o nosso racional trabalha em margem de contribuição. Lado a lado na mesma tela, é
+comparação entre grandezas diferentes — e é o que faz o COI da planilha dar 5,88× (§14) e
+2,62× (FIESC) o valor que o próprio motor promete. Multiplicamos as três pela margem.
+
+**E-34 — a nota metodológica ① declara o COI "ADITIVO ao ROI".** Isso viola o invariante 1
+do V5 (contrafactual ⊻ atribuição): as dimensões 3 e 5 medem exatamente os mecanismos que
+as alavancas de rampa, conversão e ciclo já cobram, e somá-las conta a mesma economia duas
+vezes. A tela põe o total **contra** o `valorAno` (`recuperado`/`residual`), nunca ao lado.
+`faq.test.ts` e `referencia.test.ts` barram a palavra "somado" nessa copy.
+
+**E-35 — a nota metodológica ② promete haircut de 50% "em cada dimensão"; só duas o
+aplicam.** As dimensões 4 (turnover) e 6 (fila) passam inteiras. Aplicamos o haircut nas
+duas. A dimensão 5 fica de fora dessa correção de propósito: ali quem faz o papel de
+haircut é `COI_FRACAO_COACHAVEL = 0,2`, e empilhar outro por cima seria conservadorismo
+duplo, que engana tanto quanto o otimismo.
+
+**E-36 (fechada) — `Conta!C30`, `C31`, `C52` e `C53` estavam VAZIAS no Template.** Os
+rótulos existiam ("ROI CONSOLIDADO", "PAYBACK (meses)", "G — ganhos de performance",
+"Verificação") mas sem fórmula: a planilha não computava ROI nem payback. O arquivo novo as
+preenche com `C29/C26`, `C26/C29*12`, `SUM(Motor!C73:L73)` e `C52/C51` — exatamente o que
+`calc.ts` já fazia. Nenhuma linha de código. Vale como confirmação independente dos quatro
+agregados centrais do motor.
+
+**Correção sem efeito sobre nós.** `Premissas!C56–C59` ganharam `IFERROR(...;"")`: é defesa
+contra `Equipes!C7` (cenário) em branco, que fazia o `MATCH` devolver `#N/A`. As colunas
+`E`/`F` do bloco de cenários existem e batem com `CENARIOS` (ciclo 5/15/20%, conversão
+0,5/2,5/3,5 p.p.). Nada a fazer.
+
+**As erratas antigas seguem abertas.** Esta rodada não alcançou **E-24** (`Premissas!C31`
+continua 573 contra os 656 da aba comercial), **E-26** (`B39` e `B41` continuam ambas
+"Eficiência (R$/ano)"), **E-27** (doze rótulos do Motor continuam em inglês: `B15`, `B21`,
+`B40`, `B42`, `B69`, `B76`, `B78`, `B79`, `B80`, `B81`, `B82`, `B84`), **E-28**
+("Essencial" em `Premissas!B37` contra "Leve" na aba comercial) nem **E-29** (o Conservador
+da Comparação de Cenários ainda herda o ciclo do cenário ativo). E-25 foi tocada pela
+metade — alguns rótulos mudaram, outros continuam deslizados, e a tentativa gerou E-30.
+
+**Verificação das fontes — pendente do decisor.** A aba cita MySalesCoach 2026, Ebsta 2024,
+Gartner 2024, Dixon/McKenna HBR 2019, Deloitte 2023 e CareerTrainer.ai 2026. Nenhuma foi
+confirmada. As constantes entram marcadas `[H]` e as fontes aparecem **só** em
+`/calculadoras/referencia` (interno) — a tela do visitante não cita nome de pesquisa.
+Confira de saída a atribuição dos 40–60% de "no decision" a "Dixon/McKenna HBR 2019": o par
+de autores é o do *JOLT Effect* (2022), e a data não confere.
+
+**Correção de código aplicada junto.** `referencia.ts` apontava
+`estrutura.ts#ratearEstrutura`, símbolo inexistente (o certo é `aplicarEstrutura`). O teste
+de integridade validava só o arquivo; agora valida o símbolo, importando os nove módulos
+que a referência pode citar.

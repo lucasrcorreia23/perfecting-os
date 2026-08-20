@@ -394,7 +394,11 @@ function CabecalhoParcela({
 // Linha de leitura tabular: rótulo, quanto muda, quanto vale. Substitui a
 // pilha título → valor → detalhe → nota, que gastava quatro linhas por item e
 // afogava a única informação que se soma de cima a baixo.
-function LinhaCompacta({
+//
+// Exportada para o bloco do Custo da Inação, que lista parcelas com a mesma
+// pauta: uma sexta variante de linha rótulo/valor só faria as colunas pararem
+// de bater entre as seções.
+export function LinhaCompacta({
   rotulo,
   delta,
   valor,

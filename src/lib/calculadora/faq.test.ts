@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calcResultadoTime, type PropostaEfetiva } from "@/lib/calculadora/calc";
 import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
+import { calcCoi } from "@/lib/calculadora/coi";
 import { entradasVazias } from "@/lib/calculadora/estado";
 import { GRUPOS, perguntasCfo, type FaqContexto } from "@/lib/calculadora/faq";
 import { formatMeses } from "@/lib/calculadora/format";
@@ -52,6 +53,7 @@ function contextoFiesc(prazoMeses = 3): FaqContexto {
     preco,
     prazoMeses,
     comparacao: compararCenarios(entradasFiesc(), PROPOSTA, precoMes, prazoMeses),
+    coi: calcCoi(entradasFiesc(), resultado),
     multiTime: false,
   };
 }
@@ -93,6 +95,7 @@ function contextoGolden(prazoMeses: number): FaqContexto {
     preco: precoConta(times, prazoMeses),
     prazoMeses,
     comparacao: compararCenarios(entradas, proposta, precoMes, prazoMeses),
+    coi: calcCoi(entradas, resultado),
     multiTime: false,
   };
 }
@@ -105,6 +108,7 @@ function contextoVazio(): FaqContexto {
     preco: precoConta([], 3),
     prazoMeses: 3,
     comparacao: null,
+    coi: null,
     multiTime: false,
   };
 }
@@ -136,8 +140,8 @@ describe("FAQ de CFO", () => {
 
   it("cobre as doze dúvidas, cada uma com pergunta e resposta", () => {
     const perguntas = perguntasCfo(contextoFiesc());
-    expect(perguntas).toHaveLength(12);
-    expect(new Set(perguntas.map((p) => p.id)).size).toBe(12);
+    expect(perguntas).toHaveLength(13);
+    expect(new Set(perguntas.map((p) => p.id)).size).toBe(13);
     for (const item of perguntas) {
       expect(item.pergunta.length).toBeGreaterThan(10);
       // Pergunta de quem lê, não objeção encenada: termina em interrogação.
@@ -199,6 +203,27 @@ describe("FAQ de CFO", () => {
     expect(texto).toContain("100%"); // cobertura cheia
   });
 
+  it("cita o custo da inação com os números do próprio link", () => {
+    const ctx = contextoFiesc();
+    const texto = textoDe(perguntasCfo(ctx), "custo-inacao");
+    // FIESC: R$ 231.562,50/ano, 10,3% da margem anual — abaixo do limite.
+    expect(texto).toContain("R$ 231.563");
+    expect(texto).toContain("10,3%");
+    expect(texto).toContain("25%");
+    expect(texto).not.toContain("Acima dos");
+  });
+
+  // O invariante 1 do V5 é contrafactual ⊻ atribuição. Se esta resposta um dia
+  // disser "somado", é porque alguém trocou o enquadramento pela soma que a
+  // planilha pede (E-34) — e a tela ao lado desmentiria o texto.
+  it("a resposta do custo da inação nunca promete soma com o ROI", () => {
+    for (const ctx of [contextoFiesc(), contextoGolden(12), contextoVazio()]) {
+      const texto = textoDe(perguntasCfo(ctx), "custo-inacao").toLowerCase();
+      expect(texto).toContain("nunca somado a ela");
+      expect(texto).not.toMatch(/somad[oa] ao retorno|aditiv/);
+    }
+  });
+
   it("calcula a exposição total do contrato pelo prazo escolhido", () => {
     // 68.064 × 3 = 204.192
     expect(textoDe(perguntasCfo(contextoFiesc(3)), "contrato")).toContain("R$ 204.192");
@@ -232,7 +257,7 @@ describe("FAQ de CFO", () => {
 
   it("sem resultado, responde sem número em vez de número parcial", () => {
     const perguntas = perguntasCfo(contextoVazio());
-    expect(perguntas).toHaveLength(12);
+    expect(perguntas).toHaveLength(13);
     const tudo = perguntas.flatMap((p) => p.paragrafos).join(" ");
     // O travessão de prosa é legítimo; o de campo vazio (formatador sem
     // valor) nunca deve escapar para o texto, nem NaN, nem zero indevido.
