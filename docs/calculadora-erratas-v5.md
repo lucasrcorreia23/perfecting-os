@@ -340,7 +340,9 @@ Nenhuma toca em fórmula, teto, haircut ou premissa; nenhum número mudou; suít
 
 1. **Invariante 10** — `celebracao-modal.tsx` passou a renderizar o `Disclaimer`. O modal
    exibe ROI, payback e valor/ano e é uma tela de resultado; a copy que já existia cobria
-   P3 ("é projeção") mas não a metade contratual.
+   P3 ("é projeção") mas não a metade contratual. *(O modal foi removido em 20/08/2026 e
+   substituído por `ProcessandoResultado`, que não mostra número nenhum — não é tela de
+   resultado, e por isso não carrega o `Disclaimer`. O invariante segue preservado.)*
 2. **Invariante 3** — a linha "Custo por hora de roleplay entregue" ganhou o selo
    `nao_somado` (era a única das cinco do §7 sem selo) e o racional anti-dupla-contagem.
 3. **Invariante 3** — "Custo do time em rampa" ganhou o racional do §7: o vendedor é pago
@@ -524,3 +526,152 @@ de autores é o do *JOLT Effect* (2022), e a data não confere.
 `estrutura.ts#ratearEstrutura`, símbolo inexistente (o certo é `aplicarEstrutura`). O teste
 de integridade validava só o arquivo; agora valida o símbolo, importando os nove módulos
 que a referência pode citar.
+
+## Auditoria externa "OreateAI" de 20–21/08/2026
+
+Quatro arquivos entregues em `~/Downloads`, com a pergunta "quais melhorias do motor
+adotar". **Resposta: nenhuma.** Contra a planilha corrigida em 19/08
+(`ROI_Perfecting_Corrigido.xlsx`, SHA `c5f5afef…`), a planilha auditada
+(`Calculadora_ROI_Perfecting_Portugues_Auditada.xlsx`, SHA `1c9728e7…`) **não altera uma
+única fórmula do Motor**. Altera rótulos, apaga quatro fórmulas da aba Conta e reverte a
+fronteira de preço ratificada em 18/08.
+
+O valor do material é outro e é real: **é a primeira verificação independente dos números
+do motor**, e ela bate.
+
+**O que é cada arquivo.**
+
+| Arquivo | Veredito |
+|---|---|
+| `Relatorio-Problemas-Calculadora-ROI-Perfecting.pdf` | **Vazio.** 1.511 bytes, uma página em branco, sem recurso de fonte e sem operador de texto. Não é falha de extração — o PDF não tem conteúdo. |
+| `Guia-Formulas-Calculadora-Perfecting.pdf` | **Duplicata.** Bytes diferentes, texto extraído **idêntico** ao `Referencia-Completa-Formulas-ROI-Perfecting.pdf` (SHA `42d8f5f7…`) já arquivado em `docs/referencia/`. Re-exportação, não documento novo. |
+| `Checklist-Auditoria-Calculadora-ROI-Perfecting.pdf` | **Substantivo.** 15 páginas, 62 conferências. Único com conteúdo novo. Auditou o **FIESC inglês**, não o Template — o que explica as divergências de preço abaixo. |
+| `Calculadora_ROI_..._Auditada.xlsx` | Fork da linhagem anterior a 19/08. Detalhe em E-37. |
+
+**O que a auditoria confirma, e já estava pinado.** Todas as conferências numéricas do
+checklist batem com `calc.test.ts`, dígito a dígito: teto de eficiência 370.588,24 (F-01);
+as quatro alavancas 112.500 / 10.500 / 52.500 / 82.894,74 (LP-01…LP-04); eficiência 94.500
+(LP-05); decomposição 352.894,74 (F-07); teste de realismo 11,5 % (F-05); 0,7895 vendas/mês
+de capacidade liberada (F-02); e todas as premissas de P-01 a P-09. **A auditoria não abriu
+lacuna de teste no golden FIESC — ela confirmou o que já tínhamos.** F-03, F-04 e F-08
+(preço 67.068, ROI 0,4385, payback 27,37) divergem só pela fronteira do Tier 2, que é a
+E-24 e está decidida: seguem valendo 68.064 / 0,4320624 / 27,7738.
+
+**E-37 — a planilha auditada reverte a E-24.** `Premissas!C31` volta de 656 para 573, com
+os quatro rótulos de faixa (`Premissas!B31`, `B32`, `Conta!B18`, `B19`) e mais
+`Motor!B52`/`B53`. São **exatamente as sete células** que a correção de 19/08 tocou, no
+estado exato anterior a ela: prova de que o arquivo nasceu antes da correção, não depois.
+Não é decisão comercial nova — é linhagem desatualizada. **Decisão do decisor em 20/08:
+vale 656.** `ESCADA_PRECO` não muda, e `referencia.test.ts` continua barrando a reabertura
+da contradição.
+
+**E-38 — `Conta!C30`, `C31`, `C52` e `C53` foram apagadas; reabre a E-36.** A versão de
+19/08 as preenchia com `C29/C26`, `C26/C29*12`, `SUM(Motor!C73:L73)` e `C52/C51`. Na
+auditada não existem. A planilha volta a **não computar o próprio número de capa**: o ROI
+e o payback consolidados são rótulo sobre célula vazia. É por isso que o Guia de Fórmulas
+precisa descrevê-los como "fórmulas implícitas de células mescladas" — não há fórmula a
+documentar. Sem efeito sobre nós (`consolidado.ts` calcula os dois), mas destrói a
+confirmação independente que a E-36 tinha registrado como ganho.
+
+**E-39 — `Premissas!C56:C59` perderam o `IFERROR`.** Voltaram a
+`INDEX(...MATCH(Equipes!$C$7...))` cru. Cenário em branco ou digitado errado faz o `MATCH`
+devolver `#N/A`, e o erro propaga pelos quatro deltas até todo o Motor. A correção de
+19/08 estava registrada aqui como "correção sem efeito sobre nós"; segue sem efeito sobre
+nós e agora sem efeito nenhum, porque foi desfeita.
+
+**E-40 — 31 rótulos do Motor foram revertidos; reabre E-25 e E-26.** A versão de 19/08
+tinha o bloco `B71:B74` alinhado com as fórmulas (`B71` "RESULTADO ANUAL DA EQUIPE" como
+cabeçalho, `B72` "Valor anual total", `B73` "Ganhos de performance", `B74` "Margem atual")
+e `B45`/`B46` nomeando corretamente os deltas efetivos de ticket e rampa. A auditada volta
+ao deslize de uma linha em `B71:B74`, e pior: joga "Delta ticket efetivo" e "Delta rampa
+efetivo" em `B24`/`B25` — vinte e uma linhas acima de onde pertencem. Não é deslize de uma
+linha ali, é um bloco inteiro colado no deslocamento errado. Agravante adicional: como
+ela **traduziu** `B78:B85`, a planilha imprime "ROI da equipe" em `B73` **e** em `B81`, e
+"Payback da equipe (meses)" em `B74` **e** em `B82` — dois pares de
+rótulos idênticos sobre fórmulas diferentes, um de cada par errado. `B52`/`B53` voltam a
+dizer "Novos vendedores/ano" e "Meses efetivos de rampa" sobre fórmulas que leem o ciclo de
+vendas: é a armadilha exata que induziu a E-30. `B39` e `B41` continuam ambos "Eficiência
+(R$/ano)" (E-26 nunca foi alcançada).
+
+**E-41 — a tabela de cenários do checklist (§4.3) reproduz o quirk `=C19` nos TRÊS
+cenários.** Ela publica Conservador 0,44 · Realista 1,00 · Otimista 1,28, e à primeira
+vista é um golden pronto para `cenarios-comparacao.test.ts`. Não é. Invertendo a aritmética
+a partir das parcelas que a própria auditoria publica, sobre o investimento de 804.816 que
+ela usa:
+
+```
+Realista   base efic+ticket+rampa+conv = 720.750  →  ROI 1,00  ⇒  ciclo ≈ 84.066
+Otimista   base                        = 946.125  →  ROI 1,28  ⇒  ciclo ≈ 84.039
+Conservador (publicado)                                           ciclo   82.894,74
+```
+
+Os três usam o **mesmo** ganho de ciclo, dentro do arredondamento de duas casas do ROI
+publicado. No FIESC o quirk é pior que no Template: lá só o Conservador herda; aqui
+Realista e Otimista herdam também. Os nossos, recalculados por preset, são **82.894,74 /
+277.941,18 / 315.000** — a diferença no Realista (193.875) explica exatamente a diferença
+de ROI (0,24 × 804.816). Adotar a tabela como golden cravaria no teste o defeito que ele
+existe para barrar. **Rejeitada como fonte, registrada como evidência da E-29.**
+
+**E-42 (fechada) — SHA obsoleto em `constants.ts`.** O comentário do bloco COI citava o
+Template como `1f17a03a…`; desde 19/08 o arquivo em `docs/referencia/` é `96c88e20…`, e a
+própria E-24 registra a troca. Corrigido. É um dos dois lugares do código que fixam a fonte
+da verdade — o outro (`referencia.ts`) não cita SHA, e é melhor que continue assim.
+
+**E-27 é fechável, mas não por este arquivo.** Os doze rótulos em inglês do Motor estão
+todos traduzidos na planilha auditada, e mais dez na aba COI. Mas ela **não é fonte**, e
+portar os 30 rótulos exige carregar junto as reversões E-37 a E-40. O trabalho está
+identificado: aplicar as 30 traduções sobre o Template de `docs/referencia/`, sem tocar
+em `Premissas!C31` nem na coluna B das linhas 24, 25, 45, 46, 52, 53 e 71–74.
+**E-26, E-28 e E-29 seguem abertas** (conferido no arquivo novo).
+
+**A aba Custo da Inação não traz nada.** Diff contra a versão absorvida em 19/08: dez
+rótulos traduzidos, zero fórmulas. **As cinco divergências declaradas (E-31…E-35) seguem
+válidas sem um ajuste de vírgula** — e a auditoria não detectou nenhuma delas. O que ela
+detectou na aba (COI-04, COI-06, A-02, R-07: "o salário do vendedor é opcional, a fórmula
+retorna 0") é defeito real **da planilha**, e o código já resolve melhor: as dimensões 4 e
+6 devolvem `null`, viram travessão com atalho ao passo 3, e nunca zero. A recomendação R-07
+("tornar obrigatório ou usar default de R$ 5.000") é pior que o que temos — inventaria
+custo de inação a partir de um salário que ninguém declarou.
+
+**O bloco `Premissas!B68:E73` é constante morta.** Nasceu com a aba COI e guarda os cinco
+benchmarks (0,29; 0,4; 1; 0,5; 2), mas a aba **hardcoda os mesmos valores localmente**
+(`C15`, `C40`, `C46`, o `2` literal de `C65`, e a dupla `C35`/`C36` de onde `C37`
+rederiva os 0,4) e nunca referencia o bloco. É
+exatamente a falha que `referencia.test.ts` existe para impedir do nosso lado: um segundo
+lugar onde o número mora, pronto para divergir no primeiro ajuste.
+
+**Recomendações recusadas.**
+
+- **R-04 (descontos progressivos por prazo: 3m=0 %, 6m=5 %, 12m=10 %, 24m=15 %)** —
+  **recusada por decisão do decisor em 20/08.** `DESCONTO_PRAZO` segue 0 e prazo continua
+  comprando garantias, não preço (`PRAZO_COPY`, `NIVEL_COPY`). É o mesmo motivo pelo qual
+  o `Perfecting-CFO-QA-Guide.docx` foi recusado como fonte: descreve uma oferta que não
+  existe. A dor que a recomendação endereça (payback de 27 meses contra contrato de 3) é
+  real e já tem tratamento — o aviso `payback_excede_contrato`, que a própria auditoria
+  valida em F-08/O-02.
+- **R-05 / O-01 (vendedores cobertos 102 > total 100)** — avaliada, sem ação. A
+  recomendação (`MAX(cobertos, total)`) está invertida; o que ela quer dizer é `MIN`. Onde
+  a saturação importa nós já clampamos: `cobertura` em `calc.ts` (`min(1, assentos ÷
+  vendedores)`) e `pctAtendida` em `coi.ts`. No fator de escopo o excedente é intencional —
+  ali a conta é razão entre horas, não contagem de cabeças — e no FIESC não moveria a
+  eficiência de qualquer forma, porque quem morde é `caminhoAno` (94.500), não o teto
+  (370.588).
+- **A-01 ("sem valores em cache no Template PT")** — não é defeito, é consequência de a
+  planilha ser gerada por openpyxl. Fica como aviso de uso: qualquer conferência exige
+  recalcular (Ctrl+Shift+F9). Vale para os quatro arquivos desta rodada.
+
+**Testes acrescentados nesta rodada** (nenhuma linha de motor mudou):
+
+- `cenarios-comparacao.test.ts` pinava o Conservador em absoluto e, para Realista e
+  Otimista, só ordenação — e ordenação **não** detecta o quirk `=C19`, porque as outras
+  três alavancas crescem sozinhas e mantêm a ordem intacta. Agora o ganho de ciclo dos três
+  cenários está pinado em absoluto (E-41).
+- O **teto do funil** (`Engine!C69`) não era exercido em lugar nenhum da suíte com
+  `limitou === true`: no golden FIESC sobra capacidade. Ele só morde no cenário otimista,
+  onde a capacidade liberada (3,75 vendas/mês) passa das oportunidades ociosas (20 × 15 % =
+  3). Coberto agora nos três cenários.
+- **Auditoria A-07 do Excel** (`Conta!C40`, soma dos cinco componentes = valor anual): é o
+  único autoteste que a planilha faz sobre si mesma e que a nossa suíte não declarava por
+  extenso. Agora está em `calc.test.ts`, nos dois goldens, junto da verificação de que
+  existe valor sendo de fato excluído (`linhasNaoSomadas`) — sem isso a identidade seria
+  vácua.
