@@ -466,7 +466,6 @@ alerta se checagem > ${pct(CHECAGEM_ALERTA)}`,
     explicacao:
       "Cada faixa cobra SÓ as horas que caem dentro dela, sobre o total de horas da conta — não sobre as horas de cada time. Quanto mais horas, menor a taxa efetiva.",
     codigo: "preco.ts#precoEscada",
-    divergencia: `A fronteira do Tier 2 é ${num(ESCADA_PRECO[1].ateHoras)} h, valor da aba comercial “Tabela de Preços por Tier” do Template. A aba Premissas do MESMO arquivo traz 573 em C31, e é ela que o cálculo da planilha lê — as duas se contradizem dentro do arquivo. Decisão de 18/08/2026: vale a tabela comercial, que é a que vai ao cliente. Enquanto Premissas!C31 não for corrigida, nenhuma planilha reproduz esta escada.`,
   },
   {
     id: "piso",

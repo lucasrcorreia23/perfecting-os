@@ -301,6 +301,7 @@ direta em 16/08/2026, com os testes que sustentam cada item.
   relaxam: `SLIDER_TICKET_MAX`/`SLIDER_RAMPA_MAX` derivam de `CENARIOS.otimista` em vez de
   serem literais (invariante 15).
 - **§4.9** escada marginal 98/82/70/60 nas fronteiras 262/573/1.243; piso de R$ 13.000
+  (a fronteira do meio foi a 656 em 18/08/2026 no código e em 19/08 na planilha — E-24)
   **depois** do desconto, travando até 132 h/mês; `DESCONTO_PRAZO = 0`; degrau de serviço
   só a partir de 24 meses; níveis por assentos 30/100.
 - **§4.10** as quatro métricas de granularidade, 22/264, extrato faixa a faixa com taxa
@@ -365,13 +366,29 @@ contra o `Referencia-Completa-Formulas-ROI-Perfecting.pdf` (SHA `42d8f5f7…`), 
 arquivados em `docs/referencia/`. São da planilha, não do nosso código — mas é a planilha
 que o time lê.
 
-**E-24 — A aba comercial contradiz o motor da própria planilha.** A "Tabela de Preços por
-Tier" traz Tier 2 = 263–656 h e Tier 3 = 657–1.243 h; a aba Premissas traz `C31 = 573`, e
-é ela que o staircase de `Conta!C18` lê. Um cliente entre 574 e 656 h/mês recebe um preço
-que a tabela ao lado desmente. Decisão de 18/08: vale a tabela comercial (656), e
-`ESCADA_PRECO` foi ajustada. **Enquanto `Premissas!C31` não virar 656, nenhuma planilha
-reproduz a nossa escada** — o golden FIESC deixou de ser um teste contra fonte externa e
-virou teste de regressão do nosso próprio motor. É a errata mais cara desta lista.
+**E-24 (FECHADA em 19/08/2026) — A aba comercial contradizia o motor da própria
+planilha.** A "Tabela de Preços por Tier" trazia Tier 2 = 263–656 h e Tier 3 = 657–1.243 h;
+a aba Premissas trazia `C31 = 573`, e é ela que o staircase de `Conta!C18` lê. Um cliente
+entre 574 e 656 h/mês recebia um preço que a tabela ao lado desmentia. Decisão de 18/08:
+vale a tabela comercial (656), e `ESCADA_PRECO` foi ajustada. Era a errata mais cara da
+lista, porque enquanto durou **nenhuma planilha reproduzia a nossa escada** e o golden
+FIESC tinha deixado de ser teste contra fonte externa para virar teste de regressão do
+nosso próprio motor.
+
+**Corrigido do lado da planilha em 19/08/2026** (decisão do decisor). No Template,
+sete células: `Premissas!C31` 573 → **656**; os rótulos das faixas que o acompanham
+(`Premissas!B31` "263 a 656 h", `B32` "657 a 1.243 h", `Conta!B18` "(263-656h)", `B19`
+"(657-1243h)"); e, de quebra, `Motor!B52`/`B53`, que diziam "Novos vendedores/ano" e
+"Meses efetivos de rampa" sobre fórmulas que leem o CICLO DE VENDAS — foi esse deslize que
+induziu a regressão E-30 no arquivo derivado, e deixá-lo na FONTE armaria a mesma
+armadilha para a próxima pessoa. Nada mais mudou: o diff célula a célula contra a versão
+anterior acusa exatamente essas sete, e a contagem de células é idêntica (1.246).
+
+O SHA do Template passa de `1f17a03a…` para **`96c88e20…`**. A escada da aba Conta volta a
+reproduzir os dois goldens ao centavo: 800 h → 262×98 + 394×82 + 144×70 = **68.064**, taxa
+combinada **85,08**; 120 h → 11.760, piso **13.000**. O golden FIESC volta a ser "o que o
+Excel devolve". A divergência declarada saiu de `referencia.ts`, e `referencia.test.ts`
+agora falha se alguém reabrir a contradição.
 
 **E-25 — Rótulos da coluna B do Motor dessincronizados das fórmulas.** O PDF documenta as
 fórmulas por célula e acerta; os rótulos da planilha deslizaram. `B71` diz "Valor anual
@@ -422,7 +439,8 @@ competir com a fonte. O que ele traz de aproveitável é a aba **Custo da Inaç�
 em `src/lib/calculadora/coi.ts` com cinco correções declaradas (abaixo, e em
 `referencia.ts` seção `coi`).
 
-**E-30 — `Motor!C52` regrediu: o ciclo de vendas virou contagem de contratações.** A
+**E-30 (FECHADA em 19/08/2026) — `Motor!C52` regrediu: o ciclo de vendas virou contagem
+de contratações.** A
 fórmula passou de `IF(N(Equipes!C45)>0,Equipes!C45,"")` (ciclo de vendas atual, em dias)
 para `IF(N(Equipes!C36)>0,Equipes!C36,"")` (novos vendedores por ano). As células vizinhas
 provam que `C52` é o ciclo: `C53 = N(C52)>=7` é a bifurcação dos sete dias, `C54 =
@@ -431,6 +449,17 @@ coisa como fração de dias. A causa é E-25: o rótulo `B52` já dizia "Novos v
 por deslize, e a fórmula foi reescrita para casar com o rótulo errado em vez de o rótulo
 ser corrigido. **Nosso `deltasEfetivos` não muda** — seguir a planilha aqui faria a
 bifurcação de ciclo disparar pelo número de contratações.
+
+**Corrigido do lado da planilha em 19/08/2026.** `Motor!C52:L52` voltaram a
+`IF(N(Equipes!{col}45)>0,Equipes!{col}45,"")`, e os dois rótulos que armaram a regressão
+foram com eles: `B52` → "Ciclo de vendas atual (dias)", `B53` → "Ciclo longo? (≥ 7 dias)".
+Cuidado registrado: `B52` apontava para a string compartilhada 247, usada TAMBÉM por
+`Custo da Inação!B29`, onde "Novos vendedores/ano" está correto — editá-la no lugar teria
+corrompido o rótulo da aba nova, então entrou uma entrada nova (índice 524). O arquivo
+ganhou `fullCalcOnLoad="1"` no `calcPr`, que não tinha: ele carrega valores em cache, e sem
+isso as células dependentes abririam com o número velho. `Premissas!C31` também foi a 656
+ali, com os mesmos quatro rótulos de faixa. SHA do arquivo: `c5f5afef…` (o original ficou
+em `ROI_Perfecting_Corrigido.xlsx.bak`).
 
 **E-31 — a aba COI mede a mesma lacuna em duas unidades incompatíveis.** A Dimensão 1 mede
 cobertura em cabeças (`vendedores cobertos por gestor`); o Diagnóstico de bandwidth mede em
@@ -475,13 +504,14 @@ contra `Equipes!C7` (cenário) em branco, que fazia o `MATCH` devolver `#N/A`. A
 `E`/`F` do bloco de cenários existem e batem com `CENARIOS` (ciclo 5/15/20%, conversão
 0,5/2,5/3,5 p.p.). Nada a fazer.
 
-**As erratas antigas seguem abertas.** Esta rodada não alcançou **E-24** (`Premissas!C31`
-continua 573 contra os 656 da aba comercial), **E-26** (`B39` e `B41` continuam ambas
+**As demais erratas antigas seguem abertas.** E-24 foi fechada (acima). Esta rodada não
+alcançou **E-26** (`B39` e `B41` continuam ambas
 "Eficiência (R$/ano)"), **E-27** (doze rótulos do Motor continuam em inglês: `B15`, `B21`,
 `B40`, `B42`, `B69`, `B76`, `B78`, `B79`, `B80`, `B81`, `B82`, `B84`), **E-28**
 ("Essencial" em `Premissas!B37` contra "Leve" na aba comercial) nem **E-29** (o Conservador
-da Comparação de Cenários ainda herda o ciclo do cenário ativo). E-25 foi tocada pela
-metade — alguns rótulos mudaram, outros continuam deslizados, e a tentativa gerou E-30.
+da Comparação de Cenários ainda herda o ciclo do cenário ativo). **E-25 continua aberta**:
+a correção de 19/08 alinhou `B52`/`B53` nas duas planilhas, porque eram a causa direta da
+E-30, mas os outros rótulos deslizados do Motor seguem como estavam.
 
 **Verificação das fontes — pendente do decisor.** A aba cita MySalesCoach 2026, Ebsta 2024,
 Gartner 2024, Dixon/McKenna HBR 2019, Deloitte 2023 e CareerTrainer.ai 2026. Nenhuma foi

@@ -190,14 +190,14 @@ describe("referência de fórmulas — números vêm das constantes", () => {
 });
 
 describe("referência de fórmulas — divergências declaradas", () => {
-  it("as três divergências do motor estão registradas", () => {
+  it("as duas divergências do motor estão registradas", () => {
     const comDivergencia = REFERENCIA.filter((e) => e.divergencia);
     const ids = comDivergencia.map((e) => e.id);
     // Gating aceita zero + custo do evento exigido; quirk do ciclo no
-    // Conservador; fronteira do Tier 2 contra a aba Premissas.
+    // Conservador. A fronteira do Tier 2 SAIU desta lista em 19/08/2026: a
+    // planilha foi corrigida para 656 e as duas fontes voltaram a concordar.
     expect(ids).toContain("gate-completude");
     expect(ids).toContain("comparacao-cenarios");
-    expect(ids).toContain("escada");
   });
 
   it("as cinco divergências do custo da inação estão registradas", () => {
@@ -232,15 +232,13 @@ describe("referência de fórmulas — divergências declaradas", () => {
     }
   });
 
-  it("a divergência da escada nomeia os dois números em disputa", () => {
+  // E-24 fechada em 19/08/2026. Enquanto Premissas!C31 trazia 573, a escada
+  // era divergência declarada e nenhuma planilha a reproduzia. Se este teste
+  // falhar, alguém reabriu a contradição — no código ou na planilha.
+  it("a escada não é mais divergência: as duas fontes concordam em 656", () => {
     const escada = REFERENCIA.find((e) => e.id === "escada")!;
-    expect(escada.divergencia).toContain(String(ESCADA_PRECO[1].ateHoras));
-    expect(escada.divergencia).toContain("573");
-  });
-
-  it("não promete que a planilha valida a escada", () => {
-    const escada = REFERENCIA.find((e) => e.id === "escada")!;
-    expect(escada.divergencia).toMatch(/nenhuma planilha reproduz/i);
+    expect(escada.divergencia).toBeUndefined();
+    expect(escada.formula).toContain(String(ESCADA_PRECO[1].ateHoras));
   });
 });
 

@@ -569,8 +569,8 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
     //
     // Era 67.068 (262×98 + 311×82 + 227×70) enquanto o Tier 2 ia até 573 h.
     // Com a fronteira em 656 (Template, 18/08/2026) 83 horas voltam de R$ 70
-    // para R$ 82. ATENÇÃO: este número não sai mais de nenhuma planilha — a
-    // aba Premissas do Template ainda traz 573. Ver ESCADA_PRECO.
+    // para R$ 82. Desde 19/08/2026 a aba Premissas também traz 656 (E-24
+    // fechada), então este número volta a sair da planilha. Ver ESCADA_PRECO.
     expect(preco.bruto).toBeCloseTo(68_064, 4);
     expect(preco.pisoAplicado).toBe(false);
     expect(preco.mensal).toBeCloseTo(68_064, 4);

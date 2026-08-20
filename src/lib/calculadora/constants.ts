@@ -25,12 +25,13 @@ export const PLANOS: Record<PlanoId, { label: string; horasMes: number }> = {
 // (§4.9). As faixas espelham as capacidades dos tiers de voz.
 //
 // A fronteira do Tier 2 é 656 h — valor da aba "Tabela de Preços por Tier" do
-// Template (18/08/2026), que é a tabela que vai ao cliente. A aba Premissas do
-// MESMO arquivo traz 573 em C31, e é ela que o staircase da aba Conta lê:
-// dentro da planilha as duas se contradizem. Decisão do decisor em 18/08: vale
-// a tabela comercial. Consequência a não esquecer — enquanto Premissas!C31 não
-// virar 656, NENHUMA planilha reproduz a nossa escada, e o golden FIESC deixa
-// de ser "o que o Excel devolve" para ser "o que o nosso motor devolve".
+// Template, que é a tabela que vai ao cliente. Até 19/08/2026 a aba Premissas
+// do MESMO arquivo trazia 573 em C31, e era ela que o staircase da aba Conta
+// lia: as duas se contradiziam dentro do arquivo, e o golden FIESC tinha
+// deixado de ser "o que o Excel devolve" para ser "o que o nosso motor
+// devolve". A planilha foi corrigida (E-24 fechada): Premissas!C31 é 656, os
+// rótulos das faixas acompanham, e a escada da aba Conta volta a reproduzir os
+// dois goldens ao centavo.
 export const ESCADA_PRECO: { ateHoras: number; taxaHora: number }[] = [
   { ateHoras: 262, taxaHora: 98 },
   { ateHoras: 656, taxaHora: 82 },
