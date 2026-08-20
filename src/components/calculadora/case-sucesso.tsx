@@ -45,9 +45,12 @@ function MetaCard({
           : "border border-(--pf-line) bg-(--pf-surface-alt)",
       )}
     >
+      {/* Caixa de duas linhas pelo mesmo motivo do `CardEscopo` da capa: três
+          destes quatro rótulos quebram e um não, e sem a caixa fixa o valor do
+          primeiro card flutuava 20px acima dos outros três. */}
       <span
         className={cn(
-          "text-xs font-semibold",
+          "pf-panel-title min-h-10",
           destaque ? "text-(--pf-invert-soft)" : "text-(--pf-ink-soft)",
         )}
       >
@@ -55,7 +58,11 @@ function MetaCard({
       </span>
       <span
         className={cn(
-          "pf-num text-xl font-semibold leading-tight text-balance sm:text-2xl",
+          // `pf-num-kpi`, o mesmo dos KPIs da capa e do COI: era `pf-num
+          // text-xl sm:text-2xl`, mais um dos sete dialetos de número que a
+          // passagem de 20/08/2026 unificou. `text-balance` fica: dois destes
+          // rótulos ("8 → ~5,6 m", "CSAT ≥ 4,0/5") quebram em telas estreitas.
+          "pf-num-kpi text-balance",
           destaque ? "text-(--pf-invert-ink)" : "text-(--pf-ink)",
         )}
       >
@@ -134,7 +141,7 @@ export function CaseSucesso({
       </div>
 
       {/* O alerta da pele é fio e ícone; o preenchimento é sussurro (§13). Aqui
-          ele funciona porque o fundo é `--pf-surface`, não o creme do canvas. */}
+          ele funciona porque o fundo é `--pf-surface`, não o canvas. */}
       <p className="flex items-start gap-3 rounded-sm border border-(--pf-warn-line) bg-(--pf-warn-surface) p-4 pf-lead text-(--pf-warn-ink)">
         <InformationCircleIcon className="mt-1 h-5 w-5 shrink-0" aria-hidden />
         <span>

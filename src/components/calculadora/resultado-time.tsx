@@ -375,6 +375,14 @@ export function ResultadoIncompleto({
 // Cabeçalho de parcela: o nome à esquerda, o TOTAL à direita. O número sobe
 // para cá porque é a resposta do bloco — antes ele era só mais uma linha no
 // meio da lista, com o mesmo peso das explicações que o sustentam.
+//
+// Dois degraus mudaram em 20/08/2026, e os dois eram empate. O título era
+// `pf-panel-title`, a MESMA classe da etiqueta da seção que o contém e dos
+// outros quatro títulos da etapa — cinco níveis lógicos em 13px de caixa alta.
+// Ele é título de CARD (nomeia o conteúdo, é lido como frase), então virou
+// `pf-card-title`. E o total era `text-lg font-semibold`, um dos sete dialetos
+// de número da etapa; agora é `pf-num-kpi`, o mesmo dos KPIs da capa — mesma
+// grandeza, mesma classe, e mono tabular de quebra.
 function CabecalhoParcela({
   titulo,
   ajuda,
@@ -388,19 +396,33 @@ function CabecalhoParcela({
 }) {
   return (
     // `relative`: o balão do HintTooltip se ancora aqui.
-    <div className="relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--pf-line-soft,#f1f5f9)] pb-3">
-      <span className="flex items-center gap-2">
+    //
+    // GRADE de duas trilhas, não `flex-wrap`: quem tem de quebrar é o TÍTULO,
+    // dentro da própria trilha, e nunca o total. Com flex, "Performance: o que
+    // passa a ser ganho" mais um valor em `pf-num-kpi` não cabiam na linha e o
+    // número inteiro descia sozinho para baixo do título — a mesma correção
+    // que `LinhaCompacta` já tinha levado, pelo mesmo motivo.
+    <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-[var(--pf-line-soft,#f1f5f9)] pb-3">
+      {/* `min-w-0` + título em fluxo INLINE: o ícone e o balão de ajuda não
+          podem ser itens flex irmãos do título, senão cada um quebra por conta
+          própria e o ícone fica sozinho numa linha com o texto embaixo. Aqui o
+          ícone é a única coluna fixa e o resto é uma caixa de texto: o título
+          quebra por palavra e o balão fica onde a última palavra terminou. */}
+      <span className="flex min-w-0 items-start gap-2">
         <Icon
-          className="h-5 w-5 shrink-0 text-[var(--pf-ink-faint,#94a3b8)]"
+          className="mt-0.5 h-5 w-5 shrink-0 text-[var(--pf-ink-faint,#94a3b8)]"
           aria-hidden
         />
-        <h3 className="pf-panel-title text-[var(--pf-ink,#334155)]">{titulo}</h3>
-        <HintTooltip text={ajuda} />
+        <span className="min-w-0 text-pretty">
+          <h3 className="pf-card-title inline text-[var(--pf-ink,#334155)]">
+            {titulo}
+          </h3>{" "}
+          <span className="inline-flex translate-y-1">
+            <HintTooltip text={ajuda} />
+          </span>
+        </span>
       </span>
-      {/* ml-auto pelo mesmo motivo de LinhaCompacta: "Eficiência: o que deixa
-          de ser gasto" é rótulo longo, e quando ele quebra o justify-between
-          sozinho manda o total para a esquerda da linha de baixo. */}
-      <span className="ml-auto text-lg font-semibold tabular-nums text-trend-positive">
+      <span className="pf-num-kpi text-right text-trend-positive">
         {valor}
       </span>
     </div>

@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { deletePost } from "@/lib/actions/marketing-posts";
 import { POST_STATES, POST_STATE_ORDER, type PostStatus } from "@/lib/constants";
-import { formatDate, formatRelativeTime } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { postState } from "@/lib/marketing-post";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -17,6 +17,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { DeleteNamedModal } from "@/components/ui/delete-named-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PostStateChip } from "@/components/ui/post-state-chip";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { NewPostButton } from "./new-post-modal";
@@ -171,7 +172,7 @@ export function PostsView({ posts }: { posts: PostRow[] }) {
       header: "Atualizado",
       className: "whitespace-nowrap",
       render: (post) => (
-        <span className="text-slate-600">{formatRelativeTime(post.updated_at)}</span>
+        <RelativeTime iso={post.updated_at} className="text-slate-600" />
       ),
     },
     {
@@ -273,7 +274,7 @@ export function PostsView({ posts }: { posts: PostRow[] }) {
               <span className="tabular-nums">
                 {post.published_at ? formatDate(post.published_at) : "Sem data"}
               </span>
-              <span>{formatRelativeTime(post.updated_at)}</span>
+              <RelativeTime iso={post.updated_at} />
             </div>
           </div>
         )}

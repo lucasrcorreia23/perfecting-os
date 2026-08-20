@@ -29,8 +29,10 @@ const VARIANTES = {
 
 export function LinkExpirado({ variante }: { variante: keyof typeof VARIANTES }) {
   const { icon: Icon, titulo, texto } = VARIANTES[variante];
+  // Sem fundo próprio: quem pinta a rampa azul é o body (globals.css), e um
+  // chapado aqui a cobriria inteira.
   return (
-    <main className="page-fade-in flex min-h-[100dvh] items-center justify-center bg-(--pf-canvas) p-6">
+    <main className="page-fade-in flex min-h-[100dvh] items-center justify-center p-6">
       <div className="flex w-full max-w-md flex-col items-center gap-6 rounded-sm border border-(--pf-line) bg-(--pf-surface) p-10 text-center shadow-[var(--shadow-sm)]">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-(--pf-bar)">
           <Icon className="h-7 w-7 text-(--pf-ink-faint)" aria-hidden />

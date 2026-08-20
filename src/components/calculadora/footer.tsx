@@ -5,9 +5,13 @@ import { PERFECTING_WHATSAPP_LABEL, PERFECTING_WHATSAPP_URL } from "@/lib/consta
 // Rodapé da calculadora pública: faixa de ponta a ponta, sempre no fim da
 // tela. Quem preenche não tem login nem canal aberto com o time, então o
 // WhatsApp é a única saída para tirar dúvida.
+//
+// A rampa do rodapé termina em `transparent`, não em `--pf-canvas`: desde que o
+// fundo virou gradiente, a cor chapada no topo desta faixa cairia num ponto da
+// rampa do body que quase nunca é ela — e a emenda apareceria como um degrau.
 export function CalculadoraFooter() {
   return (
-    <footer className="mt-8 w-full border-t border-(--pf-line) bg-linear-to-t from-(--pf-bar) to-(--pf-canvas)">
+    <footer className="mt-8 w-full border-t border-(--pf-line) bg-linear-to-t from-(--pf-bar) to-transparent">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-6 sm:flex-row sm:justify-between sm:px-6">
         <Image
           src="/logotipo.svg"

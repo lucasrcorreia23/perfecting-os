@@ -515,12 +515,19 @@ da Comparação de Cenários ainda herda o ciclo do cenário ativo). **E-25 cont
 a correção de 19/08 alinhou `B52`/`B53` nas duas planilhas, porque eram a causa direta da
 E-30, mas os outros rótulos deslizados do Motor seguem como estavam.
 
-**Verificação das fontes — pendente do decisor.** A aba cita MySalesCoach 2026, Ebsta 2024,
-Gartner 2024, Dixon/McKenna HBR 2019, Deloitte 2023 e CareerTrainer.ai 2026. Nenhuma foi
-confirmada. As constantes entram marcadas `[H]` e as fontes aparecem **só** em
-`/calculadoras/referencia` (interno) — a tela do visitante não cita nome de pesquisa.
-Confira de saída a atribuição dos 40–60% de "no decision" a "Dixon/McKenna HBR 2019": o par
-de autores é o do *JOLT Effect* (2022), e a data não confere.
+**Verificação das fontes — RATIFICADA em 20/08/2026, com uma correção.** A aba cita
+MySalesCoach 2026, Ebsta 2024, Gartner 2024, Dixon/McKenna HBR 2019, Deloitte 2023 e
+CareerTrainer.ai 2026. Nenhuma foi confirmada na origem, e as constantes seguem marcadas
+`[H]` — é por isso que a tela diz "benchmarks de mercado" e nunca "estudos comprovam".
+
+O decisor ratificou a exibição das seis **na tela do visitante** (antes viviam só em
+`/calculadoras/referencia`), e a suspeita levantada aqui virou correção: os 40–60% de "no
+decision" eram creditados a "Dixon/McKenna HBR 2019", mas o par assina o *JOLT Effect*, de
+2022 — a data não confere. A lista publicada (`constants.ts#COI_FONTES`) traz a atribuição
+corrigida; a entrada `coi-fontes` da referência declara a divergência; e
+`referencia.test.ts` reprova se "HBR 2019" reaparecer ou se alguma fonte for publicada sem
+ano. Numa tela que passa a página inteira construindo credibilidade, uma citação errada
+custa mais do que a citação rende.
 
 **Correção de código aplicada junto.** `referencia.ts` apontava
 `estrutura.ts#ratearEstrutura`, símbolo inexistente (o certo é `aplicarEstrutura`). O teste

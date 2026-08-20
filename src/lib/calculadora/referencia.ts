@@ -36,6 +36,7 @@ import {
   COI_CUSTO_SUBSTITUICAO,
   COI_DELTA_ATTAINMENT,
   COI_FRACAO_COACHAVEL,
+  COI_FONTES,
   COI_HAIRCUT,
   COI_HORAS_COACHING_MIN,
   COI_HORAS_PERDIDAS_SEMANA,
@@ -662,6 +663,18 @@ retorno por assento/dia      = (valor anual ÷ assentos) ÷ ${num(DIAS_UTEIS_ANO
     explicacao:
       "A mesma régua do §4.7, respondendo outra pergunta: ali o alerta protege contra um GANHO implausível; aqui avisa que a LACUNA ficou grande demais para a margem declarada, o que quase sempre é dado de estrutura torto. A planilha publica em vez disso uma razão COI ÷ investimento, que compara a perda anual com o preço e sempre favorece a compra.",
     codigo: "coi.ts#calcCoi",
+  },
+  {
+    id: "coi-fontes",
+    secao: "coi",
+    celula: "Custo da Inação!A2 (nota de rodapé)",
+    titulo: "As fontes dos benchmarks",
+    formula: COI_FONTES.join("\n"),
+    explicacao:
+      "As seis referências que a aba credita pelas constantes do COI. Saíram da referência interna para a TELA DO VISITANTE em 20/08/2026, por ratificação do decisor — até então valia a regra de não citar nome de pesquisa a quem lê o relatório. As constantes seguem marcadas [H]: nenhuma foi conferida na origem, e é por isso que a tela diz “benchmarks de mercado” e nunca “estudos comprovam”.",
+    codigo: "constants.ts#COI_FONTES",
+    divergencia:
+      "A planilha credita os 40–60% de “negócio que morre sem decisão” a “Dixon/McKenna, HBR 2019”, e a data não confere: a dupla assina o JOLT Effect, de 2022. Publicamos a atribuição corrigida — numa tela que passa a página inteira construindo credibilidade, uma citação errada custa mais do que a citação rende.",
   },
 
   {

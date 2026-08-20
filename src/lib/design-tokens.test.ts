@@ -55,31 +55,52 @@ describe("pele .pf-calc — a fronteira com o app interno", () => {
   it("declara os tokens da §13", () => {
     const corpo = corpoDaRegra(CSS, ".pf-calc,");
     const esperados = [
-      ["--pf-canvas", "#f2eee6"],
-      ["--pf-surface", "#fbfaf5"],
+      // O canvas virou azul quase branco em 20/08/2026, e as duas paradas
+      // extras são a rampa do body. Ela é rasa de propósito (1,17:1 de ponta a
+      // ponta): fundo é luz de ambiente, não segunda superfície.
+      ["--pf-canvas", "#f2f6fd"],
+      // O topo NÃO é branco puro, e o teste guarda isso: a rampa inteira tem de
+      // ficar abaixo de `--pf-surface` em claridade, senão o card fica mais
+      // escuro que a página onde o gradiente é mais claro e lê como mancha.
+      ["--pf-canvas-top", "#f7faff"],
+      ["--pf-canvas-deep", "#e6edfa"],
+      ["--pf-surface", "#fbfcff"],
       ["--pf-surface-alt", "#ffffff"],
-      ["--pf-bar", "#f2f0e6"],
+      ["--pf-bar", "#eaf0fa"],
       ["--pf-brand", "#2e63cd"],
       ["--pf-brand-deep", "#1e4a9e"],
-      ["--pf-brand-tint", "#edf2fc"],
+      // Um degrau mais fundo que o `#edf2fc` da pele creme: sobre fundo azul, o
+      // tinte de "opção escolhida" perdeu o contraste de TEMPERATURA que o
+      // fazia ler, e passou a se separar por claridade.
+      ["--pf-brand-tint", "#e4edfb"],
       ["--pf-brand-ink", "#1e4a9e"],
       ["--pf-ink", "#1a1b1c"],
-      ["--pf-ink-soft", "#55584f"],
-      ["--pf-ink-faint", "#6b6d65"],
+      // Frios, e não mais o oliva `#55584f`/`#6b6d65`: cinza quente sobre fundo
+      // frio lê como tinta velha. 6,35:1 e 4,88:1 contra `--pf-canvas-deep`,
+      // que é o pior ponto da rampa.
+      ["--pf-ink-soft", "#4f5563"],
+      ["--pf-ink-faint", "#5f6675"],
       ["--pf-input", "#fdf1ae"],
       ["--pf-input-border", "#e7d47a"],
       ["--pf-input-text", "#2e42bf"],
-      ["--pf-line", "#e2ddd1"],
+      ["--pf-line", "#dfe5f0"],
       // O painel da mensalidade (etapa 01). Os dois primeiros são o par que dá
       // 7,61:1 e 4,98:1 sobre `--pf-brand-deep`; sobre o `--pf-brand` médio o
       // segundo cairia para 3,33:1, e é esse número que escolheu o tom escuro.
-      ["--pf-on-brand", "#f6f5f0"],
+      ["--pf-on-brand", "#f4f7fc"],
       ["--pf-on-brand-soft", "#b9c9e9"],
       ["--pf-on-brand-line", "#ffffff33"],
       // O fio de CONTROLE, separado do fio estrutural: é o que faz um card de
-      // opção não escolhido ler como clicável em vez de como moldura.
-      ["--pf-line-strong", "#b9b2a0"],
+      // opção não escolhido ler como clicável em vez de como moldura. O frio
+      // mantém a claridade do sépia que substituiu (2,09:1 contra 2,08:1 sobre
+      // branco) — a distância entre os dois fios é que não podia mudar.
+      ["--pf-line-strong", "#a9b4c8"],
       ["--pf-input-inset", "#00000014"],
+      // O alerta de RISCO do COI. A tinta não entra aqui de propósito: é o
+      // `trend-negative` que já existe — um segundo vermelho de texto seria a
+      // divergência que a §1 existe para impedir.
+      ["--pf-danger-surface", "#fdf0ec"],
+      ["--pf-danger-line", "#9f0f0f40"],
     ] as const;
 
     for (const [token, valor] of esperados) {
@@ -150,16 +171,27 @@ describe("pele .pf-calc — a fronteira com o app interno", () => {
   // A escala do §3.2 mora numa regra CSS por nível, e não espalhada em
   // className: cada nível carrega cinco propriedades que só significam juntas,
   // e a primeira cópia à mão sairia com quatro das cinco. O teste pina que os
-  // oito níveis existem e que cada um tem override DENTRO da pele — a regra
+  // nove níveis existem e que cada um tem override DENTRO da pele — a regra
   // base é o degrau do §2, para os componentes que também rodam em link-detail.
-  it("declara os oito níveis do §3.2, com base e override", () => {
+  //
+  // Nove e não oito desde 20/08/2026: `pf-card-title` é o degrau que faltava
+  // entre o capítulo e a etiqueta de painel, e sem ele cinco títulos da etapa
+  // 03 empatavam em 13px de caixa alta.
+  it("declara os nove níveis do §3.2, com base e override", () => {
     const NIVEIS = [
       "pf-display",
       "pf-title",
       "pf-panel-title",
+      "pf-card-title",
       "pf-label",
       "pf-lead",
       "pf-hint",
+      // Os dois números-manchete ganharam base em 20/08/2026: saíram da capa
+      // (exclusiva da jornada) para `resultado-time` e `quanto-custa`, que
+      // `link-detail` renderiza fora da pele. Sem regra base a classe não vale
+      // nada lá, e o número cai para os 14px herdados do body.
+      "pf-num-hero",
+      "pf-num-kpi",
     ];
     for (const nivel of NIVEIS) {
       expect(SEM_COMENTARIOS, `.${nivel} precisa de regra base (link-detail)`).toContain(
@@ -169,10 +201,17 @@ describe("pele .pf-calc — a fronteira com o app interno", () => {
         `.pf-calc .${nivel} {`,
       );
     }
-    // Os dois números-manchete só existem dentro da pele: a tela interna tem o
-    // próprio `HeroResultado` e nunca renderiza a capa.
+    // A mono é EXCLUSIVA da pele: fora dela a família é a Inter, e o acesso à
+    // monoespaçada continua sendo só pela `.pf-calc .pf-num` (§13). A base dos
+    // dois níveis numéricos leva tamanho e tabular-nums, nunca `--pf-mono`.
     for (const nivel of ["pf-num-hero", "pf-num-kpi"]) {
-      expect(SEM_COMENTARIOS).toContain(`.pf-calc .${nivel} {`);
+      expect(
+        corpoDaRegra(SEM_COMENTARIOS, `\n.${nivel} {`),
+        `.${nivel} base não pode puxar a mono da pele`,
+      ).not.toMatch(/--pf-mono/);
+      expect(corpoDaRegra(SEM_COMENTARIOS, `.pf-calc .${nivel} {`)).toMatch(
+        /--pf-mono/,
+      );
     }
   });
 

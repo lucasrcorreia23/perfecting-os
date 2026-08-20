@@ -123,7 +123,9 @@ describe("validarPasso — a pergunta 7 é opcional, dois ou nenhum", () => {
   it("pela metade acusa nos DOIS campos — apagar também resolve", () => {
     const soCiclo = validarPasso({ ...completo(), cicloDias: 45 }, 7);
     expect(soCiclo.map((e) => e.campo)).toEqual(["cicloDias", "leadsMes"]);
-    expect(soCiclo[0].mensagem).toBe("Preencha os dois campos do ciclo — ou pule a etapa.");
+    expect(soCiclo[0].mensagem).toBe(
+      "Preencha os dois campos — oportunidades e ciclo — ou pule a etapa.",
+    );
 
     const soLeads = validarPasso({ ...completo(), leadsMes: 300 }, 7);
     expect(soLeads.map((e) => e.campo)).toEqual(["cicloDias", "leadsMes"]);
@@ -169,7 +171,7 @@ describe("errosPorCampo e resumoDoErro", () => {
 
   it("no funil pela metade anuncia a frase do funil, sem contagem", () => {
     const resumo = resumoDoErro(validarPasso({ ...completo(), cicloDias: 45 }, 7));
-    expect(resumo).toBe("Preencha os dois campos do ciclo — ou pule a etapa.");
+    expect(resumo).toBe("Preencha os dois campos — oportunidades e ciclo — ou pule a etapa.");
   });
 });
 

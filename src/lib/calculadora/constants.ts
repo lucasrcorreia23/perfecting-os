@@ -228,6 +228,27 @@ export const COI_FRACAO_COACHAVEL = 0.2; // C47 — é o haircut da dimensão
 export const COI_SEMANAS_ESPERA = 2; // C55
 export const COI_HORAS_PERDIDAS_SEMANA = 0.5; // C56
 
+// As fontes que a aba credita, RATIFICADAS para a tela do visitante em
+// 20/08/2026 (antes viviam só em `/calculadoras/referencia`, interno).
+//
+// Uma correção declarada, e é a razão de a lista morar aqui em vez de sair
+// escrita no componente: a planilha credita os 40–60% de "negócio que morre sem
+// decisão" a "Dixon/McKenna, HBR 2019", e a data não confere — a dupla assina o
+// JOLT Effect, de 2022 (a errata já registrava a suspeita). Publicar a
+// atribuição errada numa tela que passa a página inteira construindo
+// credibilidade custaria mais do que a citação rende.
+//
+// As constantes seguem `[H]`: nenhuma das seis foi verificada na origem, e é
+// por isso que a tela diz "benchmarks de mercado" e não "estudos comprovam".
+export const COI_FONTES = [
+  "MySalesCoach (2026)",
+  "Ebsta (2024)",
+  "Gartner (2024)",
+  "Dixon/McKenna, The JOLT Effect (2022)",
+  "Deloitte (2023)",
+  "CareerTrainer.ai (2026)",
+] as const;
+
 // ---------------------------------------------------------------------------
 // Case de sucesso (bloco "Próximo passo", 20/08/2026)
 //

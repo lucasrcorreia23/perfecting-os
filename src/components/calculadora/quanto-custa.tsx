@@ -22,7 +22,7 @@ import { SeloEvidencia } from "./selo-evidencia";
 // que o cliente montou e enviou.
 //
 // FALLBACK OBRIGATÓRIO em cada `--pf-*`: este bloco é [AMBOS]. Dentro da pele
-// (§13) ele veste o creme; em `link-detail`, fora dela, o `var()` cai no
+// (§13) ele veste as superfícies dela; em `link-detail`, fora dela, o `var()` cai no
 // literal que a classe produzia antes e nada muda para o consultor. Nunca a
 // forma curta `bg-(--pf-x)` aqui — sem fallback ela fica inválida lá e o bloco
 // perde fundo e borda.
@@ -136,7 +136,15 @@ export function QuantoCusta({
                           ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
                           : "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)]",
                         interativo && !ativo && "hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",
-                        readOnly && !ativo && "opacity-50",
+                        // Sem `opacity-50` no não escolhido (saiu em
+                        // 20/08/2026). Em `readOnly` esta é a proposta que vai
+                        // à reunião: as opções recusadas precisam ser LIDAS —
+                        // "por que não o Intensivo?" é a pergunta seguinte — e
+                        // a 50% o texto caía abaixo do piso de contraste. Quem
+                        // marca a escolha é a borda de marca, não o apagamento
+                        // das outras. O fio de CONTROLE (`--pf-line-strong`)
+                        // mantém os cards lendo como opção mesmo travados.
+                        !ativo && "border-[var(--pf-line-strong,#cbd5e1)]",
                       )}
                     >
                       <span
@@ -173,7 +181,10 @@ export function QuantoCusta({
                       onChange={(valor) => onChangeAssentos?.(time.id, valor)}
                     />
                   ) : (
-                    <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)]">
+                    // Em leitura o número é o dado, não uma linha de
+                    // formulário: sobe para `pf-num-kpi`, a mesma escala do
+                    // "Prática contratada" ao lado e dos KPIs da capa.
+                    <span className="pf-num-kpi text-[var(--pf-ink,#0f172a)]">
                       {time.proposta.assentos > 0 ? time.proposta.assentos : "—"}
                     </span>
                   )}
@@ -186,13 +197,13 @@ export function QuantoCusta({
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:text-right">
-                  <span className="text-sm font-medium text-[var(--pf-ink-soft,#475569)]">
+                  <span className="pf-label text-[var(--pf-ink-soft,#475569)]">
                     Prática contratada
                   </span>
                   {/* Mesma caixa de linha do campo ao lado (h-11 / sm:h-10 em
                       `CampoNumero`), para o valor derivado assentar na altura do
                       valor digitado em vez de flutuar entre ele e a ajuda. */}
-                  <span className="flex h-11 items-center text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)] sm:h-10 sm:justify-end">
+                  <span className="pf-num-kpi flex items-center text-[var(--pf-ink,#0f172a)] sm:justify-end">
                     {horasTime > 0 ? `${formatNumero(horasTime, 0)} h/mês` : "—"}
                   </span>
                 </div>
@@ -202,23 +213,51 @@ export function QuantoCusta({
         })}
       </div>
 
-      {/* Investimento */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-[var(--pf-ink-soft,#475569)]">Investimento</span>
-          {/* Preço fica no tom neutro (`--pf-ink`): custo nunca é verde nem
-              vermelho — e o token não muda isso, só a temperatura. Com os ganhos
-              em verde, o contraste já diz qual dos dois é qual. */}
-          <span className="text-(length:--text-score-md) font-semibold leading-9 tabular-nums text-[var(--pf-ink,#0f172a)]">
+      {/* ── O PAINEL do investimento ──────────────────────────────────────
+          O preço era `text-(length:--text-score-md)` no meio de seis faixas de
+          mesma altura, separadas por fios idênticos: o número que a pessoa
+          rolou a página inteira para ver tinha o mesmo peso da linha "Total de
+          horas do contrato". Agora é uma superfície própria — o único bloco
+          desta seção que é dono da própria cor.
+
+          `--pf-invert` e NÃO o `--pf-brand-deep` do painel da etapa 01, apesar
+          de os dois mostrarem a mesma mensalidade. O motivo é contraste, não
+          gosto: aqui o painel carrega o "retorno projetado" em verde, e
+          `#0F9F2E` dá 2,38:1 sobre o azul contra 4,9:1 sobre o escuro. É a
+          mesma razão documentada na §13 para a capa não poder ser azul — a
+          etapa 01 pode porque nela ainda não existe nada que some ao ROI.
+
+          As listras diagonais são as do material de referência, em branco a 4%:
+          decoração de textura, sem papel semântico, e fracas o bastante para
+          não competir com o número.
+
+          Fallbacks: `link-detail` (tela interna) renderiza este mesmo bloco
+          fora da pele, e lá os `--pf-invert-*` não existem. Slate-900 /
+          slate-50 / slate-400 são o equivalente do design system, e o verde
+          continua passando (4,8:1 sobre `#0f172a`). */}
+      <div
+        className="flex flex-wrap items-end justify-between gap-6 rounded-md bg-[var(--pf-invert,#0f172a)] p-6 sm:p-8"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 9px)",
+        }}
+      >
+        <div className="flex flex-col gap-2">
+          <span className="pf-panel-title text-[var(--pf-invert-soft,#94a3b8)]">
+            Investimento
+          </span>
+          {/* Neutro (`--pf-invert-ink`), nunca verde: custo não é ganho nem
+              perda, é a outra metade da fração. */}
+          <span className="pf-num-hero text-[var(--pf-invert-ink,#f8fafc)]">
             {preco.horasMes > 0 ? `${formatBRL(preco.mensal)}/mês` : "—"}
           </span>
           {preco.pisoAplicado && preco.horasMes > 0 ? (
-            <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
+            <span className="pf-hint text-[var(--pf-invert-soft,#94a3b8)]">
               cobrança mínima por conta de {formatBRL(13_000)}
             </span>
           ) : null}
           {precoParcial ? (
-            <span className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
+            <span className="pf-hint max-w-md text-[var(--pf-invert-soft,#94a3b8)]">
               {foraDoPreco.length === 1
                 ? `${foraDoPreco[0].nome} ainda está incompleto e entra no preço quando fechar o preenchimento.`
                 : `${foraDoPreco.length} times ainda incompletos entram no preço quando fecharem o preenchimento.`}
@@ -226,17 +265,19 @@ export function QuantoCusta({
           ) : null}
         </div>
         {gran ? (
-          <div className="flex flex-col gap-1 text-right">
-            <span className="text-sm text-[var(--pf-ink-soft,#475569)]">Por vendedor, por dia útil</span>
-            <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)]">
+          <div className="flex flex-col gap-2 sm:text-right">
+            <span className="pf-panel-title text-[var(--pf-invert-soft,#94a3b8)]">
+              Por vendedor, por dia útil
+            </span>
+            <span className="pf-num text-sm font-semibold text-[var(--pf-invert-ink,#f8fafc)]">
               {formatBRL(gran.custoDiaPorVendedor, 2)} investidos ·{" "}
               <span className="text-trend-positive">
                 {formatBRL(gran.retornoDiaPorAssento, 2)} de retorno projetado
               </span>
             </span>
-            <span className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
-              {formatX(gran.retornoDiaPorAssento / gran.custoDiaPorVendedor)} por dia, o
-              mesmo ROI da conta, só muda a régua
+            <span className="pf-hint text-[var(--pf-invert-soft,#94a3b8)]">
+              {formatX(gran.retornoDiaPorAssento / gran.custoDiaPorVendedor)} por
+              dia, o mesmo ROI da conta, só muda a régua
             </span>
           </div>
         ) : null}
@@ -310,7 +351,7 @@ export function QuantoCusta({
                     ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
                     : "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)]",
                   interativo && !ativo && "hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",
-                  readOnly && !ativo && "opacity-50",
+                  !ativo && "border-[var(--pf-line-strong,#cbd5e1)]",
                 )}
               >
                 <span
@@ -329,8 +370,8 @@ export function QuantoCusta({
           })}
         </div>
         <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
-          Prazo não altera preço: compra trava de reajuste (12m+) e nível de serviço
-          (24m).
+          Prazo não altera preço: compra trava de reajuste (a partir de 12 meses) e
+          nível de serviço acima (24 meses).
         </p>
       </div>
 
@@ -353,11 +394,16 @@ export function QuantoCusta({
             {preco.horasMes > 0 ? `${formatNumero(preco.horasMes * prazoMeses, 0)} h` : "—"}
           </span>
         </div>
-        <div className="flex items-baseline justify-between gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
+        {/* O fio FORTE, e só aqui: é a última linha da conta, e o degrau
+            `--pf-line-soft` que separa as linhas acima não distinguia o total
+            de mais uma parcela. "Fio = fecha conta" continua valendo — o que
+            mudou é que existem dois pesos de fecho, e o do contrato inteiro é o
+            de baixo. */}
+        <div className="flex items-baseline justify-between gap-4 border-t border-[var(--pf-line-strong,#cbd5e1)] pt-4">
           <span className="font-medium text-[var(--pf-ink,#0f172a)]">
             Total do contrato ({prazoMeses} meses)
           </span>
-          <span className="tabular-nums font-semibold text-[var(--pf-ink,#0f172a)]">
+          <span className="pf-num-kpi text-[var(--pf-ink,#0f172a)]">
             {preco.horasMes > 0 ? formatBRL(preco.mensal * prazoMeses) : "—"}
           </span>
         </div>

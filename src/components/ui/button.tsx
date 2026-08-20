@@ -38,7 +38,7 @@ const VARIANTS = {
   // As duas paradas do gradiente são tokens com fallback: fora da pele, o par
   // é o mesmo azul de sempre e nada no app interno muda; dentro de `.pf-calc`
   // ele vira preto (§13). Preto é o que a ação principal da jornada pede — numa
-  // página creme onde o azul já marca link, seleção e foco, um CTA azul empata
+  // página onde o azul já marca link, seleção, fundo e foco, um CTA azul empata
   // com tudo o que é só navegação, e o "Avançar" é a única coisa a fazer ali.
   primary: cn(
     "bg-[linear-gradient(145deg,var(--pf-cta-from,#3d75dd),var(--pf-cta-to,#2e63cd))] text-white",
@@ -46,8 +46,8 @@ const VARIANTS = {
     "hover:[filter:brightness(1.07)_saturate(1.04)]",
     "disabled:bg-none disabled:bg-slate-400 disabled:hover:[filter:none]",
   ),
-  // O `secondary` é branco cheio com fio slate frio, a única peça que denunciava
-  // outra paleta sobre o creme. Com fallback, nada muda fora de `.pf-calc`.
+  // O `secondary` é branco cheio com fio slate, a única peça que denunciava
+  // outra paleta dentro da pele. Com fallback, nada muda fora de `.pf-calc`.
   secondary: cn(
     "bg-[var(--pf-surface-alt,#ffffff)] text-[var(--pf-ink,#0f172a)] border border-[var(--pf-line,#e2e8f0)]",
     "hover:bg-[var(--pf-bar,#f8fafc)] hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",

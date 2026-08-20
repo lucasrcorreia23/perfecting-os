@@ -75,7 +75,7 @@ export const PASSOS: {
   },
   {
     id: 5,
-    titulo: "Funil",
+    titulo: "Conversão e margem",
     campos: ["conversaoPct", "margemPct"],
   },
   {

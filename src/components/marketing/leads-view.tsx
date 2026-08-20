@@ -19,7 +19,6 @@ import {
   type LeadStatus,
 } from "@/lib/constants";
 import { downloadText } from "@/lib/download";
-import { formatRelativeTime } from "@/lib/format";
 import type { AnswerMap } from "@/lib/marketing-answers";
 import type { FunnelQuestion } from "@/lib/marketing-funnel";
 import { csvFilename, leadsToCsv } from "@/lib/marketing-lead-export";
@@ -31,6 +30,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LeadStatusChip } from "@/components/ui/lead-status-chip";
 import { QualificacaoChip } from "@/components/ui/qualificacao-chip";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { ConvertLeadModal } from "./convert-lead-modal";
@@ -218,7 +218,7 @@ export function LeadsView({
       key: "recebido",
       header: "Recebido",
       render: (lead) => (
-        <span className="text-slate-600">{formatRelativeTime(lead.created_at)}</span>
+        <RelativeTime iso={lead.created_at} className="text-slate-600" />
       ),
     },
     {
@@ -331,7 +331,7 @@ export function LeadsView({
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <span>{lead.funnelName}</span>
-              <span>{formatRelativeTime(lead.created_at)}</span>
+              <RelativeTime iso={lead.created_at} />
             </div>
           </div>
         )}

@@ -10,11 +10,11 @@ import {
 import { linkCalculatorToClient } from "@/lib/actions/calculator-links";
 import { formatX } from "@/lib/calculadora/format";
 import { parseResumo } from "@/lib/calculadora/modelo";
-import { formatRelativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { CalculatorStatusChip } from "@/components/ui/calculator-status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { EncaminharCalculadoraModal } from "./encaminhar-modal";
 import { LinksTable, nomeDoLink, statusDoLink, type LinkRow } from "./links-table";
 import type { ClienteOption } from "./vincular-modal";
@@ -145,7 +145,9 @@ export function CalculadoraTab({
                         ROI {formatX(resumo?.consolidado?.roi ?? null)}
                       </span>
                       {link.last_access_at ? (
-                        <span>acesso {formatRelativeTime(link.last_access_at)}</span>
+                        <span>
+                          acesso <RelativeTime iso={link.last_access_at} />
+                        </span>
                       ) : null}
                     </span>
                   </span>

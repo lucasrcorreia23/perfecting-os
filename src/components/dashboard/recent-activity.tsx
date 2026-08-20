@@ -12,12 +12,13 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { STAGE_ORDER, STAGES, type WorkflowStage } from "@/lib/constants";
-import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import type { Tables } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 import type { HeroIcon } from "@/components/ui/types";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
+import { RelativeTime } from "@/components/ui/relative-time";
 
 export type FeedEvent = Tables<"events"> & {
   clients: { name: string } | null;
@@ -85,9 +86,11 @@ function EventRow({ event, detailed }: { event: FeedEvent; detailed?: boolean })
         {eventText(event)}
       </span>
       <span className="shrink-0 text-xs text-slate-400">
-        {detailed
-          ? formatDateTime(event.created_at)
-          : formatRelativeTime(event.created_at)}
+        {detailed ? (
+          formatDateTime(event.created_at)
+        ) : (
+          <RelativeTime iso={event.created_at} />
+        )}
       </span>
     </>
   );

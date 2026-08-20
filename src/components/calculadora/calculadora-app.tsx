@@ -55,12 +55,15 @@ import { EtapaAvancada } from "./etapa-avancada";
 import { EtapaExportar } from "./etapa-exportar";
 import { EtapaMensalidade } from "./etapa-mensalidade";
 import { EtapasNav, etapasLiberadas, type EtapaId } from "./etapas-nav";
+import { CaseSucesso } from "./case-sucesso";
 import { CalculadoraFooter } from "./footer";
 import { FaqPainel } from "./faq-cfo";
 import { Glossario } from "./glossario";
 import {
   ComparacaoCenarios,
   DecomposicaoValor,
+  descricaoDecomposicao,
+  DESCRICAO_CENARIOS,
   InvestimentoVsRetorno,
 } from "./graficos-resultado";
 import { PassoForm } from "./passo-form";
@@ -75,7 +78,7 @@ import {
   PerformanceCard,
   ResultadoIncompleto,
 } from "./resultado-time";
-import { SecaoResultado } from "./secao-resultado";
+import { GrupoRelatorio, SecaoResultado } from "./secao-resultado";
 import {
   errosPorCampo,
   resumoDoErro,
@@ -129,7 +132,9 @@ type View =
   | { modo: "avancado" }
   | { modo: "processando"; timeId: string }
   | { modo: "relatorio" }
-  | { modo: "exportar" };
+  // `imprimir` só existe no caminho "Exportar / salvar PDF" da capa: a etapa
+  // 04 monta e ABRE o diálogo de impressão sozinha. Ver `EtapaExportar`.
+  | { modo: "exportar"; imprimir?: boolean };
 
 const ETAPA_DA_VIEW: Record<View["modo"], EtapaId> = {
   mensalidade: "mensalidade",
@@ -581,7 +586,9 @@ export function CalculadoraApp({
   return (
     <main
       className={cn(
-        "page-fade-in flex min-h-[100dvh] flex-col bg-(--pf-canvas) transition-[padding] duration-300",
+        // Sem fundo próprio: a rampa azul da pele é pintada pelo body
+        // (globals.css), e um chapado aqui cobriria o gradiente inteiro.
+        "page-fade-in flex min-h-[100dvh] flex-col transition-[padding] duration-300",
         // Só o Glossário encolhe a página: ele é gaveta, e o formulário segue
         // editável ao lado. As Perguntas são modal.
         glossarioAberto && "sm:pr-[360px]",
@@ -746,7 +753,11 @@ export function CalculadoraApp({
         ) : null}
 
         {view.modo === "relatorio" ? (
-          <div className="@container flex flex-col gap-6">
+          // gap-6 entre CAPÍTULOS, gap-2 entre os cards de um capítulo. Os dois
+          // ritmos agora têm regra: 24px é troca de assunto, 8px é "o mesmo
+          // assunto, outro recorte". Antes a etapa era uma pilha única de dez
+          // blocos de peso idêntico, e o olho não achava onde um acabava.
+          <div className="@container flex flex-col gap-10">
             {/* A capa responde, e o cálculo continua abaixo na mesma rolagem.
                 Quando o time ativo não fechou a conta, quem aparece é a rede
                 (`ResultadoIncompleto`) — uma capa inteira de travessões diria
@@ -762,37 +773,52 @@ export function CalculadoraApp({
                     ?.scrollIntoView({ behavior: "smooth", block: "start" })
                 }
                 onAjustarProposta={() => irParaQuiz(timeAtualId, ULTIMO_PASSO)}
+                // Reabre o quiz na primeira pergunta, com tudo preenchido: o
+                // botão se chama "Refazer simulação" mas não apaga nada, e é a
+                // própria capa que diz isso abaixo dos botões.
+                onRefazer={() => irParaQuiz(timeAtualId, 1)}
+                // Imprimir DAQUI sairia como uma cópia crua da tela: o CSS de
+                // impressão (`body * { visibility: hidden }` + o recorte de
+                // `#resumo-verificavel`) mora dentro do `ResumoVerificavel`, e
+                // ele só existe na etapa 04. O botão então leva ao artefato e
+                // abre o diálogo lá — o que sai continua sendo só o Resumo,
+                // como o invariante manda. O `window.print()` do botão antigo
+                // tinha esse mesmo defeito, calado por ser secundário.
+                onExportar={() => setView({ modo: "exportar", imprimir: true })}
               />
             ) : null}
 
-            {/* A pilha de sempre, com `gap-2` (8px): blocos que quase se tocam,
-                e quem separa é a quebra de superfície, não a distância. */}
-            <div className="flex flex-col gap-2">
-              {multiTime ? (
-                <ConsolidadoView
-                  consolidado={modelo.consolidado}
-                  times={modelo.times}
-                  timeAtivo={timeAtualId}
-                  onSelecionarTime={setTimeAtivoId}
-                  onAddTime={() => setView({ modo: "avancado" })}
-                  podeAdicionar={estado.times.length < MAX_TIMES}
-                />
-              ) : null}
+            {multiTime ? (
+              <ConsolidadoView
+                consolidado={modelo.consolidado}
+                times={modelo.times}
+                timeAtivo={timeAtualId}
+                onSelecionarTime={setTimeAtivoId}
+                onAddTime={() => setView({ modo: "avancado" })}
+                podeAdicionar={estado.times.length < MAX_TIMES}
+              />
+            ) : null}
 
-              {timeModelo.resultado.status === "ok" ? (
-                <>
-                  {/* O hero saiu daqui: ele repetia, noutro desenho, os quatro
-                      números que a capa acabou de dar — e a "checagem de
-                      realidade" que ele carregava no rodapé já vive dentro do
-                      `PerformanceCard`, logo abaixo. `HeroResultado` continua
-                      exportado porque `link-detail` (tela interna) o usa. */}
-                  <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
+            {timeModelo.resultado.status === "ok" ? (
+              <>
+                {/* O hero saiu daqui: ele repetia, noutro desenho, os quatro
+                    números que a capa acabou de dar. `HeroResultado` continua
+                    exportado porque `link-detail` (tela interna) o usa. */}
+                <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
 
-                  <SecaoResultado
-                    id="ao-longo-de-12-meses"
-                    titulo="Ao longo de 12 meses"
-                    descricao="Editar a curva muda só a forma, nunca o ROI."
-                  >
+                <GrupoRelatorio
+                  id="ao-longo-de-12-meses"
+                  titulo={
+                    <>
+                      Ao longo de{" "}
+                      <em className="not-italic text-(--pf-brand-ink)">
+                        12 meses
+                      </em>
+                    </>
+                  }
+                  descricao="Editar a curva muda só a forma, nunca o ROI."
+                >
+                  <SecaoResultado>
                     <PaineisTrajetoria
                       margemMensalAtual={timeModelo.resultado.margemMensalAtual}
                       G={timeModelo.resultado.G}
@@ -808,128 +834,154 @@ export function CalculadoraApp({
                       }
                     />
                   </SecaoResultado>
+                </GrupoRelatorio>
+
+                {/* Quatro CARDS irmãos, não quatro sub-blocos dentro de um
+                    painel. Cada um tinha um `h3` na mesma classe do `h2` da
+                    seção que os continha — quatro títulos empatados, e nenhuma
+                    moldura dizendo onde um assunto acabava. */}
+                <GrupoRelatorio
+                  id="de-onde-vem"
+                  titulo={
+                    <>
+                      De onde vem o{" "}
+                      <em className="not-italic text-(--pf-brand-ink)">
+                        número
+                      </em>
+                    </>
+                  }
+                  descricao="As duas metades da soma."
+                >
+                  <SecaoResultado
+                    titulo="O racional em uma imagem"
+                    descricao="O que você paga contra o que a operação devolve, no mesmo ano."
+                  >
+                    <InvestimentoVsRetorno
+                      precoAno={timeModelo.resultado.precoAno}
+                      valorAno={timeModelo.resultado.valorAno}
+                    />
+                  </SecaoResultado>
+
+                  {/* Container query, não breakpoint de viewport: o que decide
+                      se cabem duas colunas é a largura DESTA coluna. A
+                      divisória vertical saiu — cada card tem moldura própria
+                      agora, e um fio entre duas molduras seria fio a mais. */}
+                  <div className="grid grid-cols-1 gap-2 @3xl:grid-cols-2">
+                    <SecaoResultado>
+                      <EficienciaCard
+                        resultado={timeModelo.resultado}
+                        entradas={timeModelo.entradas}
+                        plano={timeModelo.proposta.plano}
+                        rateio={
+                          estruturaAtiva(estado)
+                            ? {
+                                gestoresDaConta: estrutura.numGestoresTreino,
+                                pctVendedores:
+                                  vendedoresDaConta > 0
+                                    ? (timeModelo.estadoTime.entradas
+                                        .numVendedores ?? 0) / vendedoresDaConta
+                                    : 0,
+                              }
+                            : null
+                        }
+                      />
+                    </SecaoResultado>
+                    <SecaoResultado>
+                      <PerformanceCard
+                        resultado={timeModelo.resultado}
+                        entradas={timeModelo.entradas}
+                      />
+                    </SecaoResultado>
+                  </div>
 
                   <SecaoResultado
-                    id="de-onde-vem"
-                    titulo="De onde vem o número"
-                    descricao="As duas metades da soma."
-                    divisor
-                    ritmo="amplo"
+                    titulo="Decomposição do valor — as alavancas"
+                    descricao={descricaoDecomposicao(timeModelo.resultado)}
                   >
-                    {/* O racional em uma imagem: abre o bloco com a pergunta
-                          mais simples de todas — o que você paga contra o que
-                          volta —, antes de qualquer decomposição. */}
-                    <div className="flex flex-col gap-4">
-                      <h3 className="pf-panel-title text-(--pf-ink-soft)">
-                        O racional em uma imagem
-                      </h3>
-                      <InvestimentoVsRetorno
-                        precoAno={timeModelo.resultado.precoAno}
-                        valorAno={timeModelo.resultado.valorAno}
-                      />
-                    </div>
-
-                    {/* Container query, não breakpoint de viewport: o que
-                          decide se cabem duas colunas é a largura DESTA coluna. */}
-                    <div className="grid grid-cols-1 gap-8 @3xl:grid-cols-2 @3xl:gap-0">
-                      <div className="@3xl:pr-10">
-                        <EficienciaCard
-                          resultado={timeModelo.resultado}
-                          entradas={timeModelo.entradas}
-                          plano={timeModelo.proposta.plano}
-                          rateio={
-                            estruturaAtiva(estado)
-                              ? {
-                                  gestoresDaConta: estrutura.numGestoresTreino,
-                                  pctVendedores:
-                                    vendedoresDaConta > 0
-                                      ? (timeModelo.estadoTime.entradas.numVendedores ??
-                                          0) / vendedoresDaConta
-                                      : 0,
-                                }
-                              : null
-                          }
-                        />
-                      </div>
-                      <div className="@3xl:border-l @3xl:border-(--pf-line-soft) @3xl:pl-10">
-                        <PerformanceCard
-                          resultado={timeModelo.resultado}
-                          entradas={timeModelo.entradas}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
-                      <h3 className="pf-panel-title text-(--pf-ink-soft)">
-                        Decomposição do valor — as alavancas
-                      </h3>
-                      <DecomposicaoValor resultado={timeModelo.resultado} />
-                    </div>
-
-                    {/* Os sliders saíram daqui: a projeção se escolhe na
-                          pergunta 8 e se afina na etapa avançada. A faixa dos
-                          três cenários fica — ela é LEITURA, e é o que permite
-                          decidir sobre a faixa em vez de sobre um ponto. */}
-                    {comparacao ? (
-                      <div className="flex flex-col gap-4">
-                        <h3 className="pf-panel-title text-(--pf-ink-soft)">
-                          Comparação de cenários
-                        </h3>
-                        <ComparacaoCenarios
-                          linhas={comparacao}
-                          precoMes={timeModelo.resultado.precoMes}
-                          cenarioAtivo={
-                            timeModelo.sel.modo === "preset"
-                              ? timeModelo.sel.cenario
-                              : timeModelo.sel.base
-                          }
-                          personalizado={timeModelo.sel.modo === "personalizado"}
-                        />
-                      </div>
-                    ) : null}
+                    <DecomposicaoValor resultado={timeModelo.resultado} />
                   </SecaoResultado>
-                </>
-              ) : (
-                <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
-                  <ResultadoIncompleto
-                    faltando={timeModelo.resultado.faltando}
-                    onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
-                  />
-                </div>
-              )}
 
-              {timeModelo.coi ? (
-                <SecaoResultado
-                  id="o-que-esta-em-jogo"
-                  titulo="O que está em jogo hoje"
-                  descricao="A lacuna que o programa endereça, medida com os seus números."
-                >
+                  {/* Os sliders saíram daqui: a projeção se escolhe na pergunta
+                      8 e se afina na etapa avançada. A faixa dos três cenários
+                      fica — ela é LEITURA, e é o que permite decidir sobre a
+                      faixa em vez de sobre um ponto. */}
+                  {comparacao ? (
+                    <SecaoResultado
+                      titulo="Comparação de cenários"
+                      descricao={DESCRICAO_CENARIOS}
+                    >
+                      <ComparacaoCenarios
+                        linhas={comparacao}
+                        precoMes={timeModelo.resultado.precoMes}
+                        cenarioAtivo={
+                          timeModelo.sel.modo === "preset"
+                            ? timeModelo.sel.cenario
+                            : timeModelo.sel.base
+                        }
+                        personalizado={timeModelo.sel.modo === "personalizado"}
+                      />
+                    </SecaoResultado>
+                  ) : null}
+                </GrupoRelatorio>
+              </>
+            ) : (
+              <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
+                <ResultadoIncompleto
+                  faltando={timeModelo.resultado.faltando}
+                  onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
+                />
+              </div>
+            )}
+
+            {timeModelo.coi ? (
+              <GrupoRelatorio
+                id="o-que-esta-em-jogo"
+                titulo={
+                  <>
+                    O que está{" "}
+                    <em className="not-italic text-(--pf-brand-ink)">
+                      em jogo hoje
+                    </em>
+                  </>
+                }
+                descricao="A lacuna que o programa endereça, medida com os seus números."
+              >
+                <SecaoResultado>
                   <CustoInacao
                     coi={timeModelo.coi}
                     precoAno={
-                      timeModelo.resultado.status === "ok" ? timeModelo.resultado.precoAno : null
+                      timeModelo.resultado.status === "ok"
+                        ? timeModelo.resultado.precoAno
+                        : null
                     }
                     onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
                   />
                 </SecaoResultado>
-              ) : null}
+              </GrupoRelatorio>
+            ) : null}
 
-              {/* Leitura, não controle. Quem monta a proposta é a pergunta 8;
-                    aqui ela é conferida, e o atalho leva de volta a ela. */}
-              <SecaoResultado
-                id="quanto-custa"
-                titulo="Quanto custa"
-                descricao="A proposta que você montou na etapa 02."
-                acao={
-                  <Button
-                    variant="tertiary"
-                    size="sm"
-                    onClick={() => irParaQuiz(timeAtualId, ULTIMO_PASSO)}
-                  >
-                    Ajustar proposta
-                  </Button>
-                }
-              >
+            {/* Leitura, não controle. Quem monta a proposta é a pergunta 8;
+                aqui ela é conferida, e o atalho leva de volta a ela. */}
+            <GrupoRelatorio
+              id="quanto-custa"
+              titulo={
+                <>
+                  Quanto{" "}
+                  <em className="not-italic text-(--pf-brand-ink)">custa</em>
+                </>
+              }
+              descricao="A proposta que você montou na etapa 02."
+              acao={
+                <Button
+                  variant="tertiary"
+                  size="sm"
+                  onClick={() => irParaQuiz(timeAtualId, ULTIMO_PASSO)}
+                >
+                  Ajustar proposta
+                </Button>
+              }
+            >
+              <SecaoResultado>
                 <QuantoCusta
                   times={modelo.times}
                   preco={modelo.preco}
@@ -938,13 +990,28 @@ export function CalculadoraApp({
                   cabecalho={false}
                 />
               </SecaoResultado>
+            </GrupoRelatorio>
 
-              {modelo.consolidado.status !== "ok" ? (
-                <div className="px-6 pt-2">
-                  <Disclaimer />
-                </div>
-              ) : null}
-            </div>
+            {/* O fecho da jornada mudou de etapa em 20/08/2026: ele vinha
+                depois do resumo imprimível, na 04, e agora encerra o relatório.
+                É o único bloco que olha para FRENTE — tudo acima projeta doze
+                meses, e aqui a proposta se compromete com noventa dias. Ele
+                pertence à leitura da conta, não ao pacote que sai da tela.
+                Continua não imprimindo: só `#resumo-verificavel` sai na folha. */}
+            {metas ? (
+              <CaseSucesso
+                metas={metas}
+                cenarioLabel={cenarioLabel}
+                nomeTime={timeModelo.nome}
+                multiTime={multiTime}
+              />
+            ) : null}
+
+            {modelo.consolidado.status !== "ok" ? (
+              <div className="px-6 pt-2">
+                <Disclaimer />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -954,10 +1021,7 @@ export function CalculadoraApp({
             dataCalculo={dataCalculo}
             token={token}
             formulasLiberadas={formulasLiberadas}
-            metas={metas}
-            cenarioLabel={cenarioLabel}
-            nomeTime={timeModelo.nome}
-            multiTime={multiTime}
+            imprimirAoAbrir={view.imprimir === true}
             perguntas={perguntas}
             autosaveStatus={autosave.status}
             salvoEm={autosave.salvoEm}

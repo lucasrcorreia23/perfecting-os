@@ -26,7 +26,6 @@ import type { Tables } from "@/lib/database.types";
 import {
   dateInputToISO,
   formatDate,
-  formatRelativeTime,
   toDateInputValue,
 } from "@/lib/format";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -37,6 +36,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { DeleteNamedModal } from "@/components/ui/delete-named-modal";
 import { Field, Input } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { VincularClienteModal, type ClienteOption } from "./vincular-modal";
 
 export type LinkRow = Tables<"calculator_links">;
@@ -190,9 +190,10 @@ export function LinksTable({
         <span className="flex flex-col gap-0.5 tabular-nums">
           <span>{link.access_count}</span>
           {link.last_access_at ? (
-            <span className="text-xs font-normal text-slate-500">
-              {formatRelativeTime(link.last_access_at)}
-            </span>
+            <RelativeTime
+              iso={link.last_access_at}
+              className="text-xs font-normal text-slate-500"
+            />
           ) : null}
         </span>
       ),

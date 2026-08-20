@@ -22,8 +22,8 @@ const SELOS: Record<Selo, { label: string; className: string }> = {
     // chave permanece, é o vocabulário interno do racional.
     label: "Dados fornecidos",
     // Fallback em todo token: os selos aparecem nas duas telas. O `bg-blue-50`
-    // é azul-frio e sobre creme denuncia outra paleta — dentro da pele vira o
-    // tint da marca; fora, continua exatamente o azul-50 de hoje.
+    // é de outra escala de azuis e dentro da pele denuncia outra paleta — ali
+    // ele vira o tint da marca; fora, continua exatamente o azul-50 de hoje.
     className:
       "bg-[var(--pf-brand-tint,#eff6ff)] text-[var(--pf-brand-ink,#2E63CD)] border-[var(--pf-brand,#2e63cd)]/25",
   },

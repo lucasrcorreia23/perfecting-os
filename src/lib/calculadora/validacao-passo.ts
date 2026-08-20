@@ -47,7 +47,7 @@ function curtaDe(campo: CampoId): string {
   return "Preencha para continuar.";
 }
 
-const MENSAGEM_FUNIL = "Preencha os dois campos do ciclo — ou pule a etapa.";
+const MENSAGEM_FUNIL = "Preencha os dois campos — oportunidades e ciclo — ou pule a etapa.";
 
 /**
  * O que impede esta pergunta de ser dada por encerrada.

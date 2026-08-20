@@ -4,6 +4,7 @@ import {
   CHECAGEM_ALERTA,
   COI_CUSTO_SUBSTITUICAO,
   COI_DELTA_ATTAINMENT,
+  COI_FONTES,
   COI_FRACAO_COACHAVEL,
   COI_HAIRCUT,
   COI_HORAS_COACHING_MIN,
@@ -260,5 +261,44 @@ describe("busca", () => {
   it("é indiferente a caixa e devolve tudo com termo vazio", () => {
     expect(buscarReferencia("HAIRCUT").length).toBe(buscarReferencia("haircut").length);
     expect(buscarReferencia("   ").length).toBe(REFERENCIA.length);
+  });
+
+  // As fontes saíram da referência interna para a tela do visitante em
+  // 20/08/2026, e com elas saiu uma atribuição que a própria errata registrava
+  // como suspeita: a planilha credita os 40–60% de "no decision" a
+  // "Dixon/McKenna, HBR 2019", e o par assina o JOLT Effect, de 2022. Publicar
+  // a data errada numa tela que passa a página inteira construindo
+  // credibilidade custa mais do que a citação rende.
+  //
+  // O teste é por SUBSTRING e não por igualdade da lista: acrescentar uma
+  // sétima fonte é decisão editorial e não deve quebrar; reintroduzir a
+  // atribuição errada deve.
+  describe("as fontes publicadas do COI", () => {
+    it("não reintroduz a atribuição incorreta da planilha", () => {
+      const tudo = COI_FONTES.join(" | ");
+      expect(tudo, "a dupla Dixon/McKenna assina o JOLT Effect (2022)").not.toMatch(
+        /HBR\s*2019/i,
+      );
+      expect(tudo).toContain("JOLT Effect");
+    });
+
+    // Sem data, a citação não é verificável — e é a verificabilidade que
+    // justifica ter trazido as fontes para a tela do visitante.
+    it("data toda fonte publicada", () => {
+      for (const fonte of COI_FONTES) {
+        expect(fonte, `${fonte} deveria trazer o ano entre parênteses`).toMatch(
+          /\((19|20)\d{2}\)$/,
+        );
+      }
+    });
+
+    // A referência interna é o lugar onde a correção fica registrada com o
+    // porquê. Se a entrada sumir, a decisão perde o rastro.
+    it("é registrada na referência, com a divergência declarada", () => {
+      const entrada = REFERENCIA.find((r) => r.id === "coi-fontes");
+      expect(entrada, "a entrada coi-fontes precisa existir").toBeDefined();
+      expect(entrada?.divergencia).toMatch(/JOLT Effect/);
+      expect(entrada?.codigo).toBe("constants.ts#COI_FONTES");
+    });
   });
 });

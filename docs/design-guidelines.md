@@ -726,19 +726,39 @@ sem alteração.
 
 | Token | Hex | Papel |
 |---|---|---|
-| `--pf-canvas` | `#f2eee6` | Fundo da página (creme) |
-| `--pf-surface` | `#fbfaf5` | Card |
+| `--pf-canvas` | `#f2f6fd` | Fundo da página (azul quase branco) |
+| `--pf-canvas-top` / `-deep` | `#f7faff` / `#e6edfa` | Paradas da rampa do fundo |
+| `--pf-surface` | `#fbfcff` | Card |
 | `--pf-surface-alt` | `#ffffff` | Card interno não selecionado |
-| `--pf-bar` | `#f2f0e6` | Barra do topo |
+| `--pf-bar` | `#eaf0fa` | Barra do topo |
 | `--pf-brand` | `#2e63cd` | Primária: CTA, eyebrow, marca |
 | `--pf-brand-deep` | `#1e4a9e` | Hover de link textual |
-| `--pf-brand-tint` | `#edf2fc` | Opção selecionada |
+| `--pf-brand-tint` | `#e4edfb` | Opção selecionada |
 | `--pf-brand-ink` | `#1e4a9e` | Texto sobre o tint |
-| `--pf-ink` / `-soft` / `-faint` | `#1a1b1c` / `#55584f` / `#6b6d65` | Texto |
+| `--pf-ink` / `-soft` / `-faint` | `#1a1b1c` / `#4f5563` / `#5f6675` | Texto |
 | `--pf-input` + `--pf-input-border` + `--pf-input-text` | `#fdf1ae` + `#e7d47a` + `#2e42bf` | Campo editável |
-| `--pf-line` / `-soft` | `#e2ddd1` / `#eeebe2` | Fio externo / fio que fecha conta |
+| `--pf-line` / `-soft` / `-strong` | `#dfe5f0` / `#eaeef7` / `#a9b4c8` | Fio externo / fio que fecha conta / fio de controle |
 | `--pf-warn-ink` / `-surface` / `-line` | `#973c00` / `#fffbeb` / `#973c00` a 45% | Alerta |
-| `--pf-mono` | pilha de sistema | **Numerais, e só eles** |
+| `--pf-mono` | IBM Plex Mono | **Numerais, e só eles** |
+
+**O canvas era creme e virou azul quase branco, em gradiente** (decisão do
+decisor, 20/08/2026). O fundo é uma rampa de três paradas (`-top` → `-canvas` →
+`-deep`, 1,11:1 de ponta a ponta) que mora no **`body`** e não no wrapper: fundo
+de body se propaga para o canvas do viewport, e com `background-attachment:
+fixed` ele é a mesma luz de ambiente em qualquer ponto da rolagem — preso ao
+documento, o degradê se esticaria pelos 6.000px da etapa 03 e chegaria à tela
+como cor chapada. Por isso `calculadora-app` e `link-expirado` **não pintam mais
+o próprio fundo**, e o rodapé termina em `transparent`: qualquer chapado ali
+cobre a rampa ou emenda com ela num degrau.
+
+Duas consequências que não são gosto. **A temperatura arrastou os neutros
+junto** — superfície, barra, fios e os dois cinzas de texto: um card `#fbfaf5` ou
+um fio `#e2ddd1` sobre fundo frio não lê como papel, lê como mancha amarelada,
+que é o que a troca veio tirar da tela. E **o topo da rampa não é branco puro**:
+ela inteira precisa ficar abaixo de `--pf-surface` em claridade, senão o card
+fica mais escuro que a página onde o gradiente é mais claro. O campo amarelo
+fica: sobre azul ele ganha contraste em vez de perder, e continua sendo a
+legenda da planilha ("fonte azul sobre fundo amarelo = seu input").
 
 O protótipo previa `--pf-brand-deep` como "painel do preço, única superfície
 invertida". A linha saiu: `quanto-custa` é compartilhado com a tela interna e o
@@ -788,9 +808,11 @@ Duas coisas decidem o resto, e as duas são contraste:
   não pode vir para cá; a etapa 01 pode, porque nela ainda não existe nada que
   some ao ROI — só o preço.
 
-**O alerta é fio e ícone, não superfície.** Sobre o canvas creme, o `#FFFBEB` da
-§1 dá 1,12:1 — e nenhuma areia mais escura resolve (`#f4ebdd` dá 1,02:1), porque
-creme já é tinta quente. Escurecer até um amarelo de verdade colidiria com
+**O alerta é fio e ícone, não superfície.** Sobre o canvas, o `#FFFBEB` da §1 dá
+1,05:1 — e nenhuma areia mais escura resolve. A razão mudou com a pele e a
+conclusão não: sobre o creme o problema era ser tinta quente sobre tinta quente
+(1,12:1), sobre o azul quase branco é a claridade que empata. Escurecer até um
+amarelo de verdade colidiria com
 `--pf-input`, e dois amarelos com dois significados desfariam a coisa mais forte
 da pele. Por isso o `--pf-warn-line` é mais forte que o `/25` do app interno: o
 contorno e o triângulo carregam o sinal, e o preenchimento é sussurro.
@@ -815,12 +837,32 @@ rodam em `link-detail`) e override dentro da pele:
 |---|---|---|
 | `.pf-display` | 900, `clamp(34–54px)`, `−0,035em`, line 1,02 | H1 de etapa |
 | `.pf-title` | 900, `clamp(22–28px)`, `−0,025em` | Título de card de quiz |
-| `.pf-panel-title` | 800, 13px, **caixa alta**, `+0,12em` | Seções do relatório, eyebrow |
+| `.pf-panel-title` | 800, 13px, **caixa alta**, `+0,12em` | Etiqueta de painel, eyebrow |
+| `.pf-card-title` | 800, `clamp(16–18px)`, sentence case | Título de card com conteúdo próprio |
 | `.pf-label` | 700, 12px, **caixa alta**, `+0,10em` | Label de campo, rótulo de opção, rail |
 | `.pf-lead` | 400, `clamp(15–17px)`, line 1,5 | Corpo e descrição |
 | `.pf-hint` | 12,25px, line 20px | Microcopy sob campo e opção |
-| `.pf-num-hero` | Mono 700, `clamp(30–40px)`, `−0,03em`, `nowrap` | Mensalidade, ROI da capa |
+| `.pf-num-hero` | Mono 700, `clamp(30–40px)`, `−0,03em`, `nowrap` | Mensalidade, ROI, preço |
 | `.pf-num-kpi` | Mono 700, `clamp(21–27px)`, `nowrap` | Valores de KPI |
+
+**São nove níveis desde 20/08/2026, e o nono nasceu de um empate.** A passagem
+de hierarquia do relatório encontrou o `h2` da `SecaoResultado`, os `h3` de
+sub-bloco, o `CabecalhoParcela` e os títulos do COI TODOS em `.pf-panel-title`:
+cinco níveis lógicos em 13px de caixa alta, distinguidos só pela tinta. Faltava
+o degrau entre o capítulo e a etiqueta. `.pf-card-title` é sentence case de
+propósito — é isso que o torna um degrau e não um tamanho: a etiqueta em caixa
+alta ENCIMA o conteúdo, o título de card o NOMEIA e é lido como frase. Sem
+`text-transform` e sem tracking positivo: a exceção da §2 continua valendo para
+dois níveis, e só esses dois.
+
+**Os dois níveis numéricos ganharam regra base na mesma passagem**, pelo mesmo
+motivo dos outros sete: deixaram de ser exclusivos da capa. `pf-num-kpi` foi
+para `resultado-time` (o total de Eficiência/Performance) e `quanto-custa`
+(assentos, prática, total do contrato) — dois componentes que `link-detail`
+também renderiza, FORA da pele, onde uma classe sem regra base não vale nada e o
+número caía para os 14px herdados do body. **A base leva tamanho e
+`tabular-nums`, nunca `--pf-mono`**: a família da tela interna é a Inter, e o
+acesso à monoespaçada continua sendo só pela `.pf-calc .pf-num`.
 
 São classes e não utilitárias porque cada nível carrega cinco propriedades que
 só significam juntas — espalhadas em `className`, a primeira cópia sai com
@@ -853,7 +895,8 @@ DESIGN_SYSTEM descreve: amarelo `--pf-input`, borda de **1,5px**, sombra
 faz a célula parecer afundada em vez de pintada — a diferença entre "aqui você
 digita" e "aqui tem um destaque colorido".
 
-**A pele é creme + o azul da marca, não creme + verde.** O protótipo aprovado
+**A pele é o azul da marca, não o verde.** (Era creme + azul; o canvas virou azul
+quase branco em 20/08/2026, acima — o que segue vale igual.) O protótipo aprovado
 desenhava a primária em verde escuro (`#2a5d42`). Adotá-lo poria duas cores
 próximas com significados diferentes na mesma tela: o verde de marca e o
 `#0F9F2E` que a §1 reserva para *"entra na conta"*. A pele muda as superfícies —
@@ -894,14 +937,22 @@ sombras só dos três tokens da §6, foco visível em todo controle, tap target
 ≥ 44px, contraste mínimo de 4,5:1 em texto, e travessão no lugar de número
 quando o dado não existe.
 
-**E a §2 continua inegociável dentro da pele:** nada de caixa alta e nada de
-`letter-spacing` positivo. O protótipo desenhava eyebrows em caixa alta com
-tracking de 0,1em; onde um eyebrow existir, quem faz o papel é a monoespaçada e
-o tamanho, nunca o `uppercase`. O verde `#0F9F2E` também sobrevive intacto: a
-pele muda o papel, não a semântica de quais parcelas entram na conta.
+**A §2 foi reaberta em 20/08/2026, e só em dois níveis.** Este parágrafo dizia
+"nada de caixa alta e nada de `letter-spacing` positivo dentro da pele", e essa
+regra caiu quando o decisor adotou o §3.2 do DESIGN_SYSTEM: `.pf-panel-title` e
+`.pf-label` são caixa alta com tracking positivo. A exceção é estreita **por
+construção**, não por promessa: a caixa mora em duas regras CSS, nenhum
+componente escreve `uppercase` no `className`, e `design-tokens.test.ts` conta
+as ocorrências — um terceiro `text-transform` no `globals.css` reprova. A
+versão frouxa do teste ("existe pelo menos um") deixaria a caixa alta se
+espalhar de novo. O verde `#0F9F2E` sobrevive intacto: a pele muda o papel, não
+a semântica de quais parcelas entram na conta.
 
-**A monoespaçada é só para número** (decisão do decisor, 20/08/2026). Todo
-rótulo, título e eyebrow da jornada é **Inter**; a mono entra apenas em valores
+**A monoespaçada é só para número** (decisão do decisor, 20/08/2026). A parte
+deste parágrafo que dizia "todo rótulo e título da jornada é Inter" está
+superada — as famílias trocaram para Archivo + Plex Mono no mesmo dia, acima. O
+que continua valendo, e é o que o teste guarda, é o resto: a mono entra apenas
+em valores
 — KPI, preço, hora, percentual, e o número da etapa na régua. A razão é o que a
 mono faz: ela alinha dígito com dígito em coluna. Numa palavra ela não alinha
 nada, e o que sobra é uma tipografia estranha ao resto da página, que numa tela
@@ -930,3 +981,72 @@ peso 900 tem de estar carregado em `app/layout.tsx` (§2).
 **`--pf-ink-faint` é `#6b6d65`, não o `#7c7f75` do protótipo.** O valor original
 dava 3,52:1 sobre o canvas, abaixo do piso de 4,5:1 que esta própria seção
 declara preservado. O ajuste mantém o matiz e sobe para 4,54:1.
+
+### A etapa de relatório em quatro capítulos (20/08/2026)
+
+A etapa 03 tinha o conteúdo certo e nenhuma hierarquia: dez blocos de peso
+idêntico, todos os títulos em `.pf-panel-title`, e sete dialetos diferentes de
+número-manchete. A passagem trocou isso por **quatro capítulos** — *Ao longo de
+12 meses*, *De onde vem o número*, *O que está em jogo hoje*, *Quanto custa* —
+mais o case de sucesso, que mudou de etapa para fechar o relatório.
+
+**`GrupoRelatorio` é título sem superfície.** O capítulo é um `.pf-display`
+sobre o canvas, e os cards abaixo dele é que têm moldura. Essa ausência é o
+mecanismo: uma moldura em volta de outras molduras daria aninhamento, não
+capítulo — o corolário "conteúdo não é dono da própria superfície" da §5,
+aplicado um nível acima. Dois ritmos, cada um com regra: **`gap-6` entre
+capítulos** (troca de assunto), **`gap-2` entre os cards de um capítulo** (o
+mesmo assunto, outro recorte). Antes eram `gap-3` na capa e `gap-2` na pilha,
+sem nada que explicasse a diferença.
+
+**`LinhaBarra` põe a barra na linha.** O desenho empilhado — rótulo e valor numa
+linha, legenda noutra, barra full-width numa terceira — estava copiado em três
+lugares (`InvestimentoVsRetorno`, `DecomposicaoValor`, as cinco dimensões do
+COI) e tinha dois defeitos: cinco parcelas viravam quinze linhas de altura, e os
+valores nunca formavam coluna, então comparar duas parcelas exigia procurar cada
+número no seu próprio parágrafo. Grade de três trilhas no desktop, empilhada
+abaixo de `sm:` — uma barra inline não cabe em 360px com um rótulo de três
+palavras. **O separador é tracejado, e isso não fere o "fio = fecha conta"**: o
+fio sólido continua exclusivo do subtotal e o tracejado é régua de lista, que é
+a distinção que o §4 do DESIGN_SYSTEM já declarava.
+
+**O amarelo deixou de ser exclusivo do campo editável** (decisão do decisor). O
+card do ROI na capa adota o `--pf-input` do material de referência. A
+consequência é declarada, e a mitigação é o que sobra: o card leva a borda fina
+de sempre e **não** leva a sombra interna (`--pf-input-inset`) nem a borda de
+1,5px. É o conjunto — amarelo + borda grossa + inset + mono azul — que
+identifica "aqui você digita", e o card herda só o primeiro termo. O número fica
+em `--pf-ink`, nunca em verde: `#0f9f2e` sobre `#fdf1ae` dá 2,4:1.
+
+**Os dois primeiros KPIs da capa ficam na mesma régua — o ano.** O material de
+referência põe a mensalidade ao lado do valor anual, e quem confere dividindo
+acha doze vezes o ROI. O card do investimento mostra o valor ANUAL (o
+`consolidado.precoAno`, o mesmo denominador do motor) e leva o mensal na nota.
+Na tela, card 2 ÷ card 1 = card 3.
+
+**O painel do preço é `--pf-invert`, não o `--pf-brand-deep` da etapa 01**,
+apesar de os dois mostrarem a mesma mensalidade. O motivo é contraste: o painel
+carrega o "retorno projetado" em verde, e `#0F9F2E` dá 2,38:1 sobre o azul
+contra 4,9:1 sobre o escuro — a mesma razão pela qual a capa não pode ser azul.
+A etapa 01 pode porque nela ainda não existe nada que some ao ROI.
+
+**As opções não escolhidas pararam de ser `opacity-50`.** Em `readOnly` aquela
+é a proposta que vai à reunião: as opções recusadas precisam ser lidas — "por
+que não o Intensivo?" é a pergunta seguinte — e a 50% o texto caía abaixo do
+piso de contraste. Quem marca a escolha é a borda de marca; o fio de controle
+(`--pf-line-strong`) mantém as outras lendo como opção mesmo travadas.
+
+**`--pf-danger-surface` / `--pf-danger-line` são o alerta de RISCO**, e existem
+porque o âmbar já significa outra coisa: "confira isto". O diagnóstico de
+capacidade do COI ("não é falta de vontade, é falta de capacidade") é da mesma
+família das cinco parcelas que vazam. A tinta **não** ganhou token — é o
+`trend-negative` que já existe, a ~8:1 sobre o rosado. E a superfície é possível
+aqui porque este alerta mora DENTRO de um card `--pf-surface`, não sobre o
+canvas, que é o que obrigou o âmbar a virar fio-e-ícone.
+
+**"Exportar / salvar PDF" leva à etapa 04 e o diálogo abre lá.** O CSS que
+recorta a folha (`body * { visibility: hidden }` mais o recorte de
+`#resumo-verificavel`) mora dentro do `ResumoVerificavel`, que só existe na
+etapa 04: imprimir da etapa 03 saía como cópia crua da tela inteira, com régua
+de etapas, cabeçalho e botões. O botão "Imprimir" que vivia no painel da capa
+tinha esse mesmo defeito, calado por ser secundário.

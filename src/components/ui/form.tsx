@@ -65,9 +65,9 @@ export function Field({
   const leitura = escala === "leitura";
   const labelEl = (
     // Os tokens da pele da calculadora entram com FALLBACK: dentro de
-    // `.pf-calc` o rótulo acompanha o creme, e em todo o resto do app o
+    // `.pf-calc` o rótulo acompanha a tinta da pele, e em todo o resto do app o
     // fallback devolve o mesmo slate de sempre. Sem isto, todo rótulo de campo
-    // da jornada pública ficaria em cinza frio sobre fundo quente.
+    // da jornada pública sairia da escala de cinzas dela.
     <label htmlFor={htmlFor} className="pf-label text-[var(--pf-ink,#334155)]">
       {label}
     </label>

@@ -96,33 +96,38 @@ export function PerguntaCard({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-(--pf-line) pt-5">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 border-t border-(--pf-line) pt-5">
+        {/* Linha própria, sempre: com o skip-link dividindo espaço com Voltar
+            (o desenho antigo, um `flex-wrap` só), colunas estreitas empurravam
+            o Avançar sozinho para uma segunda linha — o CTA primário órfão,
+            alinhado à esquerda como se fosse acidente. Isolado aqui em cima,
+            Voltar e Avançar continuam sempre no mesmo par, na mesma linha. */}
+        {acaoSecundaria ? (
+          <button
+            type="button"
+            onClick={acaoSecundaria.onClick}
+            className={cn(
+              "inline-flex min-h-[44px] w-fit cursor-pointer items-center rounded-full px-2 text-sm font-medium text-(--pf-ink-soft) sm:min-h-8",
+              "transition-colors hover:text-(--pf-ink) hover:underline hover:underline-offset-[3px]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
+            )}
+          >
+            {acaoSecundaria.label}
+          </button>
+        ) : null}
+        <div className="flex items-center justify-between gap-3">
           <Button variant="secondary" icon={ArrowLeftIcon} onClick={onVoltar}>
             Voltar
           </Button>
-          {acaoSecundaria ? (
-            <button
-              type="button"
-              onClick={acaoSecundaria.onClick}
-              className={cn(
-                "inline-flex min-h-[44px] cursor-pointer items-center rounded-full px-2 text-sm font-medium text-(--pf-ink-soft) sm:min-h-8",
-                "transition-colors hover:text-(--pf-ink) hover:underline hover:underline-offset-[3px]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
-              )}
-            >
-              {acaoSecundaria.label}
-            </button>
-          ) : null}
+          <Button
+            variant="primary"
+            icon={ArrowRightIcon}
+            iconPosition="right"
+            onClick={onAvancar}
+          >
+            {rotuloAvancar}
+          </Button>
         </div>
-        <Button
-          variant="primary"
-          icon={ArrowRightIcon}
-          iconPosition="right"
-          onClick={onAvancar}
-        >
-          {rotuloAvancar}
-        </Button>
       </div>
     </div>
   );

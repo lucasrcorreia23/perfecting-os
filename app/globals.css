@@ -278,18 +278,34 @@ body {
 /*
  * ---------------------------------------------------------------------------
  * Pele da calculadora pública (`.pf-calc`, §13 das diretrizes). Decisão de
- * 19/08/2026: a jornada do visitante ganha superfícies próprias — creme, o
- * campo amarelo com texto azul (a legenda da planilha que originou o produto:
- * "fonte azul sobre fundo amarelo = seu input") e numerais em monoespaçada.
+ * 19/08/2026: a jornada do visitante ganha superfícies próprias — o campo
+ * amarelo com texto azul (a legenda da planilha que originou o produto: "fonte
+ * azul sobre fundo amarelo = seu input") e numerais em monoespaçada.
  *
  * O app interno NÃO muda: os tokens vivem nesta classe, nunca no `:root`. Se
  * `.pf-calc` não está no ancestral, vale o design system das §1–12 — e
  * `design-tokens.test.ts` falha se algum `--pf-*` escapar para o `:root` ou
  * para o `@theme`.
  *
- * A pele é creme + o AZUL da marca. O protótipo desenhava a primária em verde
- * escuro, o que poria `#2a5d42` (marca) e `#0F9F2E` ("entra na conta", §1) na
- * mesma tela com significados diferentes. A pele muda o papel, não a semântica.
+ * A pele é o AZUL da marca. O protótipo desenhava a primária em verde escuro, o
+ * que poria `#2a5d42` (marca) e `#0F9F2E` ("entra na conta", §1) na mesma tela
+ * com significados diferentes. A pele muda o papel, não a semântica.
+ *
+ * O CANVAS ERA CREME e virou azul quase branco, em gradiente (decisão do
+ * decisor, 20/08/2026). A temperatura arrastou junto tudo o que era neutro
+ * quente — superfície, barra, fios e os dois cinzas de texto: um card `#fbfaf5`
+ * ou um fio `#e2ddd1` sobre fundo frio não lê como "papel", lê como mancha
+ * amarelada, que é justamente o que a troca veio tirar da tela. O que NÃO
+ * mudou: o campo amarelo (a legenda da planilha continua sendo a coisa mais
+ * forte da pele, e sobre azul ele ganha contraste em vez de perder), o CTA
+ * preto e todos os pisos de contraste, refeitos contra o novo fundo.
+ *
+ * O gradiente mora no `body` e não aqui: fundo de body se propaga para o canvas
+ * do viewport, então `background-attachment: fixed` cobre a tela inteira sem
+ * depender da altura do wrapper — e a etapa 03, que passa dos 6.000px, teria um
+ * degradê tão esticado que viraria cor chapada. Por isso `calculadora-app` e
+ * `link-expirado` NÃO pintam mais o próprio fundo: qualquer chapado ali cobriria
+ * o gradiente inteiro.
  *
  * ATENÇÃO ao segundo seletor: `Modal`, `SelectMenu`, `ActionMenu`, o Glossário
  * e a barra de progresso fazem `createPortal` para o `document.body`, para
@@ -300,21 +316,41 @@ body {
  */
 .pf-calc,
 body:has(.pf-calc) {
-  --pf-canvas: #f2eee6;
-  --pf-surface: #fbfaf5;
+  /* As três paradas do gradiente do fundo. `--pf-canvas` continua sendo a cor
+     CHAPADA da pele (fallback do gradiente, e é a ela que o rodapé se atém);
+     as outras duas só existem para a rampa do body. A amplitude inteira é de
+     1,11:1 — "bem próximo do branco" é requisito, não timidez: o que a rampa
+     precisa fazer é dar profundidade sem virar uma segunda superfície.
+
+     O topo é `#f7faff` e NÃO o branco puro, e isso é estrutura: a rampa inteira
+     tem de ficar abaixo de `--pf-surface` em claridade, senão o card fica mais
+     ESCURO que a página no ponto mais claro do gradiente e passa a ler como
+     mancha em vez de papel. Foi o que aconteceu com o branco no topo. */
+  --pf-canvas: #f2f6fd;
+  --pf-canvas-top: #f7faff;
+  --pf-canvas-deep: #e6edfa;
+  /* Mais claras que o canvas em qualquer ponto da rampa — é essa diferença, e
+     não o fio, que faz um card ler como card. */
+  --pf-surface: #fbfcff;
   --pf-surface-alt: #ffffff;
-  --pf-bar: #f2f0e6;
+  --pf-bar: #eaf0fa;
 
   --pf-brand: #2e63cd;
   --pf-brand-deep: #1e4a9e;
-  --pf-brand-tint: #edf2fc;
+  /* Um degrau mais fundo que o `#edf2fc` do creme: ali o tinte de "opção
+     escolhida" se destacava por ser FRIO num ambiente quente, e num ambiente
+     azul essa parte do sinal deixa de existir. Sobre `--pf-surface` ele agora
+     se separa por claridade, e `--pf-brand-ink` mantém 7,05:1 em cima dele. */
+  --pf-brand-tint: #e4edfb;
   --pf-brand-ink: #1e4a9e;
 
   --pf-ink: #1a1b1c;
-  --pf-ink-soft: #55584f;
-  /* #6b6d65 e não o #7c7f75 do protótipo: aquele dava 3,52:1 sobre o canvas,
-     abaixo do piso de 4,5:1 que a própria §13 declara preservado. */
-  --pf-ink-faint: #6b6d65;
+  /* Os dois cinzas saíram do oliva (`#55584f`/`#6b6d65`) para o frio, pela
+     razão do cabeçalho: cinza quente sobre fundo frio lê como tinta velha.
+     Contra o ponto MAIS ESCURO da rampa (`--pf-canvas-deep`), que é o pior
+     caso, dão 6,35:1 e 4,88:1 — o piso de 4,5:1 da §13 segue de pé. */
+  --pf-ink-soft: #4f5563;
+  --pf-ink-faint: #5f6675;
 
   --pf-input: #fdf1ae;
   --pf-input-border: #e7d47a;
@@ -333,22 +369,22 @@ body:has(.pf-calc) {
   --pf-cta-from: #33353a;
   --pf-cta-to: #1a1b1c;
 
-  --pf-line: #e2ddd1;
+  --pf-line: #dfe5f0;
   /* Segundo degrau de fio. O produto usa dois ("fio = fecha conta": o externo
      desenha o bloco, o interno fecha subtotal) e colapsá-los num só apagaria a
      distinção — em `Linha`, o `border-t` só existe na linha de destaque. */
-  --pf-line-soft: #eeebe2;
+  --pf-line-soft: #eaeef7;
 
   /*
-   * Alerta. O `--pf-warn-ink` é o `#973C00` da §1, intocado: sobre creme ele dá
-   * 6,13:1 e ainda ganha — marrom-alaranjado sobre creme lê como carimbo.
+   * Alerta. O `--pf-warn-ink` é o `#973C00` da §1, intocado: sobre o canvas ele
+   * dá 6,9:1 (dava 6,13:1 sobre o creme, e o fundo mais claro só ajudou).
    *
-   * O preenchimento é outra história, e a saída fácil não existe. Sobre o canvas
-   * creme, `#FFFBEB` dá 1,12:1 e QUALQUER areia mais escura também fica em ~1,0
-   * (testado: `#f4ebdd` dá 1,02:1) — creme já é tinta quente, então nenhum
-   * preenchimento claro se destaca dele. E escurecer até um amarelo de verdade
-   * colidiria com `--pf-input`, desfazendo a coisa mais forte da pele: dentro
-   * dela, amarelo significa "campo que você preenche".
+   * O preenchimento continua sendo o problema, agora por outro motivo. Sobre o
+   * creme, `#FFFBEB` dava 1,12:1 porque creme já era tinta quente; sobre o azul
+   * quase branco ele dá 1,05:1 — mais fraco ainda, porque a areia e o fundo
+   * empataram em claridade. E escurecer até um amarelo de verdade colidiria com
+   * `--pf-input`, desfazendo a coisa mais forte da pele: dentro dela, amarelo
+   * significa "campo que você preenche".
    *
    * Por isso quem carrega o sinal aqui é o FIO e o ícone, não a superfície — o
    * preenchimento fica como sussurro, útil onde o fundo é mais claro.
@@ -382,8 +418,12 @@ body:has(.pf-calc) {
    * inventar um segundo verde.
    */
   --pf-invert: #1a1b1c;
-  --pf-invert-ink: #f6f5f0;
-  --pf-invert-soft: #a8aaa2;
+  /* Os dois claros seguiram a temperatura do resto da pele: um off-white quente
+     sobre painel escuro ao lado de um canvas frio lê como papel amarelado, e o
+     painel invertido é exatamente o bloco que não pode parecer sujo. Os
+     contrastes acima não se movem (16:1 e 7,1:1). */
+  --pf-invert-ink: #f4f7fc;
+  --pf-invert-soft: #a6abb5;
   --pf-invert-line: #ffffff26;
 
   /*
@@ -410,7 +450,7 @@ body:has(.pf-calc) {
    * que tem o ROI em verde, não pode vir para cá — e a etapa 01 pode, porque
    * nela ainda não existe nada que some ao ROI.
    */
-  --pf-on-brand: #f6f5f0;
+  --pf-on-brand: #f4f7fc;
   --pf-on-brand-soft: #b9c9e9;
   --pf-on-brand-line: #ffffff33;
 
@@ -437,8 +477,12 @@ body:has(.pf-calc) {
    * responda ao clique. É o `--line-strong` do §2.1 do DESIGN_SYSTEM levado ao
    * matiz da pele. Sem essa segunda intensidade, controle e moldura dividiam a
    * mesma borda e nada dizia onde se podia clicar.
+   *
+   * O frio (`#a9b4c8`, era `#b9b2a0`) mantém a claridade do sépia que ele
+   * substitui — 2,09:1 sobre branco contra 2,08:1: a troca é de matiz, e a
+   * distância entre os dois fios continua a mesma.
    */
-  --pf-line-strong: #b9b2a0;
+  --pf-line-strong: #a9b4c8;
 
   /*
    * A sombra interna da célula de planilha (§5.1). É ela que faz o campo
@@ -447,6 +491,27 @@ body:has(.pf-calc) {
    * sobre o amarelo, fraca o bastante para não virar borda dupla.
    */
   --pf-input-inset: #00000014;
+
+  /*
+   * Alerta de RISCO — o diagnóstico de capacidade do Custo da Inação, e só ele.
+   *
+   * Não é o âmbar. O âmbar (`--pf-warn-*`) diz "confira isto"; aqui a frase diz
+   * "a demanda não cabe na agenda dos seus gestores", que é a mesma família do
+   * vermelho que já pinta as cinco parcelas que vazam (`trend-negative`). Dois
+   * significados, duas cores — é a semântica da §1, aplicada.
+   *
+   * A tinta NÃO ganha token: é `text-trend-negative` (#9f0f0f), que já existe e
+   * dá ~8:1 sobre a superfície abaixo. Inventar um segundo vermelho de texto
+   * seria criar a divergência que a §1 existe para impedir.
+   *
+   * Por que uma superfície aqui e não o fio-e-ícone que o âmbar foi obrigado a
+   * ser: o alerta do âmbar mora sobre o CANVAS (`#fffbeb` sobre `#f2f6fd` dá
+   * 1,05:1 — invisível). Este mora DENTRO de um card `--pf-surface`, quase
+   * branco, onde o rosado se destaca. A regra da §13 não foi quebrada; ela não
+   * alcança este caso.
+   */
+  --pf-danger-surface: #fdf0ec;
+  --pf-danger-line: #9f0f0f40;
 
   /*
    * A dupla tipográfica do DESIGN_SYSTEM da calculadora (§3.1). A Archivo entra
@@ -463,14 +528,39 @@ body:has(.pf-calc) {
     Menlo, Consolas, monospace;
 }
 
+/* A pintura NÃO mora aqui — ver o body, logo abaixo. Um `background` neste
+   wrapper cobriria o gradiente inteiro, porque ele é o pai de tudo. */
 .pf-calc {
-  background: var(--pf-canvas);
   color: var(--pf-ink);
 }
 
-/* O fundo do body é do app interno (#f9f9f9, §1). Dentro da calculadora ele some. */
+/*
+ * O fundo do body é do app interno (#f9f9f9, §1). Dentro da calculadora ele vira
+ * a rampa azul quase branca da pele.
+ *
+ * Três decisões neste bloco, e nenhuma é gosto:
+ *
+ * 1. O gradiente mora no BODY. Fundo de body se propaga para o canvas do
+ *    viewport, então ele cobre a tela toda mesmo onde nenhum elemento chega —
+ *    overscroll, área ao lado de um modal, a folga abaixo de uma etapa curta.
+ *
+ * 2. `fixed` e não `scroll`: preso ao documento, a rampa se esticaria pelos
+ *    6.000px da etapa 03 e chegaria à tela como cor chapada. Presa ao viewport,
+ *    ela é a mesma luz de ambiente em qualquer ponto da rolagem.
+ *
+ * 3. `--pf-canvas` fica como `background-color` embaixo: é a cor chapada da pele
+ *    (o rodapé se atém a ela) e o que sobra se o gradiente não pintar.
+ */
 body:has(.pf-calc) {
-  background: var(--pf-canvas);
+  background-color: var(--pf-canvas);
+  background-image: linear-gradient(
+    180deg,
+    var(--pf-canvas-top) 0%,
+    var(--pf-canvas) 45%,
+    var(--pf-canvas-deep) 100%
+  );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 /* Fallback porque `campo-numero` é compartilhado com a tela interna, onde
@@ -582,6 +672,34 @@ body:has(.pf-calc) {
   line-height: 1.25rem;
 }
 
+/*
+ * Título de CARD — Archivo 800, 16→18px, sentence case.
+ *
+ * O nono nível, nascido da passagem de hierarquia do relatório (20/08/2026). Os
+ * oito do §3.2 tinham um buraco no meio: entre o capítulo (`.pf-display`) e a
+ * etiqueta de painel (`.pf-panel-title`, 13px caixa alta) não havia degrau, e
+ * por isso "Eficiência: o que deixa de ser gasto" — que é o título de um card
+ * com conteúdo próprio — saía na MESMA classe de "O RACIONAL EM UMA IMAGEM",
+ * que é etiqueta de faixa. Cinco `h2`/`h3` da etapa 03 empatavam em 13px.
+ *
+ * Sentence case de propósito, e é isso que o torna um degrau em vez de um
+ * tamanho: a etiqueta em caixa alta encima o conteúdo, o título de card NOMEIA
+ * o conteúdo e é lido como frase. Sem `text-transform` e sem tracking positivo
+ * — a exceção da §2 continua valendo para dois níveis, e só esses dois.
+ */
+.pf-card-title {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.5rem;
+}
+.pf-calc .pf-card-title {
+  font-size: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.5rem;
+}
+
 /* Label de campo — Archivo 700, 12px, caixa alta, tracking +10%. */
 .pf-label {
   font-size: 0.875rem;
@@ -630,7 +748,28 @@ body:has(.pf-calc) {
  * Números-manchete — Plex Mono 700. O `nowrap` é regra do §3.2: número grande
  * que quebra em duas linhas deixa de ser lido como um valor único, e o caso que
  * a motivou foi o botão de confirmação do protótipo.
+ *
+ * Os dois ganharam REGRA BASE em 20/08/2026, e a razão é a mesma dos outros
+ * sete níveis: eles deixaram de ser exclusivos da capa. A passagem de
+ * hierarquia do relatório os levou para `resultado-time` (o total de
+ * Eficiência/Performance) e `quanto-custa` (assentos, prática contratada,
+ * total do contrato) — dois componentes que `link-detail` também renderiza,
+ * FORA da pele. Sem base, a classe não valia nada lá: os números caíam para os
+ * 14px herdados do body, menores do que o `text-lg` que substituíram.
+ *
+ * Fora da pele NÃO há mono, de propósito: a família da tela interna é a Inter,
+ * e o acesso à monoespaçada continua sendo só pela `.pf-calc .pf-num` (§13).
+ * O que a base carrega é o TAMANHO e o `tabular-nums` — que é o que faz uma
+ * coluna de valores parar de dançar.
  */
+.pf-num-hero {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
 .pf-calc .pf-num-hero {
   font-family: var(--pf-mono);
   font-variant-numeric: tabular-nums;
@@ -638,6 +777,13 @@ body:has(.pf-calc) {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.05;
+  white-space: nowrap;
+}
+.pf-num-kpi {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5rem;
   white-space: nowrap;
 }
 .pf-calc .pf-num-kpi {

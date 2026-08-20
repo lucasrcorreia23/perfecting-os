@@ -11,13 +11,13 @@ import {
 } from "@heroicons/react/24/outline";
 import { deleteFunnel } from "@/lib/actions/marketing-funnels";
 import type { FunnelStatus } from "@/lib/constants";
-import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { DeleteNamedModal } from "@/components/ui/delete-named-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FunnelStatusChip } from "@/components/ui/funnel-status-chip";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { SearchInput } from "@/components/ui/search-input";
 import { NewFunnelButton } from "./new-funnel-modal";
 
@@ -129,7 +129,7 @@ export function FunnelsView({ funnels }: { funnels: FunnelRow[] }) {
       key: "atualizado",
       header: "Atualizado",
       render: (funnel) => (
-        <span className="text-slate-600">{formatRelativeTime(funnel.updated_at)}</span>
+        <RelativeTime iso={funnel.updated_at} className="text-slate-600" />
       ),
     },
     {
@@ -219,7 +219,7 @@ export function FunnelsView({ funnels }: { funnels: FunnelRow[] }) {
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <span className="tabular-nums">{funnel.questionCount} perguntas</span>
               <span className="tabular-nums">{funnel.leadCount} leads</span>
-              <span>{formatRelativeTime(funnel.updated_at)}</span>
+              <RelativeTime iso={funnel.updated_at} />
             </div>
           </div>
         )}

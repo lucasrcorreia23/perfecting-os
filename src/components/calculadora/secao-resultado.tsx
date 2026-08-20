@@ -55,7 +55,10 @@ export function SecaoResultado({
   ritmo = "normal",
 }: {
   id?: string;
-  titulo: string;
+  // Opcional desde 20/08/2026: num `GrupoRelatorio` de card único o capítulo
+  // logo acima já nomeia o assunto, e repetir o nome dentro da moldura daria
+  // dois títulos para um conteúdo só. Sem título, o cabeçalho não nasce.
+  titulo?: string;
   descricao?: string;
   acao?: ReactNode;
   children: ReactNode;
@@ -75,24 +78,27 @@ export function SecaoResultado({
           "rounded-md border border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface,#ffffff)] p-6 sm:p-8",
       )}
     >
-      <div
-        className={cn(
-          "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
-          // Fio interno, o degrau que fecha conta — não o mesmo da moldura.
-          divisor && "border-b border-[var(--pf-line-soft,#f1f5f9)] pb-6",
-        )}
-      >
-        {/* gap-2 e não gap-1: a etiqueta em caixa alta precisa de mais ar sob
-            ela do que um título em sentence case — o tracking de +12% empurra a
-            palavra para a direita e a linha de baixo colava. */}
-        <div className="flex flex-col gap-2">
-          {/* Só renderiza aqui — `link-detail` monta o próprio cabeçalho e não
-              usa `SecaoResultado`, só o `BlocoRecolhivel` abaixo. A classe tem
-              regra base fora da pele mesmo assim: componente compartilhado não
-              pode depender de estar dentro dela para ter tipografia. */}
-          <h2 className="pf-panel-title text-[var(--pf-ink,#0f172a)]">
-            {titulo}
-          </h2>
+      {titulo || descricao || acao ? (
+        <div
+          className={cn(
+            "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
+            // Fio interno, o degrau que fecha conta — não o mesmo da moldura.
+            divisor && "border-b border-[var(--pf-line-soft,#f1f5f9)] pb-6",
+          )}
+        >
+          {/* gap-2 e não gap-1: a etiqueta em caixa alta precisa de mais ar sob
+              ela do que um título em sentence case — o tracking de +12% empurra a
+              palavra para a direita e a linha de baixo colava. */}
+          <div className="flex flex-col gap-2">
+            {/* Só renderiza aqui — `link-detail` monta o próprio cabeçalho e não
+                usa `SecaoResultado`, só o `BlocoRecolhivel` abaixo. A classe tem
+                regra base fora da pele mesmo assim: componente compartilhado não
+                pode depender de estar dentro dela para ter tipografia. */}
+            {titulo ? (
+              <h2 className="pf-panel-title text-[var(--pf-ink,#0f172a)]">
+                {titulo}
+              </h2>
+          ) : null}
           {descricao ? (
             <p className="pf-lead text-[var(--pf-ink-soft,#475569)]">
               {descricao}
@@ -101,6 +107,7 @@ export function SecaoResultado({
         </div>
         {acao}
       </div>
+      ) : null}
       <div
         className={cn(
           "flex flex-col",
@@ -166,5 +173,65 @@ export function BlocoRecolhivel({
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// O CAPÍTULO do relatório — o degrau que faltava acima do painel.
+//
+// Antes desta passagem (20/08/2026) a etapa 03 era uma pilha de dez blocos de
+// peso idêntico: o `h2` da `SecaoResultado`, os `h3` de sub-bloco, o
+// `CabecalhoParcela` e os títulos do COI eram TODOS `.pf-panel-title` — 13px,
+// caixa alta, distinguidos só pela tinta. Sem degrau, uma rolagem de dez blocos
+// não tem sumário: o olho não encontra onde um assunto acaba.
+//
+// O grupo não é uma superfície. Ele é um título sobre o canvas, e os cards
+// abaixo dele é que têm moldura. É essa ausência que faz a hierarquia funcionar
+// — uma moldura em volta de outras molduras daria aninhamento, não capítulo, e
+// o §5 das diretrizes já diz que conteúdo não é dono da própria superfície.
+//
+// `titulo` é ReactNode e não string porque a ênfase de uma palavra mora no
+// chamador: `<>De onde vem o <em className="not-italic
+// text-(--pf-brand-ink)">número</em></>`. Uma prop `destaque: string` obrigaria
+// a inventar uma regra de qual palavra pintar.
+//
+// Fallback em todo token, apesar de só a jornada renderizar grupos hoje: o
+// teste da §13 avalia o ARQUIVO, e `BlocoRecolhivel` (mesmo arquivo) roda em
+// `link-detail`. A regra é boa mesmo assim — se um dia a tela interna quiser
+// capítulos, eles já nascem com a tipografia certa fora da pele.
+export function GrupoRelatorio({
+  id,
+  titulo,
+  descricao,
+  acao,
+  children,
+}: {
+  id?: string;
+  titulo: ReactNode;
+  descricao?: string;
+  acao?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="flex scroll-mt-8 flex-col gap-4">
+      {/* px-1: o título mora fora da moldura, e sem esse fio de recuo ele
+          encostaria na borda do viewport no mobile enquanto os cards abaixo
+          têm p-6. Meio-passo é proibido em espaçamento (§3), mas isto é
+          alinhamento óptico de texto contra caixa, não ritmo. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 px-1 sm:px-2">
+        <div className="flex flex-col gap-2">
+          <h2 className="pf-display text-[var(--pf-ink,#0f172a)]">{titulo}</h2>
+          {descricao ? (
+            <p className="pf-lead text-[var(--pf-ink-soft,#475569)]">
+              {descricao}
+            </p>
+          ) : null}
+        </div>
+        {acao}
+      </div>
+      {/* gap-2 (8px): a mesma cadência da pilha inteira — blocos que quase se
+          tocam, separados pela quebra de superfície e não pela distância. */}
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
   );
 }

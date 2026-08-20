@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowRightIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowRightIcon,
+  ArrowUpIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import {
   CASE_JANELA_MESES,
   ESCADA_PRECO,
@@ -147,7 +151,8 @@ export function EtapaMensalidade({
           empata com a mensalidade logo acima. Os porquês, com os números, ficam
           no comentário de `--pf-on-brand` em `globals.css`.
 
-          Travessão enquanto não há vendedores — nunca zero (P6).
+          Travessão enquanto não há vendedores — nunca zero (P6). O vazio, que é
+          como a tela abre, tem desenho próprio (abaixo).
         */}
         <div className="flex flex-col gap-4 rounded-md bg-(--pf-brand-deep) p-6 sm:p-7">
           <span
@@ -156,9 +161,42 @@ export function EtapaMensalidade({
           >
             Mensalidade estimada
           </span>
-          <span className="pf-num-hero text-(--pf-on-brand)">
-            {formatBRL(preco?.mensal ?? null)}
-          </span>
+          {preco ? (
+            <span className="pf-num-hero text-(--pf-on-brand)">
+              {formatBRL(preco.mensal)}
+            </span>
+          ) : (
+            /*
+              O estado vazio — e ele é o primeiro que se vê, porque
+              `numVendedores` nasce null. O painel estreava com QUATRO
+              travessões (o herói e as três leituras derivadas): um travessão
+              sozinho em 40px de mono não lê como "ainda não há valor", lê como
+              elemento quebrado, e os três de baixo repetiam a mesma notícia em
+              fila.
+
+              O slot guarda a FORMA do valor: `R$ —` é o mesmo travessão que
+              `formatBRL` devolve, com a moeda na frente para o espaço continuar
+              lendo como dinheiro. Vai apagado e `aria-hidden` porque quem
+              carrega o sentido é a linha abaixo dele; as três leituras
+              derivadas simplesmente não existem enquanto não há o que derivar.
+
+              Skeleton pulsante seria a saída errada: pulso promete que algo vem
+              sozinho, e aqui a espera é por QUEM LÊ. Por isso o ghost é inerte e
+              a linha aponta para cima — os dois campos ficam acima do painel em
+              qualquer largura, porque a coluna é uma só.
+            */
+            <div className="flex flex-col gap-2">
+              <span className="pf-num-hero text-(--pf-on-brand)/40" aria-hidden>
+                R$ —
+              </span>
+              <p className="flex items-start gap-2 text-sm leading-6 text-(--pf-on-brand-soft)">
+                <ArrowUpIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  Informe quantos vendedores acima e a mensalidade aparece aqui.
+                </span>
+              </p>
+            </div>
+          )}
           {/*
             O selo da oferta. Os meses saem de `CASE_JANELA_MESES` — o mesmo
             número que o bloco "Vamos criar um case de sucesso juntos" promete no
@@ -167,7 +205,7 @@ export function EtapaMensalidade({
             ajuste comercial.
           */}
           <span className="pf-panel-title self-start rounded-full border border-(--pf-on-brand-line) px-4 py-2 text-(--pf-on-brand)">
-            Benefício exclusivo: business case de {CASE_JANELA_MESES} meses incluso
+            Benefício exclusivo: case de sucesso de {CASE_JANELA_MESES} meses incluso
           </span>
           {/*
             Rótulo fino, valor em negrito e mono: sem os dois pesos, "Volume"
@@ -176,28 +214,30 @@ export function EtapaMensalidade({
             porque é um dado secundário ao par volume/taxa, não um terceiro
             item da mesma fileira.
           */}
-          <dl className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-x-6 gap-y-1">
-              <div className="flex items-baseline gap-1.5">
-                <dt className="pf-hint text-(--pf-on-brand-soft)">Volume:</dt>
-                <dd className="pf-num text-sm font-bold text-(--pf-on-brand)">
-                  {formatHoras(preco?.horasMes ?? null)}/mês
-                </dd>
+          {preco ? (
+            <dl className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="pf-hint text-(--pf-on-brand-soft)">Volume:</dt>
+                  <dd className="pf-num text-sm font-bold text-(--pf-on-brand)">
+                    {formatHoras(preco.horasMes)}/mês
+                  </dd>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="pf-hint text-(--pf-on-brand-soft)">Taxa efetiva:</dt>
+                  <dd className="pf-num text-sm font-bold text-(--pf-on-brand)">
+                    {formatBRL(preco.taxaCombinada, 2)}/h
+                  </dd>
+                </div>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <dt className="pf-hint text-(--pf-on-brand-soft)">Taxa efetiva:</dt>
+                <dt className="pf-hint text-(--pf-on-brand-soft)">Tier marginal:</dt>
                 <dd className="pf-num text-sm font-bold text-(--pf-on-brand)">
-                  {preco ? `${formatBRL(preco.taxaCombinada, 2)}/h` : "—"}
+                  {tierMarginal !== null ? `${formatBRL(tierMarginal)}/h` : "—"}
                 </dd>
               </div>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <dt className="pf-hint text-(--pf-on-brand-soft)">Tier marginal:</dt>
-              <dd className="pf-num text-sm font-bold text-(--pf-on-brand)">
-                {tierMarginal !== null ? `${formatBRL(tierMarginal)}/h` : "—"}
-              </dd>
-            </div>
-          </dl>
+            </dl>
+          ) : null}
           {preco?.pisoAplicado ? (
             <p className="flex items-start gap-2 text-sm leading-6 text-(--pf-warn-on-brand)">
               <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />

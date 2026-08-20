@@ -186,8 +186,8 @@ export const PASSO_INTROS: Record<PassoId, { titulo: string; texto: string }> = 
     texto: "Use a receita mensal recorrente da equipe que entrará no programa.",
   },
   5: {
-    titulo: "Seu funil em dois números",
-    texto: "Percentuais atuais — vale uma estimativa honesta.",
+    titulo: "Conversão e margem",
+    texto: "Dois percentuais da operação hoje — vale uma estimativa honesta.",
   },
   6: {
     titulo: "Rampa de novos vendedores",

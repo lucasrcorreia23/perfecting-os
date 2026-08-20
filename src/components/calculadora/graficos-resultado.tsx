@@ -12,6 +12,7 @@ import {
 import type { LinhaCenario } from "@/lib/calculadora/cenarios-comparacao";
 import type { Cenario, PrecoConta, ResultadoTime } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
+import { LinhaBarra, ListaBarras } from "./linha-barra";
 import { LinhaCompacta } from "./linha-compacta";
 
 // Gráficos do resultado — a maioria em SVG próprio (zero dependências, mesmas
@@ -65,38 +66,23 @@ export function InvestimentoVsRetorno({
 }) {
   const maior = Math.max(precoAno, valorAno, 1);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-          <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">
-            Investimento/ano
-          </span>
-          <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink-soft,#475569)]">
-            {formatBRL(precoAno)}
-          </span>
-        </div>
-        <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
-          <div
-            className="h-full rounded-full bg-[var(--pf-ink-faint,#64748b)]"
-            style={{ width: `${Math.min(100, (precoAno / maior) * 100)}%` }}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-          <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">Retorno/ano</span>
-          <span className="text-sm font-semibold tabular-nums text-trend-positive">
-            {formatBRL(valorAno)}
-          </span>
-        </div>
-        <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
-          <div
-            className="h-full rounded-full bg-trend-positive"
-            style={{ width: `${Math.min(100, (valorAno / maior) * 100)}%` }}
-          />
-        </div>
-      </div>
-    </div>
+    <ListaBarras>
+      {/* O investimento fica SLATE, e não vermelho como no material de
+          referência: "custo e preço não são verdes nem vermelhos" (§1) — custo
+          não é ruim, é a outra metade da fração. O vermelho está reservado ao
+          COI, que mede perda de verdade. */}
+      <LinhaBarra
+        rotulo="Investimento/ano"
+        valor={formatBRL(precoAno)}
+        pct={(precoAno / maior) * 100}
+        tom="neutro"
+      />
+      <LinhaBarra
+        rotulo="Retorno/ano"
+        valor={formatBRL(valorAno)}
+        pct={(valorAno / maior) * 100}
+      />
+    </ListaBarras>
   );
 }
 
@@ -146,40 +132,34 @@ export function DecomposicaoValor({ resultado }: { resultado: ResultadoOk }) {
   const maior = Math.max(...degraus.map((degrau) => degrau.valor), 1);
 
   return (
-    <div className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-5">
-        {degraus.map((degrau) => (
-          <li key={degrau.rotulo} className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-              <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">
-                {degrau.rotulo}
-              </span>
-              <span className="text-sm font-semibold tabular-nums text-trend-positive">
-                {formatBRL(degrau.valor)}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--pf-ink-faint,#64748b)]">{degrau.legenda}</p>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
-              <div
-                className="h-full rounded-full bg-trend-positive"
-                style={{ width: `${Math.min(100, (degrau.valor / maior) * 100)}%` }}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
+    <ListaBarras>
+      {degraus.map((degrau) => (
+        <LinhaBarra
+          key={degrau.rotulo}
+          rotulo={degrau.rotulo}
+          nota={degrau.legenda}
+          valor={formatBRL(degrau.valor)}
+          pct={(degrau.valor / maior) * 100}
+        />
+      ))}
+    </ListaBarras>
+  );
+}
 
-      {/* A prosa que fecha o bloco sobrevive à troca de desenho: é ela que o
-          leitor de tela recebe primeiro, antes de percorrer a lista. */}
-      <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
-        <span className="font-medium text-[var(--pf-ink-soft,#475569)]">Eficiência</span> é custo que deixa
-        de existir; <span className="font-medium text-[var(--pf-ink-soft,#475569)]">performance</span> é
-        margem nova.
-        {parcelas.ganhoCicloAno === null
-          ? " O ciclo entra quando o funil estiver preenchido."
-          : ""}
-      </p>
-    </div>
+/**
+ * A prosa que enquadra a decomposição, para a `SecaoResultado` a usar como
+ * descrição. Ela era o parágrafo de FECHO do bloco e subiu para o cabeçalho na
+ * passagem de 20/08/2026: no topo ela prepara a leitura das cinco barras; em
+ * baixo, resumia o que a pessoa acabara de ler. É a mesma frase — o leitor de
+ * tela continua recebendo o contraste eficiência↔performance antes da lista.
+ */
+export function descricaoDecomposicao(resultado: ResultadoOk): string {
+  const semCiclo = resultado.parcelas.ganhoCicloAno === null;
+  return (
+    "Sem dupla contagem: cada alavanca tem teto próprio, e as de performance " +
+    "carregam o desconto anti-otimismo — exceto o ticket, que é medido direto " +
+    "no CRM. Eficiência é custo que deixa de existir; performance é margem nova." +
+    (semCiclo ? " O ciclo entra quando o funil estiver preenchido." : "")
   );
 }
 
@@ -205,101 +185,121 @@ export function ComparacaoCenarios({
   personalizado?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {linhas.map((linha) => {
+    // pt-3: o selo do cenário ativo monta 10px acima da borda do card, e sem
+    // esse ar ele seria cortado pelo bloco em volta.
+    <div className="grid grid-cols-1 gap-4 pt-3 sm:grid-cols-3">
+      {linhas.map((linha) => {
           const ativo = !personalizado && linha.cenario === cenarioAtivo;
           const base = personalizado && linha.cenario === cenarioAtivo;
           return (
-            <div
-              key={linha.cenario}
-              className={cn(
-                "flex flex-col gap-4 rounded-sm border p-6",
-                ativo
-                  ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
-                  : "border-[var(--pf-line,#e2e8f0)]",
-                base && "border-dashed",
-              )}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      ativo
-                        ? "text-[var(--pf-brand-ink,#2e63cd)]"
-                        : "text-[var(--pf-ink,#334155)]",
-                    )}
-                  >
-                    {CENARIOS[linha.cenario].label}
-                  </span>
-                  {ativo ? (
-                    <span className="inline-flex w-fit items-center whitespace-nowrap rounded-full border border-[var(--pf-brand,#2e63cd)]/25 bg-[var(--pf-brand,#2e63cd)]/10 px-2 py-0.5 text-xs font-semibold leading-4 text-[var(--pf-brand-ink,#2e63cd)]">
-                      Cenário ativo
-                    </span>
-                  ) : null}
-                </div>
-                <span className="text-3xl font-semibold tabular-nums text-trend-positive">
-                  {formatX(linha.roi)}
+          <div
+            key={linha.cenario}
+            className={cn(
+              // `relative` porque o selo do ativo é SOBREPOSTO à borda: ele sai
+              // do fluxo e monta na moldura em vez de empurrar o nome do
+              // cenário para o lado. Dentro do fluxo, o par nome+pílula ocupava
+              // a primeira linha inteira e a coluna ativa ficava um degrau mais
+              // baixa que as outras duas.
+              "relative flex flex-col gap-4 rounded-sm border p-6",
+              ativo
+                ? "border-[var(--pf-brand,#2e63cd)] bg-[var(--pf-surface-alt,#ffffff)]"
+                : "border-[var(--pf-line,#e2e8f0)]",
+              base && "border-dashed",
+            )}
+          >
+            {ativo ? (
+              <span className="pf-label absolute -top-2.5 left-6 inline-flex w-fit items-center whitespace-nowrap rounded-full bg-[var(--pf-brand,#2e63cd)] px-3 py-1 text-[var(--pf-on-brand,#ffffff)]">
+                Cenário ativo
+              </span>
+            ) : null}
+            <div className="flex flex-col gap-2">
+              <span
+                className={cn(
+                  "pf-card-title",
+                  ativo
+                    ? "text-[var(--pf-brand-ink,#2e63cd)]"
+                    : "text-[var(--pf-ink,#334155)]",
+                )}
+              >
+                {CENARIOS[linha.cenario].label}
+              </span>
+              <span className="pf-num-hero text-trend-positive">
+                {formatX(linha.roi)}
+              </span>
+              <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
+                payback em{" "}
+                <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
+                  {formatMeses(linha.paybackMeses)}
+                </span>{" "}
+                · valor/ano {formatBRL(linha.valorAno)}
+              </span>
+              {linha.paybackExcedeContrato ? (
+                <span className="text-sm leading-6 text-[var(--pf-warn-ink,#973c00)]">
+                  passa do prazo escolhido
                 </span>
-                <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
-                  payback em{" "}
-                  <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
-                    {formatMeses(linha.paybackMeses)}
-                  </span>{" "}
-                  · valor/ano {formatBRL(linha.valorAno)}
-                </span>
-                {linha.paybackExcedeContrato ? (
-                  <span className="text-sm leading-6 text-[var(--pf-warn-ink,#973c00)]">
-                    passa do prazo escolhido
-                  </span>
-                ) : null}
-              </div>
-
-              <dl className="flex flex-col gap-3 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
-                <LinhaCompacta rotulo="Eficiência (igual)" valor={formatBRL(linha.eficienciaAno)} />
-                <LinhaCompacta
-                  rotulo="Ticket médio"
-                  valor={formatBRL(linha.parcelas.margemTicketAno)}
-                  tom="positivo"
-                />
-                <LinhaCompacta
-                  rotulo="Rampa"
-                  valor={formatBRL(linha.parcelas.margemRampaAno)}
-                  tom="positivo"
-                />
-                <LinhaCompacta
-                  rotulo="Conversão"
-                  valor={formatBRL(linha.parcelas.ganhoConversaoAno)}
-                  tom="positivo"
-                />
-                <LinhaCompacta
-                  rotulo="Ciclo de vendas"
-                  valor={
-                    linha.parcelas.ganhoCicloAno === null
-                      ? "—"
-                      : formatBRL(linha.parcelas.ganhoCicloAno)
-                  }
-                  tom={linha.parcelas.ganhoCicloAno === null ? "neutro" : "positivo"}
-                />
-              </dl>
-
-              <dl className="flex flex-col gap-2 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
-                <LinhaCompacta rotulo="Valor anual" valor={formatBRL(linha.valorAno)} tom="positivo" />
-                <LinhaCompacta rotulo="Mensalidade" valor={formatBRL(precoMes)} />
-              </dl>
+              ) : null}
             </div>
-          );
-        })}
-      </div>
 
-      <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
-        Mesmos dados nos três: só os deltas mudam. A eficiência é igual em todos — vem
-        do caminho declarado, não do cenário.
-      </p>
+            {/* Tracejado entre as parcelas, sólido acima do subtotal: a mesma
+                distinção da `LinhaBarra` — régua de lista contra fio que fecha
+                conta. Sem ela, sete linhas de mesma natureza empatavam com as
+                duas que somam. */}
+            <dl className="flex flex-col divide-y divide-dashed divide-[var(--pf-line,#e2e8f0)] border-t border-[var(--pf-line-soft,#f1f5f9)] pt-2 [&>*]:py-2">
+              <LinhaCompacta
+                rotulo="Eficiência (igual)"
+                valor={formatBRL(linha.eficienciaAno)}
+              />
+              <LinhaCompacta
+                rotulo="Ticket médio"
+                valor={formatBRL(linha.parcelas.margemTicketAno)}
+                tom="positivo"
+              />
+              <LinhaCompacta
+                rotulo="Rampa"
+                valor={formatBRL(linha.parcelas.margemRampaAno)}
+                tom="positivo"
+              />
+              <LinhaCompacta
+                rotulo="Conversão"
+                valor={formatBRL(linha.parcelas.ganhoConversaoAno)}
+                tom="positivo"
+              />
+              <LinhaCompacta
+                rotulo="Ciclo de vendas"
+                valor={
+                  linha.parcelas.ganhoCicloAno === null
+                    ? "—"
+                    : formatBRL(linha.parcelas.ganhoCicloAno)
+                }
+                tom={linha.parcelas.ganhoCicloAno === null ? "neutro" : "positivo"}
+              />
+            </dl>
+
+            <dl className="flex flex-col gap-2 border-t border-[var(--pf-line-strong,#cbd5e1)] pt-4">
+              <LinhaCompacta
+                rotulo="Valor anual"
+                valor={formatBRL(linha.valorAno)}
+                tom="positivo"
+              />
+              <LinhaCompacta rotulo="Mensalidade" valor={formatBRL(precoMes)} />
+            </dl>
+          </div>
+        );
+      })}
     </div>
   );
 }
+
+/**
+ * A ressalva dos três cenários, para a `SecaoResultado` a usar como descrição.
+ * Era o parágrafo de FECHO do bloco e subiu para o cabeçalho junto com a da
+ * decomposição (20/08/2026): a pessoa precisa saber que a eficiência é
+ * invariante ANTES de comparar as três colunas — lida depois, "igual nos três"
+ * já foi interpretada como erro de cálculo.
+ */
+export const DESCRICAO_CENARIOS =
+  "Mesmos dados da sua operação nos três; só os deltas de melhoria mudam. " +
+  "A eficiência é igual em todos — ela vem do caminho declarado, não do cenário.";
 
 // ---------------------------------------------------------------------------
 // Escada de preço: onde as horas da conta caem em cada faixa.

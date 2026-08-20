@@ -4,7 +4,10 @@ import {
   ExclamationTriangleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-import { COI_HORAS_COACHING_MIN } from "@/lib/calculadora/constants";
+import {
+  COI_FONTES,
+  COI_HORAS_COACHING_MIN,
+} from "@/lib/calculadora/constants";
 import {
   formatBRL,
   formatHoras,
@@ -14,6 +17,7 @@ import {
 } from "@/lib/calculadora/format";
 import type { DimensaoCoiId, PassoId, ResultadoCoi } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
+import { LinhaBarra, ListaBarras } from "./linha-barra";
 import { LinhaCompacta } from "./linha-compacta";
 import { SeloEvidencia } from "./selo-evidencia";
 
@@ -79,7 +83,10 @@ function CardKpiCoi({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 rounded-sm border p-4",
+        // rounded-md/p-5 e a escala `pf-*`: o mesmo card do `CardEscopo` da
+        // capa. Eram `rounded-sm p-4 text-2xl` — um oitavo dialeto de número
+        // numa etapa que já tinha sete.
+        "flex flex-col gap-2 rounded-md border p-5",
         alerta
           ? "border-(--pf-warn-line) bg-(--pf-warn-surface)"
           : "border-(--pf-line) bg-(--pf-surface)",
@@ -87,22 +94,22 @@ function CardKpiCoi({
     >
       <span
         className={cn(
-          "text-xs font-semibold",
-          alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink-faint)",
+          "pf-panel-title",
+          alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink-soft)",
         )}
       >
         {titulo}
       </span>
       <span
         className={cn(
-          "text-2xl font-semibold tabular-nums",
+          "pf-num-kpi",
           alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink)",
         )}
       >
         {valor}
       </span>
       {nota ? (
-        <span className={cn("text-xs", alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink-faint)")}>
+        <span className={cn("pf-hint", alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink-soft)")}>
           {nota}
         </span>
       ) : null}
@@ -153,62 +160,46 @@ export function CustoInacao({
         ) : null}
       </div>
 
-      {/* Duas leituras, de propósito distintas: quanto da prática CHEGA ao
-          vendedor, e se o gestor sequer TEM as horas. A planilha mistura as
-          duas numa métrica só e se contradiz (E-31).
+      {/* As fontes, ratificadas para a tela do visitante em 20/08/2026.
+          Vinham só de `/calculadoras/referencia` (interno). Ficam em `pf-hint`
+          e logo abaixo dos KPIs, não no cabeçalho: são a procedência dos
+          benchmarks, e procedência se lê depois do número, quando a pergunta
+          "de onde saiu isso?" já nasceu.
 
-          gap-3, não gap-2: 8px é o degrau de "ícone ↔ texto", e com leading-7
-          no primeiro parágrafo os dois colavam num bloco só com um soluço no
-          meio. Prosa ao lado de prosa é linha ↔ linha. */}
-      <div className="flex flex-col gap-3">
-        <p className="pf-lead text-(--pf-ink-soft)">
-          {lacunaDePratica ? (
-            <>
-              Hoje chegam <strong className="font-semibold text-(--pf-ink)">
-                {formatHoras(cobertura.horasEntreguesMes)}
-              </strong>{" "}
-              de prática por mês ao time, contra as{" "}
-              {formatHoras(cobertura.horasNecessariasMes)} que{" "}
-              {formatNumero(cobertura.horasNecessariasMes / COI_HORAS_COACHING_MIN, 0)}{" "}
-              vendedores precisariam — o equivalente a{" "}
-              <strong className="font-semibold text-(--pf-ink)">
-                {formatNumero(cobertura.vendedoresNaoAtendidos, 1)} vendedores
-              </strong>{" "}
-              sem a prática mínima.
-            </>
-          ) : (
-            <>
-              As {formatHoras(cobertura.horasEntreguesMes)} de prática que chegam ao
-              time por mês já cobrem o mínimo de{" "}
-              {formatHoras(cobertura.horasNecessariasMes)}. A lacuna abaixo não vem de
-              cobertura.
-            </>
-          )}
-        </p>
-        {capacidade.gapHorasMes > 0 ? (
-          <p className="text-sm leading-6 text-(--pf-ink-soft)">
-            Seus gestores têm {formatHoras(capacidade.horasDisponiveisMes)}/mês para uma
-            demanda de {formatHoras(capacidade.horasNecessariasMes)}:{" "}
+          "Benchmarks de mercado" e não "estudos mostram": nenhuma das seis foi
+          verificada na origem, e as constantes seguem marcadas [H]. A
+          atribuição do JOLT Effect foi corrigida na fonte (`COI_FONTES`) — a
+          planilha a creditava a "HBR 2019", data que não confere. */}
+      <p className="pf-hint text-(--pf-ink-faint)">
+        Cada linha carrega um desconto de conservadorismo declarado. Benchmarks
+        de mercado: {COI_FONTES.join(" · ")}.
+      </p>
+
+      {/* O DIAGNÓSTICO, em alerta e não em prosa.
+          Era o segundo de dois parágrafos corridos, no mesmo cinza do resto —
+          a frase mais dura do bloco ("não é falta de vontade, é falta de
+          capacidade") lida com o peso de uma legenda. Vermelho e não âmbar
+          porque o âmbar diz "confira isto"; aqui a leitura é de risco, a mesma
+          família das cinco parcelas abaixo. Só nasce quando há déficit: sem
+          gap, um alerta seria alarme falso, e a leitura vira uma linha do
+          rodapé. */}
+      {capacidade.gapHorasMes > 0 ? (
+        <p className="flex items-start gap-3 rounded-sm border border-(--pf-danger-line) bg-(--pf-danger-surface) p-4 text-sm leading-6 text-trend-negative">
+          <ExclamationTriangleIcon className="mt-1 h-5 w-5 shrink-0" aria-hidden />
+          <span>
+            <strong className="font-semibold">Falta de capacidade, não de vontade:</strong>{" "}
+            seus gestores têm {formatHoras(capacidade.horasDisponiveisMes)}/mês para
+            uma demanda de {formatHoras(capacidade.horasNecessariasMes)} —{" "}
             {formatPct(capacidade.pctNaoAtendida * 100)} da necessidade não cabe na
-            agenda. Não é falta de vontade, é falta de capacidade.
-          </p>
-        ) : (
-          <p className="text-sm leading-6 text-(--pf-ink-soft)">
-            Seus gestores têm {formatHoras(capacidade.horasDisponiveisMes)}/mês, o
-            bastante para a demanda de {formatHoras(capacidade.horasNecessariasMes)}. As
-            horas existem — o que se perde é no caminho até o vendedor.
-          </p>
-        )}
-      </div>
+            agenda.
+          </span>
+        </p>
+      ) : null}
 
       {/* Um selo para o grupo inteiro, não um por linha: são cinco premissas de
           mesma natureza, e cinco pílulas empurrariam cada rótulo para duas
           linhas para dizer a mesma coisa (a passagem de 18/08 já fixou isso em
           EficienciaCard). */}
-      {/* gap-4 do título para a lista contra gap-3 entre as linhas: o rótulo
-          do grupo tem de pesar mais que o intervalo que separa duas parcelas,
-          senão ele vira a primeira linha da lista. Mesma cadência do
-          EficienciaCard. */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="pf-panel-title text-(--pf-ink-soft)">
@@ -216,40 +207,53 @@ export function CustoInacao({
           </h3>
           <SeloEvidencia selo="premissa" />
         </div>
-        {/* Barra por dimensão, proporcional à maior — o mesmo desenho da
-            decomposição do valor (`DecomposicaoValor`), espelhado em
-            `trend-negative`: aqui a barra mede o que vaza, não o que entra.
-            Zero é medição, não ausência — a linha fica, com barra vazia, para
-            o leitor ver o conjunto inteiro e quais dimensões não se aplicam a
-            ele. Travessão quando `valorAno` é `null` (depende do salário). */}
-        <ul className="flex flex-col gap-5">
-          {coi.dimensoes.map((d) => {
-            const pct = d.valorAno ? Math.min(100, (d.valorAno / maiorDimensao) * 100) : 0;
-            return (
-              <li key={d.id} className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-sm font-medium text-(--pf-ink)">
-                    {ROTULOS[d.id].rotulo}
-                  </span>
-                  <span className="text-sm font-semibold tabular-nums text-trend-negative">
-                    {d.valorAno === null ? "—" : `${formatBRL(d.valorAno)}/ano`}
-                  </span>
-                </div>
-                {/* Nota sai quando zero: "quem não pratica fecha menos" ao
-                    lado de R$ 0 contradiz o próprio número. */}
-                {d.valorAno ? (
-                  <p className="text-xs text-(--pf-ink-faint)">{ROTULOS[d.id].nota}</p>
-                ) : null}
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-(--pf-bar)">
-                  <div
-                    className="h-full rounded-full bg-trend-negative"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {/* Barra INLINE por dimensão, proporcional à maior — o mesmo desenho da
+            decomposição do valor, espelhado em `trend-negative`: aqui a barra
+            mede o que vaza, não o que entra. Zero é medição, não ausência: a
+            linha fica, com barra vazia, para o leitor ver o conjunto inteiro e
+            quais dimensões não se aplicam a ele. Travessão quando `valorAno` é
+            `null` (depende do salário). */}
+        <ListaBarras>
+          {coi.dimensoes.map((d) => (
+            <LinhaBarra
+              key={d.id}
+              rotulo={ROTULOS[d.id].rotulo}
+              // Nota sai quando zero: "quem não pratica fecha menos" ao lado de
+              // R$ 0 contradiz o próprio número.
+              nota={d.valorAno ? ROTULOS[d.id].nota : undefined}
+              valor={d.valorAno === null ? "—" : `${formatBRL(d.valorAno)}/ano`}
+              pct={d.valorAno ? (d.valorAno / maiorDimensao) * 100 : 0}
+              tom="negativo"
+            />
+          ))}
+        </ListaBarras>
+        {/* A COBERTURA vira rodapé da lista. Era o parágrafo de ABERTURA do
+            bloco, em `pf-lead`, e nesse posto ela adiava por quatro linhas os
+            três números que respondem a pergunta do bloco. É contexto da
+            medição, não a medição. */}
+        <p className="pf-hint text-(--pf-ink-soft)">
+          {lacunaDePratica ? (
+            <>
+              Cobertura de prática hoje:{" "}
+              {formatHoras(cobertura.horasEntreguesMes)}/mês chegam ao time contra
+              as {formatHoras(cobertura.horasNecessariasMes)} que{" "}
+              {formatNumero(
+                cobertura.horasNecessariasMes / COI_HORAS_COACHING_MIN,
+                0,
+              )}{" "}
+              vendedores precisariam — o equivalente a{" "}
+              {formatNumero(cobertura.vendedoresNaoAtendidos, 1)} vendedores sem a
+              prática mínima.
+            </>
+          ) : (
+            <>
+              Cobertura de prática hoje:{" "}
+              {formatHoras(cobertura.horasEntreguesMes)}/mês chegam ao time e já
+              cobrem o mínimo de {formatHoras(cobertura.horasNecessariasMes)}. A
+              lacuna acima não vem de cobertura.
+            </>
+          )}
+        </p>
         {faltaSalario ? (
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-6 text-(--pf-ink-soft)">
             Duas linhas dependem do salário mensal do vendedor, que ficou em branco.

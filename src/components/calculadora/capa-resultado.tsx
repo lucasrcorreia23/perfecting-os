@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowDownIcon,
+  ArrowPathIcon,
   ArrowUturnLeftIcon,
+  BanknotesIcon,
+  CheckIcon,
   ClockIcon,
-  PrinterIcon,
+  DocumentArrowDownIcon,
+  LinkIcon,
   UserMinusIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
@@ -40,9 +45,23 @@ import { cn } from "@/lib/utils";
 // pessoa não tinha por que tomar. Por isso `onVerDetalhado` ROLA em vez de
 // trocar de tela — o destino sempre esteve na mesma página.
 //
-// O painel do topo é a única superfície invertida da pele (§13, exceção de
-// 20/08/2026): a capa é exclusiva da jornada pública e é o único bloco cuja
-// função É ser dono da superfície. `link-detail` não a renderiza.
+// A capa foi reorganizada em 20/08/2026 e o movimento tem um nome: o cabeçalho
+// da etapa SAIU de dentro do painel. Antes, um retângulo escuro carregava a
+// etiqueta, a linha de parâmetros, os quatro KPIs e a ressalva — quatro papéis
+// numa caixa só, e o título do relatório com o mesmo peso de um rótulo de KPI.
+// Agora o capítulo é título de página (`pf-display` sobre o canvas) e os quatro
+// números viram quatro CARDS irmãos, cada um com a própria nota.
+//
+// A superfície invertida sobrevive num card só — o do investimento (§13, a
+// exceção de 20/08/2026 continua exclusiva da jornada pública; `link-detail`
+// não renderiza a capa).
+//
+// ORDEM E UNIDADE DOS KPIs, que é onde a referência erra e nós não seguimos:
+// os dois primeiros cards ficam na MESMA régua, o ano. O material de origem põe
+// a mensalidade ao lado do valor anual, e quem confere dividindo acha doze
+// vezes o ROI real. Aqui o card 1 mostra o investimento ANUAL — o mesmo
+// denominador que `consolidado.roi` usa — e leva o mensal na nota. Na tela,
+// card 2 ÷ card 1 = card 3.
 //
 // Os quatro cards abaixo dele são todos SLATE, e nenhum é acaso: nenhum deles é
 // parcela do ROI. Assentos e horas são escopo; gestor liberado e gestores não
@@ -65,8 +84,14 @@ function CardEscopo({
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-(--pf-line) bg-(--pf-surface) p-5">
-      <span className="pf-panel-title flex items-center gap-2 text-(--pf-ink-soft)">
-        <Icone className="h-4 w-4 shrink-0 text-(--pf-ink-faint)" aria-hidden />
+      {/* Caixa de DUAS linhas, sempre: os quatro cards dividem uma faixa, e
+          basta um rótulo quebrar ("Gestores não contratados", na coluna
+          estreita de `xl:grid-cols-4`) para o valor dele descer 20px e sair da
+          linha dos outros três — quatro números que existem para ser
+          comparados, e um deles fora do lugar. `items-start` porque com duas
+          linhas de caixa e uma de texto o ícone centralizaria no vazio. */}
+      <span className="pf-panel-title flex min-h-10 items-start gap-2 text-(--pf-ink-soft)">
+        <Icone className="mt-0.5 h-4 w-4 shrink-0 text-(--pf-ink-faint)" aria-hidden />
         {rotulo}
       </span>
       <span className="pf-num-kpi text-(--pf-ink)">
@@ -77,35 +102,147 @@ function CardEscopo({
   );
 }
 
-function Kpi({
+// Os quatro números da conta, um card cada.
+//
+// `tom` não é decoração: cada um dos três diz uma coisa diferente sobre o
+// número que carrega.
+//
+// - "invertido" — o investimento. É a única superfície escura da capa, e é ela
+//   que sustenta o verde de "entra na conta" a 4,9:1 nos vizinhos claros.
+// - "editavel" — o ROI. Decisão do decisor em 20/08/2026: o card do
+//   número-manchete adota o amarelo do material de referência. A consequência
+//   é declarada — o amarelo deixa de ser EXCLUSIVO do campo editável —, e a
+//   mitigação é o que sobra: o card fica com a borda fina de sempre e SEM a
+//   sombra interna (`--pf-input-inset`), que é o que faz a célula parecer
+//   afundada. É o conjunto (amarelo + borda de 1,5px + inset + mono azul) que
+//   identifica "aqui você digita", e o card só herda o primeiro termo.
+//   O número fica em `--pf-ink` e não em verde: `#0f9f2e` sobre `#fdf1ae` dá
+//   2,4:1, abaixo do piso.
+// - "claro" — os outros dois.
+const TOM_KPI = {
+  invertido: {
+    caixa: "bg-(--pf-invert)",
+    rotulo: "text-(--pf-invert-soft)",
+    valor: "text-(--pf-invert-ink)",
+    nota: "text-(--pf-invert-soft)",
+  },
+  editavel: {
+    caixa: "border border-(--pf-input-border) bg-(--pf-input)",
+    rotulo: "text-(--pf-ink-soft)",
+    valor: "text-(--pf-ink)",
+    nota: "text-(--pf-ink-soft)",
+  },
+  claro: {
+    caixa: "border border-(--pf-line) bg-(--pf-surface)",
+    rotulo: "text-(--pf-ink-soft)",
+    valor: "text-(--pf-ink)",
+    nota: "text-(--pf-ink-soft)",
+  },
+} as const;
+
+function CardKpi({
   rotulo,
   valor,
-  destaque,
+  nota,
+  tom = "claro",
+  manchete = false,
 }: {
   rotulo: string;
   valor: string;
-  destaque?: boolean;
+  nota: string;
+  tom?: keyof typeof TOM_KPI;
+  manchete?: boolean;
 }) {
+  const t = TOM_KPI[tom];
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="pf-panel-title text-(--pf-invert-soft)">
-        {rotulo}
-      </span>
-      <span
-        className={cn(
-          // O ROI é o número-manchete do relatório inteiro: ele sobe para o
-          // nível "número hero" do §3.2 (30→40px) e os outros três ficam no
-          // "valor de KPI" (21→27). Quatro números do mesmo tamanho não têm
-          // manchete — e a pessoa abriu o link para ver este.
-          destaque ? "pf-num-hero" : "pf-num-kpi",
-          // O verde de "entra na conta" sobrevive intacto sobre o escuro —
-          // 4,9:1, acima do piso. É o que mantém o ROI verde na capa sem
-          // inventar um segundo verde para o fundo invertido.
-          destaque ? "text-trend-positive" : "text-(--pf-invert-ink)",
-        )}
-      >
+    <div className={cn("flex flex-col gap-2 rounded-md p-5", t.caixa)}>
+      <dt className={cn("pf-panel-title", t.rotulo)}>{rotulo}</dt>
+      {/* O ROI é o número que a pessoa abriu o link para ver: ele sobe para o
+          "número hero" do §3.2 e os outros três ficam no "valor de KPI".
+          Quatro números do mesmo tamanho não têm manchete. */}
+      <dd className={cn(manchete ? "pf-num-hero" : "pf-num-kpi", t.valor)}>
         {valor}
-      </span>
+      </dd>
+      <dd className={cn("pf-hint", t.nota)}>{nota}</dd>
+    </div>
+  );
+}
+
+// As três ações do topo (20/08/2026, decisão do decisor a partir do material de
+// referência). Nenhuma delas imprime — `data-no-print` vive no chamador.
+//
+// Duas notas sobre o que os nomes prometem:
+//
+// "Exportar / salvar PDF" está no lugar do "Imprimir" que vivia dentro do
+// painel. O nome descreve o RESULTADO que a pessoa quer (o diálogo do sistema
+// oferece "Salvar em PDF" em todos os navegadores relevantes) e não o
+// periférico que quase ninguém usa.
+//
+// Ele NÃO chama `window.print()` daqui, e o botão antigo chamava — era um
+// defeito calado pela discrição dele. O CSS que recorta a folha
+// (`body * { visibility: hidden }` mais o recorte de `#resumo-verificavel`)
+// mora dentro do `ResumoVerificavel`, que só existe na etapa 04: imprimir da
+// etapa 03 saía como uma cópia crua da tela inteira, com régua de etapas,
+// cabeçalho e botões. O botão leva ao artefato e o diálogo abre lá.
+//
+// "Copiar link" está no lugar do "Salvar no navegador" da referência, e a troca
+// é de honestidade: o preenchimento JÁ é salvo, no servidor, a cada 800ms
+// (`use-autosave.ts`), e volta de qualquer dispositivo. Um botão de salvar ao
+// lado de um autosave ou mente ou cria uma segunda fonte da verdade que pode
+// divergir da do link. O que a pessoa precisa guardar é o endereço.
+//
+// "Refazer simulação" NÃO apaga nada: reabre o quiz na primeira pergunta, com
+// tudo preenchido. A linha abaixo dos botões diz isso em voz alta, porque o
+// verbo sozinho promete uma folha em branco.
+function Acoes({
+  onExportar,
+  onRefazer,
+}: {
+  onExportar: () => void;
+  onRefazer: () => void;
+}) {
+  const [copiado, setCopiado] = useState(false);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2400);
+    } catch {
+      // Clipboard negado (http, permissão) não vira erro na tela: o endereço
+      // está na barra do navegador, e um alerta aqui assustaria à toa.
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2" data-no-print>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="primary"
+          icon={DocumentArrowDownIcon}
+          onClick={onExportar}
+        >
+          Exportar / salvar PDF
+        </Button>
+        <Button
+          variant="secondary"
+          icon={copiado ? CheckIcon : LinkIcon}
+          onClick={copiar}
+        >
+          {copiado ? "Link copiado" : "Copiar link"}
+        </Button>
+        <Button variant="secondary" icon={ArrowPathIcon} onClick={onRefazer}>
+          Refazer simulação
+        </Button>
+      </div>
+      {/* role="status": quando o link é copiado, quem usa leitor de tela
+          precisa da confirmação — a troca de rótulo do botão sozinha não é
+          anunciada se o foco já estiver nele. */}
+      <p className="pf-hint text-(--pf-ink-faint)" role="status">
+        {copiado
+          ? "Endereço copiado. Abra-o de qualquer dispositivo para continuar."
+          : "Suas respostas continuam salvas — refazer não apaga nada."}
+      </p>
     </div>
   );
 }
@@ -116,12 +253,18 @@ export function CapaResultado({
   dataCalculo,
   onVerDetalhado,
   onAjustarProposta,
+  onRefazer,
+  onExportar,
 }: {
   modelo: ModeloCalculadora;
   timeAtivo: TimeModelo;
   dataCalculo: string;
   onVerDetalhado: () => void;
   onAjustarProposta: () => void;
+  /** Volta ao quiz na primeira pergunta. NÃO apaga nada — ver `Acoes`. */
+  onRefazer: () => void;
+  /** Leva à etapa 04, que monta o Resumo e abre o diálogo — ver `Acoes`. */
+  onExportar: () => void;
 }) {
   const multiTime = modelo.times.length > 1;
   const consolidado = modelo.consolidado;
@@ -138,6 +281,10 @@ export function CapaResultado({
       ? {
           roi: consolidado.roi,
           valorAno: consolidado.valorAno,
+          // O denominador do ROI, e não `preco.mensal × 12`: com vários times o
+          // consolidado é ponderado (invariante 11), e recalcular à mão daria
+          // um número que a divisão na tela não fecharia.
+          precoAno: consolidado.precoAno,
           paybackMeses: consolidado.paybackMeses,
           assentos: consolidado.totalAssentos,
           vendedores: consolidado.totalVendedores,
@@ -152,10 +299,11 @@ export function CapaResultado({
 
   const meta = conta
     ? [
-        `${modelo.times.length} ${modelo.times.length === 1 ? "time" : "times"}`,
+        `${formatNumero(conta.vendedores, 0)} vendedores`,
         `${conta.assentos} assentos`,
         `${formatPct(conta.cobertura * 100, 0)} do time`,
         cenarioLabel,
+        `contrato de ${modelo.prazoMeses} meses`,
         `cálculo de ${dataCalculo}`,
       ].join(" · ")
     : "Preencha os campos obrigatórios de um time para a conta fechar.";
@@ -209,48 +357,74 @@ export function CapaResultado({
   const maiorValor = Math.max(1, ...timesOrdenados.map((t) => t.resultado.valorAno));
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* ── O painel de resposta ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-6 rounded-md bg-(--pf-invert) p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
-            <span
-              className="pf-panel-title text-(--pf-invert-soft)"
-              aria-hidden
-            >
-              O resultado da conta
-            </span>
-            <p className="pf-lead text-(--pf-invert-soft)">{meta}</p>
-          </div>
-          <span data-no-print>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={PrinterIcon}
-              onClick={() => window.print()}
-            >
-              Imprimir
-            </Button>
-          </span>
-        </div>
-
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
-          <Kpi rotulo="ROI" valor={formatX(conta?.roi ?? null)} destaque />
-          <Kpi rotulo="Retorno anual" valor={formatBRL(conta?.valorAno ?? null)} />
-          <Kpi rotulo="Payback" valor={formatMeses(conta?.paybackMeses ?? null)} />
-          <Kpi rotulo="Mensalidade" valor={formatBRL(modelo.preco.mensal)} />
-        </dl>
-
-        {conta !== null && conta.roi < 1 ? (
-          <p className="border-t border-(--pf-invert-line) pt-5 text-sm leading-6 text-(--pf-invert-soft)">
-            Com estes números a projeção fica abaixo de 1×. Recomendamos medir um
-            baseline num piloto antes de contratar.
-          </p>
-        ) : null}
+    // gap-2 como a pilha de baixo: eram dois ritmos verticais dentro do mesmo
+    // pai, sem regra que explicasse a troca.
+    <div className="flex flex-col gap-2">
+      {/* ── O cabeçalho da etapa ─────────────────────────────────────────
+          Fora de moldura, sobre o canvas: é o título do documento, não o
+          rótulo de um painel. A etiqueta em pílula é `pf-label` — a caixa alta
+          vem do CSS, nunca da string. */}
+      <div className="flex flex-col gap-4 px-1 pb-2 sm:px-2">
+        <span className="pf-label w-fit rounded-full border border-(--pf-line-strong) px-4 py-2 text-(--pf-ink-soft)">
+          Etapa 03 · Relatório de ROI
+        </span>
+        <h1 className="pf-display text-(--pf-ink)">
+          Investimento vs. retorno,{" "}
+          <em className="not-italic text-(--pf-brand-ink)">lado a lado.</em>
+        </h1>
+        {/* Mono: é uma linha de parâmetros, não uma frase — e é assim que ela
+            lê como ficha técnica em vez de subtítulo. */}
+        <p className="pf-num text-sm text-(--pf-ink-soft)">{meta}</p>
+        <Acoes onExportar={onExportar} onRefazer={onRefazer} />
       </div>
 
+      {/* ── Os quatro números da conta ───────────────────────────────────
+          Cada card carrega a própria NOTA, que é o que faz o número se
+          explicar sozinho: sem ela, "R$ 13.000" ao lado de "R$ 1.131.818" não
+          diz que um é mensal e o outro anual. */}
+      <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <CardKpi
+          tom="invertido"
+          rotulo="Investimento / ano"
+          valor={formatBRL(conta?.precoAno ?? null)}
+          nota={
+            modelo.preco.pisoAplicado
+              ? `${formatBRL(modelo.preco.mensal)}/mês · piso contratual ativo`
+              : `${formatBRL(modelo.preco.mensal)}/mês`
+          }
+        />
+        <CardKpi
+          rotulo="Valor gerado / ano"
+          valor={formatBRL(conta?.valorAno ?? null)}
+          nota={
+            conta
+              ? `${formatBRL(conta.valorAno / 12)} por mês, em margem + eficiência`
+              : "margem nova mais custo que deixa de existir"
+          }
+        />
+        <CardKpi
+          tom="editavel"
+          manchete
+          rotulo="ROI"
+          valor={formatX(conta?.roi ?? null)}
+          nota="valor anual ÷ investimento anual"
+        />
+        <CardKpi
+          rotulo="Payback"
+          valor={formatMeses(conta?.paybackMeses ?? null)}
+          nota={`contrato de ${modelo.prazoMeses} meses`}
+        />
+      </dl>
+
+      {conta !== null && conta.roi < 1 ? (
+        <p className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 text-sm leading-6 text-(--pf-ink-soft) sm:p-8">
+          Com estes números a projeção fica abaixo de 1×. Recomendamos medir um
+          baseline num piloto antes de contratar.
+        </p>
+      ) : null}
+
       {/* ── Escopo: quatro leituras que NÃO somam ao ROI ─────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <CardEscopo
           icone={UsersIcon}
           rotulo="Vendedores com assento"
@@ -286,7 +460,7 @@ export function CapaResultado({
       </div>
 
       {/* ── De onde vem o valor + os times ───────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 @4xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 @4xl:grid-cols-2">
         <section className="flex flex-col gap-4 rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
           <div className="flex flex-col gap-1">
             <h2 className="pf-panel-title text-(--pf-ink)">
@@ -361,9 +535,9 @@ export function CapaResultado({
       </div>
 
       {/* ── A régua diária ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <CardEscopo
-          icone={UsersIcon}
+          icone={BanknotesIcon}
           rotulo="Custo por vendedor/dia"
           valor={gran ? formatBRL(gran.custoDiaPorVendedor, 2) : "—"}
           nota="dia útil, por assento"
