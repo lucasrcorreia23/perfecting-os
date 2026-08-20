@@ -14,7 +14,7 @@
 import { camposFaltando } from "./calc";
 import { CAMPO_DEFS, CAMINHO_LABEL } from "./campos";
 import { PASSOS } from "./estado";
-import type { CampoId, EntradasTime } from "./types";
+import type { CampoId, EntradasTime, PassoId } from "./types";
 
 export type ErroCampo = {
   campo: CampoId;
@@ -50,17 +50,22 @@ function curtaDe(campo: CampoId): string {
 const MENSAGEM_FUNIL = "Preencha os dois campos do ciclo — ou pule a etapa.";
 
 /**
- * O que impede este passo de ser dado por encerrado.
+ * O que impede esta pergunta de ser dada por encerrada.
  *
- * Passo 5 é opcional e vale a regra dos dois ou nenhum: vazio passa, cheio
+ * A pergunta opcional vale a regra dos dois ou nenhum: vazio passa, cheio
  * passa, pela metade acusa — nos DOIS campos, porque qualquer um dos dois
  * resolve e apontar só para o vazio esconderia a outra saída (apagar).
+ *
+ * Qual é a opcional vem de `PASSOS` (`opcional: true`), nunca de um número
+ * literal: a numeração já mudou uma vez (era o passo 5 de cinco, virou a 7 de
+ * oito) e um `passoId === 5` cravado aqui teria passado a validar a pergunta
+ * errada em silêncio.
  */
-export function validarPasso(
-  entradas: EntradasTime,
-  passoId: 1 | 2 | 3 | 4 | 5,
-): ErroCampo[] {
-  if (passoId === 5) {
+export function validarPasso(entradas: EntradasTime, passoId: PassoId): ErroCampo[] {
+  const passo = PASSOS.find((p) => p.id === passoId);
+  if (!passo) return [];
+
+  if (passo.opcional) {
     const ciclo = entradas.cicloDias;
     const leads = entradas.leadsMes;
     const algum = ciclo !== null || leads !== null;
@@ -73,9 +78,6 @@ export function validarPasso(
       { campo: "leadsMes", mensagem: MENSAGEM_FUNIL, curta: MENSAGEM_FUNIL },
     ];
   }
-
-  const passo = PASSOS.find((p) => p.id === passoId);
-  if (!passo) return [];
 
   // `camposFaltando` é a autoridade; o passo só filtra. `salarioVendedor` não
   // aparece ali de propósito (alimenta linha informativa, nunca o ROI), então
@@ -102,5 +104,5 @@ export function resumoDoErro(erros: ErroCampo[]): string | null {
   if (erros.length === 0) return null;
   if (erros.length === 1) return erros[0].mensagem;
   if (erros[0].mensagem === MENSAGEM_FUNIL) return MENSAGEM_FUNIL;
-  return `${erros[0].mensagem} Faltam ${erros.length} campos neste passo.`;
+  return `${erros[0].mensagem} Faltam ${erros.length} campos nesta pergunta.`;
 }

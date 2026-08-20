@@ -5,7 +5,19 @@
  * Raios (§4), cores (§1), sombras (§6), tipografia (§2).
  */
 @theme inline {
-  --font-sans: var(--font-inter);
+  /*
+   * INDIREÇÃO, e ela é o mecanismo: `@theme inline` inlina o VALOR na
+   * utilitária, então a regra de `font-sans` sai apontando para `--font-app` em
+   * vez de para uma família fixa. É isso que permite `.pf-calc` trocar a fonte
+   * inteira redefinindo uma variável. Apontar direto para `--font-inter`
+   * deixaria a utilitária presa à Inter, e a Archivo só chegaria a quem
+   * herdasse do body.
+   *
+   * (Sem chaves neste comentário de propósito: o teste da §13 acha o corpo da
+   * regra contando chaves, e um par aqui dentro o faria ler o comentário em vez
+   * do bloco — enfraquecendo em silêncio a checagem de vazamento de `--pf-*`.)
+   */
+  --font-sans: var(--font-app);
 
   /* Estilo orgânico: containers com raio generoso; controles são pill (rounded-full). */
   --radius-sm: 16px;
@@ -40,6 +52,9 @@
 }
 
 :root {
+  /* A voz do app interno (§2). A calculadora repõe isto com a Archivo. */
+  --font-app: var(--font-inter);
+
   /* Camadas (§10) — consumir via z-(--z-*) */
   --z-shell: 30;
   --z-header: 40;
@@ -72,9 +87,9 @@
 }
 
 body {
-  background: #f3f6fc;
+  background: #f9f9f9; /* §1 — fundo da app */
   color: #0f172a;
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-app), system-ui, sans-serif;
   font-size: 0.875rem; /* base 14px (§2) */
 }
 
@@ -258,4 +273,378 @@ body {
   height: 20px;
   border: none;
   background: transparent;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Pele da calculadora pública (`.pf-calc`, §13 das diretrizes). Decisão de
+ * 19/08/2026: a jornada do visitante ganha superfícies próprias — creme, o
+ * campo amarelo com texto azul (a legenda da planilha que originou o produto:
+ * "fonte azul sobre fundo amarelo = seu input") e numerais em monoespaçada.
+ *
+ * O app interno NÃO muda: os tokens vivem nesta classe, nunca no `:root`. Se
+ * `.pf-calc` não está no ancestral, vale o design system das §1–12 — e
+ * `design-tokens.test.ts` falha se algum `--pf-*` escapar para o `:root` ou
+ * para o `@theme`.
+ *
+ * A pele é creme + o AZUL da marca. O protótipo desenhava a primária em verde
+ * escuro, o que poria `#2a5d42` (marca) e `#0F9F2E` ("entra na conta", §1) na
+ * mesma tela com significados diferentes. A pele muda o papel, não a semântica.
+ *
+ * ATENÇÃO ao segundo seletor: `Modal`, `SelectMenu`, `ActionMenu`, o Glossário
+ * e a barra de progresso fazem `createPortal` para o `document.body`, para
+ * escapar do containing block que o `transform` de `.page-fade-in` cria. Esses
+ * nós são IRMÃOS do wrapper, não descendentes — sem declarar os tokens também
+ * no body, `bg-(--pf-surface)` dentro de um modal resolve para valor inválido.
+ * ---------------------------------------------------------------------------
+ */
+.pf-calc,
+body:has(.pf-calc) {
+  --pf-canvas: #f2eee6;
+  --pf-surface: #fbfaf5;
+  --pf-surface-alt: #ffffff;
+  --pf-bar: #f2f0e6;
+
+  --pf-brand: #2e63cd;
+  --pf-brand-deep: #1e4a9e;
+  --pf-brand-tint: #edf2fc;
+  --pf-brand-ink: #1e4a9e;
+
+  --pf-ink: #1a1b1c;
+  --pf-ink-soft: #55584f;
+  /* #6b6d65 e não o #7c7f75 do protótipo: aquele dava 3,52:1 sobre o canvas,
+     abaixo do piso de 4,5:1 que a própria §13 declara preservado. */
+  --pf-ink-faint: #6b6d65;
+
+  --pf-input: #fdf1ae;
+  --pf-input-border: #e7d47a;
+  --pf-input-text: #2e42bf;
+
+  /*
+   * A ação principal da jornada é PRETA, não azul (§13). O gradiente do
+   * `Button variant="primary"` lê estas duas paradas; fora da pele elas não
+   * existem e o fallback devolve o azul do design system.
+   *
+   * Não é decoração: nesta tela o azul já marca link, opção selecionada e anel
+   * de foco. Um CTA azul empata com tudo o que é só navegação, e "Avançar" é a
+   * única coisa a fazer na página. O gradiente sobrevive porque o `primary`
+   * tem sheen inset e hover por `brightness` — chapar em preto apagaria os dois.
+   */
+  --pf-cta-from: #33353a;
+  --pf-cta-to: #1a1b1c;
+
+  --pf-line: #e2ddd1;
+  /* Segundo degrau de fio. O produto usa dois ("fio = fecha conta": o externo
+     desenha o bloco, o interno fecha subtotal) e colapsá-los num só apagaria a
+     distinção — em `Linha`, o `border-t` só existe na linha de destaque. */
+  --pf-line-soft: #eeebe2;
+
+  /*
+   * Alerta. O `--pf-warn-ink` é o `#973C00` da §1, intocado: sobre creme ele dá
+   * 6,13:1 e ainda ganha — marrom-alaranjado sobre creme lê como carimbo.
+   *
+   * O preenchimento é outra história, e a saída fácil não existe. Sobre o canvas
+   * creme, `#FFFBEB` dá 1,12:1 e QUALQUER areia mais escura também fica em ~1,0
+   * (testado: `#f4ebdd` dá 1,02:1) — creme já é tinta quente, então nenhum
+   * preenchimento claro se destaca dele. E escurecer até um amarelo de verdade
+   * colidiria com `--pf-input`, desfazendo a coisa mais forte da pele: dentro
+   * dela, amarelo significa "campo que você preenche".
+   *
+   * Por isso quem carrega o sinal aqui é o FIO e o ícone, não a superfície — o
+   * preenchimento fica como sussurro, útil onde o fundo é mais claro.
+   */
+  --pf-warn-ink: #973c00;
+  --pf-warn-surface: #fffbeb;
+  --pf-warn-line: #973c0073;
+
+  /*
+   * Superfície invertida — o painel de resposta da capa do relatório, a meta em
+   * destaque do "Próximo passo" e a etapa ativa do cabeçalho. Não é a etapa 01:
+   * o painel da mensalidade é azul (`--pf-on-brand`, abaixo).
+   *
+   * A §13 tinha cortado a única inversão que o protótipo previa (o "painel do
+   * preço"), por três razões: `quanto-custa` é compartilhado com a tela interna
+   * e o fallback não expressa inversão, a §1 proíbe preencher blocos grandes de
+   * azul, e a §5 diz que os blocos de resultado não são donos da própria
+   * superfície. Nenhuma das três alcança a capa: ela é EXCLUSIVA da jornada
+   * pública (a tela interna segue com `HeroResultado`), não é azul, e é
+   * justamente o bloco cuja função é ser dono da superfície — a capa existe
+   * para dar UMA resposta antes do cálculo. O painel da etapa 01 passa no mesmo
+   * teste pelos mesmos três motivos, e faz o mesmo trabalho um passo antes: a
+   * mensalidade é a resposta que se dá ANTES de haver cálculo.
+   *
+   * O escuro é o próprio `--pf-ink`: uma cor a menos na paleta, e o painel lê
+   * como o texto da página levado a fundo, não como uma marca nova.
+   *
+   * Contrastes sobre `#1a1b1c`, contra o piso de 4,5:1 que a §13 preserva:
+   * `-ink` 16:1, `-soft` 8,2:1, e o verde `#0F9F2E` de "entra na conta" 4,9:1 —
+   * ele sobrevive intacto aqui, que é o que mantém o ROI verde na capa sem
+   * inventar um segundo verde.
+   */
+  --pf-invert: #1a1b1c;
+  --pf-invert-ink: #f6f5f0;
+  --pf-invert-soft: #a8aaa2;
+  --pf-invert-line: #ffffff26;
+
+  /*
+   * Texto sobre a marca — o painel da mensalidade da etapa 01, e só ele.
+   *
+   * Decisão do decisor em 20/08/2026: o painel do preço é AZUL DA MARCA. Ele
+   * reinstala, com escopo estreito, o "painel do preço" que o protótipo previa
+   * e a §13 tinha cortado por três razões. Duas não alcançam este bloco —
+   * `etapa-mensalidade.tsx` é exclusivo da jornada pública (nenhum fallback
+   * precisa expressar a inversão, porque `link-detail` não o renderiza), e a
+   * etapa 01 não é bloco de resultado: é o painel de RESPOSTA de um passo, o
+   * mesmo papel da capa. A terceira ("nunca preencher blocos grandes de azul",
+   * §1) é a que o decisor abriu, aqui e em lugar nenhum mais.
+   *
+   * O azul é o `--pf-brand-deep` e não o `--pf-brand`, e quem decide é o piso de
+   * 4,5:1. Sobre `#2e63cd` NÃO EXISTE tom secundário: `#b9c9e9` dá 3,33:1 e a
+   * primeira variante que passa (`#e4ecfb`, 4,68:1) já é branco — a linha
+   * "Volume / Taxa efetiva" empataria com a mensalidade acima dela e o painel
+   * perderia a hierarquia interna que justifica existir. Sobre `#1e4a9e` o
+   * mesmo `#b9c9e9` dá 4,98:1 e o degrau volta.
+   *
+   * É também por isso que o azul fica NESTE painel: o verde `#0F9F2E` de "entra
+   * na conta" dá 2,38:1 sobre `#1e4a9e` (contra 4,9:1 sobre o escuro). A capa,
+   * que tem o ROI em verde, não pode vir para cá — e a etapa 01 pode, porque
+   * nela ainda não existe nada que some ao ROI.
+   */
+  --pf-on-brand: #f6f5f0;
+  --pf-on-brand-soft: #b9c9e9;
+  --pf-on-brand-line: #ffffff33;
+
+  /*
+   * Alerta sobre a marca — o aviso de piso do mesmo painel. `--pf-warn-ink`
+   * (#973c00) é marrom-alaranjado pensado para creme; sobre `#1e4a9e` ele cai
+   * a ~2:1, ilegível. `#fcd34d` dá 5,76:1 sobre o mesmo fundo — âmbar claro o
+   * bastante para ler como alerta sem virar um terceiro amarelo (o de
+   * `--pf-input` é o único que significa "campo que você preenche", e este
+   * painel não tem campo nenhum).
+   */
+  --pf-warn-on-brand: #fcd34d;
+
+  /*
+   * "Tudo que é clicável e editável precisa ser alto contraste com o restante"
+   * (decisão do decisor, 20/08/2026). São dois fios, não um:
+   *
+   * `--pf-line` continua sendo o fio ESTRUTURAL — moldura de painel, divisória
+   * entre linhas de uma conta. Ele é discreto de propósito: um relatório com
+   * dez blocos não pode ter dez molduras gritando.
+   *
+   * `--pf-line-strong` é o fio de CONTROLE — a borda de um card de opção que
+   * ainda não foi escolhido, de um botão secundário, de qualquer coisa que
+   * responda ao clique. É o `--line-strong` do §2.1 do DESIGN_SYSTEM levado ao
+   * matiz da pele. Sem essa segunda intensidade, controle e moldura dividiam a
+   * mesma borda e nada dizia onde se podia clicar.
+   */
+  --pf-line-strong: #b9b2a0;
+
+  /*
+   * A sombra interna da célula de planilha (§5.1). É ela que faz o campo
+   * amarelo parecer AFUNDADO em vez de pintado — a diferença entre "aqui você
+   * digita" e "aqui tem um destaque colorido". Escura o bastante para se ver
+   * sobre o amarelo, fraca o bastante para não virar borda dupla.
+   */
+  --pf-input-inset: #00000014;
+
+  /*
+   * A dupla tipográfica do DESIGN_SYSTEM da calculadora (§3.1). A Archivo entra
+   * pela indireção `--font-app`, então ela alcança tanto quem herda do body
+   * quanto quem escreve `font-sans` — as duas resolvem para a mesma variável.
+   *
+   * A mono deixou de ser pilha de sistema: o §3.2 pede Plex Mono 700 no número
+   * hero e no valor de KPI, e pilha de sistema não tem 700 previsível nem
+   * métricas iguais entre macOS e Windows — o mesmo KPI mudava de largura de
+   * coluna conforme a máquina. A pilha continua atrás dela como fallback.
+   */
+  --font-app: var(--font-archivo);
+  --pf-mono: var(--font-plex-mono), ui-monospace, "SF Mono", SFMono-Regular,
+    Menlo, Consolas, monospace;
+}
+
+.pf-calc {
+  background: var(--pf-canvas);
+  color: var(--pf-ink);
+}
+
+/* O fundo do body é do app interno (#f9f9f9, §1). Dentro da calculadora ele some. */
+body:has(.pf-calc) {
+  background: var(--pf-canvas);
+}
+
+/* Fallback porque `campo-numero` é compartilhado com a tela interna, onde
+   `--pf-mono` não existe: sem ele a família ficaria inválida e herdaria. */
+.pf-mono {
+  font-family: var(--pf-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+/*
+ * Numeral em mono, mas SÓ dentro da pele. É o terceiro mecanismo, para quando a
+ * mudança não é cor e o fallback não tem default honesto: `font-family:
+ * var(--pf-mono, ???)` não teria resposta certa num componente compartilhado.
+ * Marcado no DOM de `resultado-time`, a classe vira mono na jornada e não faz
+ * absolutamente nada em `link-detail`.
+ *
+ * Use com parcimônia — dígito mono é mais largo, e `--text-score-*` tem caixa
+ * de linha calibrada para Inter. Vale no herói e nos KPIs; não em lista de
+ * parcelas, onde a largura de coluna já foi medida.
+ */
+.pf-calc .pf-num {
+  font-family: var(--pf-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * A escala tipográfica da calculadora (§3.2 do DESIGN_SYSTEM)
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Decisão do decisor, 20/08/2026. Substitui a escala que a jornada herdava do
+ * §8.12b e REABRE a caixa alta, que a §2 chamava de inegociável — a exceção
+ * está registrada em `docs/design-guidelines.md` §2 e §13, e é estreita: só
+ * `.pf-panel-title` (13px) e `.pf-label` (12px), dentro da pele, nunca como
+ * utilitária solta num componente. O teste continua barrando `uppercase` e
+ * `tracking-wide` no className — a caixa mora aqui e em lugar nenhum mais.
+ *
+ * O que o pedido era: mais hierarquia entre título, subtítulo e descrição. O
+ * problema não era o título ser pequeno, era o INTERVALO ser pequeno — título
+ * de seção em 18px contra descrição em 16px, os dois em sentence case, os dois
+ * na mesma família e quase no mesmo cinza. Dois pixels de diferença não fazem
+ * papel. Agora os três níveis diferem em quatro eixos ao mesmo tempo (tamanho,
+ * peso, caixa e tracking), e nenhum depende de o olho comparar medidas.
+ *
+ * Por que classe e não utilitária: cada nível carrega cinco propriedades que só
+ * significam juntas. Espalhadas em className, a primeira cópia já sai com
+ * quatro das cinco, e a hierarquia se desfaz onde ninguém está olhando.
+ *
+ * BASE fora da pele, OVERRIDE dentro: `secao-resultado`, `quanto-custa`,
+ * `resultado-time` e `campo-numero` também renderizam em `link-detail`, que é
+ * tela interna e segue a §2 (sem caixa alta). A regra base veste a tela interna
+ * com o degrau equivalente do §2; a de dentro da pele aplica o §3.2. Mesmo
+ * mecanismo do fallback de cor — um componente, duas telas, sem duplicação.
+ */
+
+/* Display — H1 de etapa. Archivo 900, 34→54px, tracking −3,5%, line 1,02. */
+.pf-display {
+  font-size: 1.875rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.pf-calc .pf-display {
+  font-size: clamp(2.125rem, 1.2rem + 3.6vw, 3.375rem);
+  letter-spacing: -0.035em;
+  /* 1,02 é caixa de linha de manchete: em duas linhas elas quase se tocam, que
+     é o efeito pretendido num título de 54px. Abaixo de ~30px seria colisão de
+     ascendente com descendente — por isso o clamp tem piso em 34. */
+  line-height: 1.02;
+}
+
+/* Título de card de quiz — Archivo 900, 22→28px, tracking −2,5%. */
+.pf-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.pf-calc .pf-title {
+  font-size: clamp(1.375rem, 1.1rem + 0.9vw, 1.75rem);
+  letter-spacing: -0.025em;
+  line-height: 1.14;
+}
+
+/*
+ * Título de painel — as seções do relatório. Archivo 800, 13px, caixa alta,
+ * tracking +12%.
+ *
+ * É o nível que mais muda, e o que mais estranha à primeira vista: ele ENCOLHE
+ * de 18px para 13px e fica MENOR que a descrição de 16px abaixo dele. É
+ * deliberado e é convenção de demonstrativo financeiro — a caixa alta espaçada
+ * lê como etiqueta de seção, não como frase, então ela não disputa a leitura
+ * com o parágrafo; ela o encima. A hierarquia deixou de ser "qual é maior" e
+ * passou a ser "qual é outra coisa", que é a distinção que 2px não davam.
+ *
+ * O tracking de +12% não é enfeite: caixa alta sem espaçamento fecha as
+ * contraformas e vira bloco cinza no tamanho pequeno.
+ */
+.pf-panel-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.5rem;
+}
+.pf-calc .pf-panel-title {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  /* 20px mantém a grade de 4 (§3 das diretrizes); o default de 13px cairia em
+     ~19,5 e desalinharia o cabeçalho do resto do painel. */
+  line-height: 1.25rem;
+}
+
+/* Label de campo — Archivo 700, 12px, caixa alta, tracking +10%. */
+.pf-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+.pf-calc .pf-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1rem;
+}
+
+/*
+ * Corpo / descrição — 15→17px, line 1,5.
+ *
+ * Os 24px de caixa substituem os 28 (`leading-7`) que o §8.12b pedia. O §8.12b
+ * subiu a caixa para compensar um corpo que competia com um título 2px maior;
+ * com o título virando etiqueta em caixa alta, a competição acabou e a caixa
+ * volta ao 1,5 do §3.2 — que é o degrau de 8 da grade, e o que o parágrafo
+ * pedia desde o começo.
+ */
+.pf-lead {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.pf-calc .pf-lead {
+  font-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1.0625rem);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Hint / microcopy — 11,5→12,5px. É o degrau que já valia (§8.12b): 12px com
+   caixa de 20, decidido em 20/08 e mantido aqui sem mudança. */
+.pf-hint {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.pf-calc .pf-hint {
+  font-size: 0.765625rem;
+  line-height: 1.25rem;
+}
+
+/*
+ * Números-manchete — Plex Mono 700. O `nowrap` é regra do §3.2: número grande
+ * que quebra em duas linhas deixa de ser lido como um valor único, e o caso que
+ * a motivou foi o botão de confirmação do protótipo.
+ */
+.pf-calc .pf-num-hero {
+  font-family: var(--pf-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.875rem, 1.5rem + 1.2vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.pf-calc .pf-num-kpi {
+  font-family: var(--pf-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.3125rem, 1.05rem + 0.75vw, 1.6875rem);
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
 }

@@ -49,7 +49,7 @@ export function CopyButton({
       className={cn(
         "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full",
         copied
-          ? "text-[#0F9F2E]"
+          ? "text-trend-positive"
           : "text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
         className,

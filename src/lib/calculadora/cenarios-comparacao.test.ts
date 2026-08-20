@@ -3,7 +3,7 @@ import { calcResultadoTime, type PropostaEfetiva } from "@/lib/calculadora/calc"
 import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
 import { entradasVazias } from "@/lib/calculadora/estado";
 import { rateioPorTime } from "@/lib/calculadora/preco";
-import type { EntradasTime } from "@/lib/calculadora/types";
+import type { Cenario, EntradasTime } from "@/lib/calculadora/types";
 
 // Mesmas entradas do golden FIESC: é o caso com funil preenchido, onde o
 // ganho de ciclo existe e a comparação por cenário tem o que provar.
@@ -74,6 +74,52 @@ describe("comparação de cenários (Excel, aba Scenario Comparison)", () => {
       cons.parcelas.ganhoCicloAno ?? 0,
       4,
     );
+  });
+
+  // O teste acima prova que os três ciclos DIFEREM; este prova quanto valem.
+  // A diferença importa: herdar o ciclo do conservador mantém a ordenação de
+  // valor intacta (as outras três alavancas já crescem sozinhas), então só a
+  // asserção em absoluto barra a volta do quirk. A auditoria externa de
+  // 20-21/08/2026 publicou a tabela de cenários do FIESC com ROI 0,44 / 1,00 /
+  // 1,28 — invertendo a aritmética, os três usam o MESMO ganho de ciclo de
+  // ~84 mil, que é o quirk medido. Os nossos são estes (errata E-41).
+  it("o ganho de ciclo por cenário vale o que o preset manda", () => {
+    const linhas = comparar();
+    const porCenario = (c: Cenario) =>
+      linhas.find((l) => l.cenario === c)!.parcelas.ganhoCicloAno ?? 0;
+
+    // Δciclo em dias inteiros (bifurcação dos 7 dias): 3, 9 e 12 de 60.
+    expect(porCenario("conservador")).toBeCloseTo(82_894.736842105, 4);
+    expect(porCenario("realista")).toBeCloseTo(277_941.176470588, 4);
+    expect(porCenario("otimista")).toBeCloseTo(315_000, 4);
+  });
+
+  // O teto do funil (`Engine!C69`) é a única trava do motor que NÃO aparece no
+  // golden FIESC: no conservador sobra capacidade. Ela só morde no otimista,
+  // onde a capacidade liberada (3,75 vendas/mês) passa das oportunidades
+  // ociosas (20 × 15% = 3). Sem este teste, `limitou === true` não é exercido
+  // em lugar nenhum da suíte.
+  it("o teto do funil só corta no cenário otimista", () => {
+    const esperado: Array<[Cenario, boolean, number]> = [
+      ["conservador", false, 0.789473684210525],
+      ["realista", false, 2.647058823529412],
+      ["otimista", true, 3.75],
+    ];
+    for (const [cenario, limitou, capacidade] of esperado) {
+      const r = calcResultadoTime(
+        entradasFiesc(),
+        PROPOSTA,
+        PRECO_MES,
+        { modo: "preset", cenario },
+        3,
+      );
+      if (r.status !== "ok") throw new Error("deveria estar completo");
+      expect(r.tetoFunil).not.toBeNull();
+      expect(r.tetoFunil!.limitou).toBe(limitou);
+      expect(r.tetoFunil!.ganhoCapacidadeVendasMes).toBeCloseTo(capacidade, 6);
+      // O teto em si não depende do cenário: são as oportunidades ociosas.
+      expect(r.tetoFunil!.tetoVendasMes).toBeCloseTo(3, 6);
+    }
   });
 
   it("valor e ROI crescem do conservador ao otimista", () => {

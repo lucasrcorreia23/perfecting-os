@@ -72,19 +72,21 @@ export function Glossario({ open, onClose }: { open: boolean; onClose: () => voi
 
   if (!open || typeof document === "undefined") return null;
 
-  // Portal no body: o transform de .page-fade-in ancoraria o painel fixo.
+  // Portal no body: o transform de .page-fade-in ancoraria o painel fixo. Os
+  // tokens da pele chegam aqui porque o CSS os declara também em
+  // `body:has(.pf-calc)` — fora do wrapper, eles não herdariam.
   return createPortal(
     <aside
       aria-label="Glossário"
-      className="slide-in-right fixed right-0 top-0 z-(--z-modal) flex h-[100dvh] w-full flex-col border-l border-slate-200 bg-white shadow-[var(--shadow-lg)] sm:w-[360px]"
+      className="slide-in-right fixed right-0 top-0 z-(--z-modal) flex h-[100dvh] w-full flex-col border-l border-(--pf-line) bg-(--pf-surface) shadow-[var(--shadow-lg)] sm:w-[360px]"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Glossário</h2>
+      <div className="flex items-center justify-between gap-4 border-b border-(--pf-line) px-5 py-4">
+        <h2 className="pf-title text-(--pf-ink)">Glossário</h2>
         <button
           type="button"
           aria-label="Fechar glossário"
           onClick={onClose}
-          className="-mr-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+          className="-mr-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-(--pf-ink-faint) transition-colors hover:bg-(--pf-surface-alt) hover:text-(--pf-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35"
         >
           <XMarkIcon className="h-5 w-5" aria-hidden />
         </button>
@@ -92,8 +94,8 @@ export function Glossario({ open, onClose }: { open: boolean; onClose: () => voi
       <dl className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
         {TERMOS.map(({ termo, definicao }) => (
           <div key={termo} className="flex flex-col gap-1">
-            <dt className="text-sm font-semibold text-slate-900">{termo}</dt>
-            <dd className="text-sm leading-6 text-slate-600">{definicao}</dd>
+            <dt className="text-sm font-semibold text-(--pf-ink)">{termo}</dt>
+            <dd className="text-sm leading-6 text-(--pf-ink-soft)">{definicao}</dd>
           </div>
         ))}
       </dl>

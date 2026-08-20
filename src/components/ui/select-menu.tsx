@@ -201,7 +201,7 @@ export function SelectMenu({
                       "flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-left text-sm transition-colors",
                       "focus-visible:outline-none focus-visible:bg-slate-100/75",
                       ativa
-                        ? "bg-[#2E63CD]/8 font-medium text-[#2E63CD]"
+                        ? "bg-primary/8 font-medium text-primary"
                         : "text-slate-700 hover:bg-slate-100/75",
                     )}
                   >

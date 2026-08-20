@@ -632,3 +632,40 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
     expect(r.valorAno).toBeCloseTo(352_894.736842105, 4);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Auditoria A-07 do Excel (`Conta!C40`): a soma dos cinco componentes tem de
+// bater com o valor anual, tolerância de R$ 0,01. É o único autoteste que a
+// planilha faz sobre si mesma e que a nossa suíte não declarava por extenso.
+// A identidade é verdadeira por construção — e é por isso mesmo que precisa
+// estar escrita: o que ela barra é uma sexta parcela entrar em `valorAno` sem
+// entrar em `G`, ou uma linha de `linhasNaoSomadas` vazar para a soma. Vale
+// nos dois goldens, inclusive no §14, onde o ganho de ciclo é `null`.
+// ---------------------------------------------------------------------------
+
+describe("decomposição do valor (auditoria A-07 do Excel)", () => {
+  const casos = [
+    ["§14", resultadoGolden] as const,
+    ["FIESC", resultadoFiesc] as const,
+  ];
+
+  for (const [nome, resultado] of casos) {
+    it(`${nome}: valor anual = eficiência + as quatro alavancas, e nada mais`, () => {
+      const r = resultado();
+      const { margemTicketAno, margemRampaAno, ganhoConversaoAno, ganhoCicloAno } =
+        r.parcelas;
+      const soma =
+        margemTicketAno + margemRampaAno + ganhoConversaoAno + (ganhoCicloAno ?? 0);
+
+      expect(r.G).toBeCloseTo(soma, 6);
+      expect(r.valorAno).toBeCloseTo(r.eficienciaAno + soma, 6);
+
+      // A identidade só significa alguma coisa se houver valor sendo excluído:
+      // teto de eficiência e economia de headcount valem milhões nos dois
+      // goldens e seguem fora da conta (auditoria A-02).
+      const excluido = r.linhasNaoSomadas.reduce((acc, l) => acc + (l.valorAno ?? 0), 0);
+      expect(excluido).toBeGreaterThan(0);
+      expect(r.valorAno).toBeLessThan(r.eficienciaAno + soma + excluido);
+    });
+  }
+});

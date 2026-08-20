@@ -107,8 +107,11 @@ base do card a `alpha 0.22 → 0`. Isso mantém a cor legível sem "gritar".
 
 ## 2. Tipografia
 
-- **Fonte de UI**: **Inter** (`--font-inter`), pesos 400/500/600. Base do body:
-  **14px**.
+- **Fonte de UI**: **Inter** (`--font-inter`), pesos 400/500/600 — mais **900**,
+  carregado só para os títulos de etapa da calculadora (§13). O peso precisa
+  estar na lista de `next/font`: sem ele, `font-black` vira negrito sintético, e
+  o navegador engorda o traço do 600 por conta própria justamente no tamanho
+  grande, que é onde o peso deveria estar mais limpo. Base do body: **14px**.
 - **Fonte de display** (opcional, momentos "hero"/marca): serifa condensada
   (ex.: *Libre Caslon Condensed*) em 400/600/700. Usar só em telas de celebração
   ou títulos de marca — não em UI corrente.
@@ -137,7 +140,7 @@ como título de seção, o título de primeiro nível empatava com o gatilho de 
 níveis abaixo — a página inteira lia como uma pilha plana. Página de leitura longa usa `text-lg`;
 `text-xs` de eyebrow é para seção de formulário e para o que vive dentro de um card.
 
-### Caixa e espaçamento entre letras (inegociável)
+### Caixa e espaçamento entre letras (uma exceção, nomeada)
 
 - **Nenhum texto de UI é caixa alta.** Proibido `uppercase` em labels, títulos de seção,
   eyebrows, headers de tabela, chips e selos — a caixa vem escrita no próprio texto
@@ -146,6 +149,29 @@ níveis abaixo — a página inteira lia como uma pilha plana. Página de leitur
   `tracking-tight` continua permitido em títulos grandes e no logotipo.
 - Vale para nomes vindos do usuário (nome de time, de cliente): nunca aplicar
   `toUpperCase()` nem `uppercase` — a única exceção são as iniciais do avatar.
+
+**A exceção (decisão do decisor, 20/08/2026).** A jornada pública da calculadora
+adotou o §3.2 do `DESIGN_SYSTEM.md`, que usa caixa alta com tracking positivo em
+**dois** níveis: título de painel (13px, peso 800, `+0,12em`) e label de campo
+(12px, peso 700, `+0,10em`). Nada mais. Fora de `.pf-calc` esta seção continua
+valendo inteira.
+
+A exceção é estreita **por construção**, não por disciplina:
+
+- A caixa mora em duas regras CSS (`.pf-calc .pf-panel-title` e `.pf-calc
+  .pf-label`) e é aplicada por classe. Nenhum componente escreve `uppercase` no
+  `className` — um teste falha se escrever, e outro falha se aparecer um
+  terceiro `text-transform: uppercase` no `globals.css`.
+- A caixa é **apresentação**, nunca conteúdo. Escrever `"MENSALIDADE ESTIMADA"`
+  na string continua proibido: era como a regra vinha sendo contornada, e custa
+  a pronúncia no leitor de tela (que soletra a sigla) e a busca no texto.
+
+Por que ela existe: a hierarquia que faltava não era de tamanho, era de papel.
+Título de seção em 18px contra descrição em 16px são dois parágrafos com 2px de
+diferença — o olho não separa. Uma etiqueta em caixa alta espaçada não é lida
+como frase; ela encima o parágrafo em vez de disputar a leitura com ele. O
+tracking positivo é o que torna a caixa alta legível no tamanho pequeno: sem
+ele as contraformas fecham e a palavra vira um bloco cinza.
 
 ---
 
@@ -495,7 +521,8 @@ Estilo **underlined**, com as abas **flutuando fora do card**:
 
 - **Container**: `max-w-3xl mx-auto flex flex-col gap-6`; card flat; painel com abas usa `p-4 sm:p-8`.
 - **Seção**: título `text-xs font-semibold text-slate-500` + descrição opcional; separar seções com `border-t border-slate-100`.
-- **Campo**: `flex flex-col gap-2` → `<label>` (`text-sm font-medium text-slate-700`) **com a ajuda logo abaixo do label** (`text-xs text-slate-500`), e só então o input. Nunca a descrição depois do campo.
+- **Campo**: `flex flex-col gap-2` → `<label>` (`text-sm font-medium text-slate-700`) → input → **ajuda** (`text-xs text-slate-500`) → erro. **A ordem foi invertida em 20/08/2026** (decisão do decisor): a descrição desceu para DEPOIS do campo. A razão original de pô-la antes era boa — quem lê a explicação antes de digitar erra menos —, mas o que mudou foi o peso relativo das duas coisas: com o rótulo em caixa alta e o campo editável em amarelo, rótulo e input viraram um par visual forte, e uma frase de duas ou três linhas ENTRE eles separava justamente o que a pessoa opera junto. A explicação continua ligada por `aria-describedby`, então o leitor de tela a anuncia no foco — antes de digitar —, independentemente da ordem no DOM.
+- **Alinhamento superior em grade**: quem o garante é `grid-rows-subgrid` no `Field` (`alinhado`) com o pai declarando `grid-rows-[auto_auto_auto_auto]`. As quatro faixas são rótulo → input → ajuda → erro; a faixa do rótulo assume a altura do rótulo mais alto da linha, e é por isso que todos os campos começam na mesma altura mesmo quando um rótulo quebra em duas linhas.
 - **Grid 2 colunas**: `grid grid-cols-1 md:grid-cols-2 gap-4`. Campo largura-cheia fica fora do grid; meia-largura sem par usa `md:w-1/2`.
 - **Inputs**: `h-12`, `rounded-full` (alinhados aos Selects); textarea usa `rounded-sm`.
 - **Barra de ação**: rodapé `flex items-center justify-end gap-6 pt-2`; primário à direita (desabilitado vira "Sem alterações"); à esquerda, quando há mudanças, um link secundário "Descartar alterações". **Salvar e descartar passam por modal de confirmação.**
@@ -530,10 +557,20 @@ obstáculo para quem abre o link uma vez e precisa decidir.
 Nessa jornada:
 
 - **Corpo de leitura** é `text-base` (16px) com `leading-7`, não `text-sm`.
-- **Auxiliares** (rótulo de KPI, descrição de seção, nota de bloco) são
-  `text-sm` (14px). `text-xs` fica reservado a selos e chips.
+- **Auxiliares** (rótulo de KPI, nota de bloco) são `text-sm` (14px).
+- **Descrição de campo e de opção** é `text-xs` (12px) com `leading-5`
+  (decisão do decisor, 20/08/2026). Vale para a ajuda sob o rótulo (`Field`
+  com `escala="leitura"`) e para a nota que explica uma opção ou um slider.
+  Com uma pergunta por tela a ajuda ficou longa, e em 14px ela competia com o
+  rótulo em vez de apoiá-lo — a hierarquia dentro do campo passou a depender do
+  tamanho, não só do peso. Os 20px de `leading-5` mantêm a grade: o default de
+  `text-xs` são 16px, apertados assim que a frase vira duas linhas. **O erro
+  continua em `text-sm`** — ele não é descrição, e encolher o aviso junto com a
+  explicação apagaria a diferença entre "isto ajuda" e "isto bloqueia".
 - **Cinzas de texto** param em `slate-600`; `slate-400` só para elementos
-  decorativos, nunca para frase que precise ser lida.
+  decorativos, nunca para frase que precise ser lida. Este piso não muda com o
+  tamanho: 12px em cinza fraco seria a soma de dois problemas, e é a cor que
+  segura a legibilidade que o tamanho deixou de dar.
 - **Rótulos dentro de SVG** ficam em 12–13px com cinza `#64748b` ou mais
   escuro, não os 10px `#94a3b8` da convenção geral de §8.13.
 
@@ -541,12 +578,27 @@ O resto do app (telas internas) segue a escala de §2. Esta subseção existe pa
 que uma pessoa nova não "corrija" a calculadora de volta para a escala padrão
 achando que é inconsistência.
 
+> **Superado dentro de `.pf-calc` em 20/08/2026.** A jornada passou a rodar a
+> escala do `DESIGN_SYSTEM.md` §3.2, descrita na §13 — oito níveis em classe, com
+> caixa alta em dois deles. O princípio desta subseção sobrevive intacto e é o
+> que a nova escala executa melhor: o leitor tem 45+ anos, abre o link uma vez e
+> precisa decidir. O que mudou é que a hierarquia deixou de depender de dois
+> pixels de diferença entre título e descrição.
+
 ### 8.13 Gráficos (SVG próprio, zero dependências)
 
 Não há biblioteca de charts no projeto e não deve haver: os gráficos existentes
 (`trajetoria-panel.tsx`, `graficos-resultado.tsx`) são SVG escrito à mão. As
 convenções abaixo já eram praticadas nesses dois arquivos — ficam registradas
 aqui para o próximo gráfico nascer igual.
+
+Nem toda leitura visual precisa de SVG: três blocos de `graficos-resultado.tsx`
+(`InvestimentoVsRetorno`, `DecomposicaoValor`, `ComparacaoCenarios`) viraram
+listas de barras em HTML/CSS puro em 20/08/2026 — rótulo, legenda e valor já
+são texto real, e a barra é só um `div` com `width` proporcional. Quando o
+gráfico É a leitura (linha temporal, cruzamento de duas séries, eixo com
+escala), SVG continua a régua: é o que exige o desenho de verdade, não o
+formato do arquivo.
 
 **Caixa e escala.** `viewBox="0 0 640 N"` com `className="w-full"`: a escala é
 do viewBox, nunca de medição de container. Padding interno padrão
@@ -660,3 +712,221 @@ Ao levar este sistema para outro produto, replicar primeiro:
 8. Tokens de **tendência**, **sombra** e **z-index** como CSS vars centrais.
 9. Um conjunto de **primitivos reutilizáveis** (botão, back, link, busca, select,
    abas, modal de confirmação) em vez de estilos ad-hoc por página.
+
+---
+
+## 13. Exceção declarada: a pele da calculadora pública (`.pf-calc`)
+
+**Decisão do decisor, 19/08/2026.** A jornada pública da calculadora de ROI —
+`app/(calculadora)/*` — não segue a paleta de superfícies deste documento. Ela
+tem tokens próprios, definidos numa classe em `app/globals.css` e aplicados no
+layout do route group. Tudo o mais no produto (clientes, workflow, marketing,
+perfil, e os primitivos de `src/components/ui/`) **continua nas seções 1 a 12**,
+sem alteração.
+
+| Token | Hex | Papel |
+|---|---|---|
+| `--pf-canvas` | `#f2eee6` | Fundo da página (creme) |
+| `--pf-surface` | `#fbfaf5` | Card |
+| `--pf-surface-alt` | `#ffffff` | Card interno não selecionado |
+| `--pf-bar` | `#f2f0e6` | Barra do topo |
+| `--pf-brand` | `#2e63cd` | Primária: CTA, eyebrow, marca |
+| `--pf-brand-deep` | `#1e4a9e` | Hover de link textual |
+| `--pf-brand-tint` | `#edf2fc` | Opção selecionada |
+| `--pf-brand-ink` | `#1e4a9e` | Texto sobre o tint |
+| `--pf-ink` / `-soft` / `-faint` | `#1a1b1c` / `#55584f` / `#6b6d65` | Texto |
+| `--pf-input` + `--pf-input-border` + `--pf-input-text` | `#fdf1ae` + `#e7d47a` + `#2e42bf` | Campo editável |
+| `--pf-line` / `-soft` | `#e2ddd1` / `#eeebe2` | Fio externo / fio que fecha conta |
+| `--pf-warn-ink` / `-surface` / `-line` | `#973c00` / `#fffbeb` / `#973c00` a 45% | Alerta |
+| `--pf-mono` | pilha de sistema | **Numerais, e só eles** |
+
+O protótipo previa `--pf-brand-deep` como "painel do preço, única superfície
+invertida". A linha saiu: `quanto-custa` é compartilhado com a tela interna e o
+fallback não expressa inversão (`link-detail` ganharia texto claro sobre nada), a
+§1 proíbe preencher blocos grandes de azul, e a §5 diz que os blocos de resultado
+não são donos da própria superfície. O token sobrevive no papel que já exercia.
+
+**A inversão voltou, com escopo estreito: a capa do relatório** (`--pf-invert`,
+`-ink`, `-soft`, `-line`; decisão do decisor, 20/08/2026). Nenhuma das três razões
+acima alcança este bloco: `capa-resultado.tsx` é **exclusivo** da jornada pública
+— a tela interna segue com `HeroResultado` e nunca renderiza a capa —, o escuro
+não é azul, e a capa é justamente o bloco cuja função É ser dono da superfície,
+porque ela existe para dar UMA resposta antes de a página explicar a conta.
+
+O escuro é o próprio `--pf-ink` (`#1a1b1c`): uma cor a menos na paleta, e o painel
+lê como o texto da página levado a fundo, não como uma marca nova. Contrastes
+sobre ele, contra o piso de 4,5:1 que esta seção declara preservado —
+`--pf-invert-ink` `#f6f5f0` dá 16:1, `--pf-invert-soft` `#a8aaa2` dá 8,2:1, e o
+verde `#0F9F2E` de *"entra na conta"* dá 4,9:1. É esse último número que decide o
+resto: o verde sobrevive intacto sobre o escuro, então o ROI segue verde na capa
+sem que ninguém precise inventar um segundo verde para fundo invertido. O mesmo
+par de tokens veste o card destacado do bloco "Próximo passo" — e não deve sair
+daí. (As pílulas do cabeçalho de etapas usavam o mesmo par e saíram em 20/08/2026:
+das duas afordâncias para os mesmos quatro destinos, a pílula só repetia o
+destino, enquanto a régua numerada repete o destino **e** lê progresso. Quem
+carrega o `aria-label` da navegação agora é a régua.)
+
+**E o painel do preço voltou também, em AZUL DA MARCA** (`--pf-on-brand`, `-soft`,
+`-line` sobre `--pf-brand-deep`; decisão do decisor, 20/08/2026). Escopo estreito:
+o painel da mensalidade da **etapa 01** (`etapa-mensalidade.tsx`), e nada além.
+Das três razões acima, duas não o alcançam — o arquivo é exclusivo da jornada
+pública, então nenhum fallback precisa expressar a inversão, e a etapa 01 não é
+bloco de resultado, é o painel de resposta de um passo, o mesmo papel da capa. A
+terceira alcança, e é a exceção que está sendo aberta: *"nunca preencher blocos
+grandes de azul"* (§1) continua valendo em todo o resto do produto.
+
+Duas coisas decidem o resto, e as duas são contraste:
+
+- **É o `--pf-brand-deep` (`#1e4a9e`), não o `--pf-brand`.** Sobre o azul médio
+  não existe tom secundário: `#b9c9e9` dá 3,33:1 e a primeira variante que passa
+  do piso (`#e4ecfb`, 4,68:1) já é branco — a linha *"Volume / Taxa efetiva"*
+  empataria com a mensalidade acima dela, e o painel perderia a hierarquia
+  interna que justifica existir. Sobre `#1e4a9e`, `--pf-on-brand` `#f6f5f0` dá
+  7,61:1 e `--pf-on-brand-soft` `#b9c9e9` dá 4,98:1.
+- **É a etapa 01 e não a capa.** O verde `#0F9F2E` de *"entra na conta"* dá 2,38:1
+  sobre o azul (contra 4,9:1 sobre o escuro). A capa tem o ROI em verde e por isso
+  não pode vir para cá; a etapa 01 pode, porque nela ainda não existe nada que
+  some ao ROI — só o preço.
+
+**O alerta é fio e ícone, não superfície.** Sobre o canvas creme, o `#FFFBEB` da
+§1 dá 1,12:1 — e nenhuma areia mais escura resolve (`#f4ebdd` dá 1,02:1), porque
+creme já é tinta quente. Escurecer até um amarelo de verdade colidiria com
+`--pf-input`, e dois amarelos com dois significados desfariam a coisa mais forte
+da pele. Por isso o `--pf-warn-line` é mais forte que o `/25` do app interno: o
+contorno e o triângulo carregam o sinal, e o preenchimento é sussurro.
+
+**Por que a exceção existe, e por que ela não vaza.** A calculadora é a única
+superfície que um cliente vê, e o §8.12b já reconhece que ela opera com outra
+régua — leitor de 45+ anos, uma sessão só, decisão de compra. O amarelo com
+texto azul é a legenda de cor da planilha que originou o produto ("fonte azul
+sobre fundo amarelo = seu input"); no app interno ele não significaria nada.
+Como os tokens vivem numa **classe** e não no `:root`, a fronteira é
+verificável: se `.pf-calc` não está no ancestral, vale este documento. Um teste
+falha se algum `--pf-*` for declarado em `:root` ou em `@theme`.
+
+### A escala tipográfica do `DESIGN_SYSTEM.md` (§3), adotada em 20/08/2026
+
+A jornada roda a escala do design system próprio da calculadora, que **substitui
+o §8.12b** dentro de `.pf-calc`. Oito níveis, uma classe cada, todas em
+`globals.css` com regra base (o degrau do §2, para os componentes que também
+rodam em `link-detail`) e override dentro da pele:
+
+| Classe | Dentro da pele | Papel |
+|---|---|---|
+| `.pf-display` | 900, `clamp(34–54px)`, `−0,035em`, line 1,02 | H1 de etapa |
+| `.pf-title` | 900, `clamp(22–28px)`, `−0,025em` | Título de card de quiz |
+| `.pf-panel-title` | 800, 13px, **caixa alta**, `+0,12em` | Seções do relatório, eyebrow |
+| `.pf-label` | 700, 12px, **caixa alta**, `+0,10em` | Label de campo, rótulo de opção, rail |
+| `.pf-lead` | 400, `clamp(15–17px)`, line 1,5 | Corpo e descrição |
+| `.pf-hint` | 12,25px, line 20px | Microcopy sob campo e opção |
+| `.pf-num-hero` | Mono 700, `clamp(30–40px)`, `−0,03em`, `nowrap` | Mensalidade, ROI da capa |
+| `.pf-num-kpi` | Mono 700, `clamp(21–27px)`, `nowrap` | Valores de KPI |
+
+São classes e não utilitárias porque cada nível carrega cinco propriedades que
+só significam juntas — espalhadas em `className`, a primeira cópia sai com
+quatro das cinco e a hierarquia se desfaz onde ninguém está olhando.
+
+**As famílias mudaram junto (§3.1 do DESIGN_SYSTEM): Archivo + IBM Plex Mono.**
+Só dentro da pele — o app interno segue na Inter. A troca acontece por uma
+indireção: `--font-sans` no `@theme` aponta para `--font-app`, que vale
+`var(--font-inter)` no `:root` e `var(--font-archivo)` em `.pf-calc`. Apontar
+`--font-sans` direto para a Inter prenderia a utilitária `font-sans` a ela, e a
+Archivo só alcançaria quem herdasse do `body`. A mono deixou de ser pilha de
+sistema porque o §3.2 pede peso 700 em dois níveis, e pilha de sistema não tem
+700 previsível nem métricas iguais entre macOS e Windows — o mesmo KPI mudava de
+largura de coluna conforme a máquina.
+
+**"Tudo que é clicável e editável é alto contraste com o restante"** (decisão do
+decisor, 20/08/2026). Disso saem dois fios, não um:
+
+- `--pf-line` continua sendo o fio **estrutural** — moldura de painel, divisória
+  de conta. Discreto de propósito: dez blocos não podem ter dez molduras
+  gritando.
+- `--pf-line-strong` (`#b9b2a0`) é o fio de **controle** — borda de card de opção
+  não escolhido, de botão secundário, de qualquer coisa que responda ao clique.
+  Sem a segunda intensidade, controle e moldura dividiam a mesma borda e nada
+  dizia onde se podia clicar.
+
+O campo editável é o ponto mais alto dessa escala e ganhou a forma que o §5.1 do
+DESIGN_SYSTEM descreve: amarelo `--pf-input`, borda de **1,5px**, sombra
+**interna** (`--pf-input-inset`) e valor em mono **700 de 16px**. É o inset que
+faz a célula parecer afundada em vez de pintada — a diferença entre "aqui você
+digita" e "aqui tem um destaque colorido".
+
+**A pele é creme + o azul da marca, não creme + verde.** O protótipo aprovado
+desenhava a primária em verde escuro (`#2a5d42`). Adotá-lo poria duas cores
+próximas com significados diferentes na mesma tela: o verde de marca e o
+`#0F9F2E` que a §1 reserva para *"entra na conta"*. A pele muda as superfícies —
+o papel — e mantém a cor de marca do produto, que é o que o §1 chama de restrita
+e intencional. Por isso os tokens se chamam `--pf-brand*`: nomear de *green* um
+valor azul seria uma mentira no CSS.
+
+**O verde foi recusado uma segunda vez em 20/08/2026**, ao adotar o
+`DESIGN_SYSTEM.md`, que propõe `#0E5E3F` como primária. Decisão do decisor:
+*"mantenha o azul atual, esqueça o verde desse DS"*. A razão é a mesma da
+primeira recusa e não envelheceu — duas cores próximas com significados
+diferentes na mesma tela desfazem a semântica da §1, e o `#0F9F2E` de "entra na
+conta" é o significado que não pode ser diluído. **O que foi adotado do
+DESIGN_SYSTEM é a tipografia (§3), a forma do campo editável (§5.1) e a regra
+de contraste dos controles — não a paleta (§2.1).**
+
+**Consumo — o mecanismo importa.** `app/globals.css` usa `@theme inline`, que
+**inlina o hex** na utilitária: `.bg-primary` compila para
+`background-color: #2e63cd`, não `var(--color-primary)`. Sobrescrever
+`--color-primary` dentro de `.pf-calc` portanto não faz nada. A pele se consome
+por valor arbitrário, em duas formas:
+
+- Componente exclusivo da jornada → `bg-(--pf-canvas)`, `text-(--pf-ink)`.
+- Componente **compartilhado** com a tela interna (`link-detail` e os blocos de
+  resultado) → sempre com fallback: `bg-[var(--pf-surface,#ffffff)]`. Dentro da
+  pele pega o token; fora, entrega o valor do design system. É o que permite os
+  mesmos componentes servirem às duas telas sem duplicação.
+
+Os tokens são declarados em `.pf-calc` **e** em `body:has(.pf-calc)`, porque
+`Modal`, `SelectMenu`, `ActionMenu`, o Glossário e a barra de progresso fazem
+`createPortal` para o `document.body` — fora do wrapper, a variável não herda, e
+a utilitária resolveria para valor inválido.
+
+**O que continua valendo dentro da pele:** empilhamento com `flex flex-col
+gap-*` (nunca `space-y-*`), raios 16/20/28 (o 14px do protótipo não existe na
+escala), grade 8/4 sem meio-passo, `leading-*` numérico e nunca o nomeado,
+sombras só dos três tokens da §6, foco visível em todo controle, tap target
+≥ 44px, contraste mínimo de 4,5:1 em texto, e travessão no lugar de número
+quando o dado não existe.
+
+**E a §2 continua inegociável dentro da pele:** nada de caixa alta e nada de
+`letter-spacing` positivo. O protótipo desenhava eyebrows em caixa alta com
+tracking de 0,1em; onde um eyebrow existir, quem faz o papel é a monoespaçada e
+o tamanho, nunca o `uppercase`. O verde `#0F9F2E` também sobrevive intacto: a
+pele muda o papel, não a semântica de quais parcelas entram na conta.
+
+**A monoespaçada é só para número** (decisão do decisor, 20/08/2026). Todo
+rótulo, título e eyebrow da jornada é **Inter**; a mono entra apenas em valores
+— KPI, preço, hora, percentual, e o número da etapa na régua. A razão é o que a
+mono faz: ela alinha dígito com dígito em coluna. Numa palavra ela não alinha
+nada, e o que sobra é uma tipografia estranha ao resto da página, que numa tela
+de decisão lê como peça de outro produto. O acesso é sempre pela classe
+`pf-num` (definida como `.pf-calc .pf-num`, logo inerte fora da pele) — nunca
+`font-[family-name:var(--pf-mono)]` solto no `className`, que é como a mono
+vazava para os rótulos. Um teste falha se essa forma reaparecer.
+
+**A ação principal da jornada é preta, não azul.** `Button variant="primary"`
+lê as duas paradas do gradiente de `--pf-cta-from` / `--pf-cta-to`, com fallback
+para o azul — fora da pele nada muda. Dentro dela o azul já marca link, opção
+selecionada e anel de foco; um CTA azul empataria com tudo o que é apenas
+navegação, e "Avançar" é a única coisa a fazer na página. O gradiente sobrevive
+porque o `primary` tem sheen inset e hover por `brightness`: chapar em preto
+apagaria os dois. O anel de foco continua azul — ele é afordância de teclado,
+não hierarquia de ação.
+
+**O título de cada etapa é `font-black`.** Vale para os três degraus de primeiro
+nível da jornada — o título da entrada, o título do passo do wizard e os títulos
+de seção do resultado —, sempre com `tracking-tight`, que é o que o 900 pede em
+tamanho grande. É o contraste de peso, e não de tamanho, que separa o título da
+etapa do resto: numa página que é toda leitura, subir o corpo para 16px (§8.12b)
+aproximou os degraus, e o 900 devolve a distância sem inflar a tipografia. O
+peso 900 tem de estar carregado em `app/layout.tsx` (§2).
+
+**`--pf-ink-faint` é `#6b6d65`, não o `#7c7f75` do protótipo.** O valor original
+dava 3,52:1 sobre o canvas, abaixo do piso de 4,5:1 que esta própria seção
+declara preservado. O ajuste mantém o matiz e sobe para 4,54:1.

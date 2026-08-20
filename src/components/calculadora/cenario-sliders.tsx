@@ -51,10 +51,10 @@ function Slider({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+        <label htmlFor={id} className="pf-label text-(--pf-ink-soft)">
           {label}
         </label>
-        <span className="text-sm font-semibold tabular-nums text-slate-900">{leitura}</span>
+        <span className="text-sm font-semibold tabular-nums text-(--pf-ink)">{leitura}</span>
       </div>
       <input
         id={id}
@@ -66,12 +66,14 @@ function Slider({
         disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
         className={cn(
-          "h-11 w-full cursor-pointer accent-[#2E63CD]",
+          // Trilho e polegar nativos: o `accent-color` é o único ponto de cor
+          // do controle, e ele passa a ser o azul da pele.
+          "h-11 w-full cursor-pointer accent-(--pf-brand)",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 rounded-full",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35 rounded-full",
         )}
       />
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-xs leading-5 text-(--pf-ink-soft)">
         {faixaTexto} · mover recalcula o ROI na hora
       </p>
     </div>
@@ -116,7 +118,7 @@ export function CenarioSliders({
           {/* Não repetir o formato do eyebrow da seção ("De onde vem o
               número"): dois rótulos quase iguais, empilhados, é
               ruído. Aqui é título de card, como nos vizinhos. */}
-          <h3 className="text-sm font-semibold text-slate-700">
+          <h3 className="pf-panel-title text-(--pf-ink-soft)">
             Cenário e parâmetros
           </h3>
           {sel.modo === "personalizado" ? <SeloEvidencia selo="personalizado" /> : null}
@@ -126,8 +128,8 @@ export function CenarioSliders({
             type="button"
             onClick={() => onChange({ modo: "preset", cenario: sel.base })}
             className={cn(
-              "inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full px-3 text-[13px] font-medium leading-5 text-[#2E63CD] sm:min-h-8",
-              "transition-colors hover:text-[#1e4a9e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+              "inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full px-3 text-sm font-medium leading-5 text-(--pf-brand) sm:min-h-8",
+              "transition-colors hover:text-(--pf-brand-deep) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
             )}
           >
             <ArrowUturnLeftIcon className="h-4 w-4" aria-hidden />
@@ -157,23 +159,23 @@ export function CenarioSliders({
                 aria-pressed={ativo}
                 className={cn(
                   "flex min-h-[44px] w-full cursor-pointer items-center gap-2 rounded-sm border py-3 pl-4 pr-11 text-left transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
                   ativo
-                    ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
-                    : "border-slate-200 bg-white hover:border-slate-300",
+                    ? "border-(--pf-brand) bg-(--pf-brand-tint)"
+                    : "border-(--pf-line) bg-(--pf-surface-alt) hover:border-(--pf-ink-faint)/40",
                   base && "border-dashed",
                 )}
               >
                 <span
                   className={cn(
                     "text-base font-medium",
-                    ativo ? "text-[#2E63CD]" : "text-slate-800",
+                    ativo ? "text-(--pf-brand-ink)" : "text-(--pf-ink)",
                   )}
                 >
                   {CENARIOS[cenario].label}
                 </span>
                 {cenario === "conservador" ? (
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-xs font-semibold text-(--pf-ink-faint)">
                     Recomendado
                   </span>
                 ) : null}
@@ -245,12 +247,12 @@ export function CenarioSliders({
             onChange={(valor) => aplicarDelta({ cicloDiasMenos: valor })}
           />
         ) : temCiclo ? (
-          <p className="text-sm leading-6 text-slate-600">
+          <p className="text-xs leading-5 text-(--pf-ink-soft)">
             Com ciclo abaixo de {CICLO_DIAS_MINIMO} dias, a redução usa o percentual do
             cenário (até {REDUCAO_CICLO_MAX * 100}%) — dias inteiros seriam grossos demais.
           </p>
         ) : (
-          <p className="text-sm leading-6 text-slate-600">
+          <p className="text-xs leading-5 text-(--pf-ink-soft)">
             A alavanca de ciclo aparece quando o passo de funil (ciclo + oportunidades)
             estiver preenchido.
           </p>

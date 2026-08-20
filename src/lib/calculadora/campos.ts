@@ -2,7 +2,7 @@
 // Usado pelo wizard, pela sidebar "Seus números" e pelo detalhe interno —
 // o mesmo texto em todo lugar.
 
-import type { CampoId } from "./types";
+import type { CampoId, PassoId } from "./types";
 
 export type CampoFormato = "moeda" | "numero" | "percentual" | "horas" | "dias" | "meses";
 
@@ -28,93 +28,93 @@ export type CampoDef = {
 export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
   numVendedores: {
     id: "numVendedores",
-    label: "Vendedores",
-    help: "Quem vende ativamente hoje.",
+    label: "Número de vendedores",
+    help: "Vendedores ativos que entrarão no programa.",
     placeholder: "Ex.: 30",
     formato: "numero",
     inteiro: true,
   },
   numGestoresTreino: {
     id: "numGestoresTreino",
-    label: "Gestores que treinam",
-    help: "Quem treina e acompanha o time, não a liderança inteira.",
+    label: "Gestores de treinamento",
+    help: "Pessoas dedicadas a treinar os vendedores hoje.",
     placeholder: "Ex.: 3",
     formato: "numero",
   },
   horasTreinoGestorMes: {
     id: "horasTreinoGestorMes",
-    label: "Treino por gestor/mês",
-    help: "Horas que cada gestor gasta por mês preparando, executando e dando feedback.",
+    label: "Horas de treino por gestor/mês",
+    help: "Horas que cada gestor dedica a treinar, por mês — preparo, execução e feedback.",
     placeholder: "Ex.: 20",
     formato: "horas",
   },
   vendedoresPorGestorMes: {
     id: "vendedoresPorGestorMes",
-    label: "Vendedores por gestor/mês",
-    help: "Quantos vendedores cada gestor consegue atender hoje.",
+    label: "Vendedores cobertos por gestor/mês",
+    help: "Quantos vendedores cada gestor consegue treinar por mês.",
     placeholder: "Ex.: 6",
     formato: "numero",
   },
   horasPraticaPorRepHoje: {
     id: "horasPraticaPorRepHoje",
-    label: "Prática por vendedor/mês",
-    help: "Só o tempo de roleplay do vendedor, sem preparação e sem feedback.",
+    label: "Horas de prática por vendedor coberto (hoje)",
+    help: "Só o tempo de roleplay do vendedor coberto, sem preparo e sem feedback.",
     placeholder: "Ex.: 1,5",
     formato: "horas",
   },
   receitaMensal: {
     id: "receitaMensal",
-    label: "Receita mensal do time",
-    help: "Total da equipe, não por vendedor.",
+    label: "Receita mensal da equipe",
+    help: "Soma do que os vendedores desta equipe faturam por mês.",
     placeholder: "Ex.: 900.000",
     formato: "moeda",
   },
   ticketMedio: {
     id: "ticketMedio",
     label: "Ticket médio",
-    help: "Receita ÷ número de vendas.",
+    help: "Valor médio por venda fechada.",
     placeholder: "Ex.: 15.000",
     formato: "moeda",
   },
   conversaoPct: {
     id: "conversaoPct",
     label: "Taxa de conversão",
-    help: "De cada 100 oportunidades trabalhadas, quantas fecham.",
+    help: "Sobre oportunidades trabalhadas. Ex.: 20 = 20%.",
     placeholder: "Ex.: 25",
     formato: "percentual",
   },
   margemPct: {
     id: "margemPct",
     label: "Margem de contribuição",
-    help: "O que sobra da receita depois dos custos diretos, em %. Se não souber, use o atalho: 30%.",
+    help: "Quanto sobra de cada venda depois dos custos variáveis. Se não souber, use o atalho: 30%.",
     placeholder: "Ex.: 30",
     formato: "percentual",
   },
   salarioGestor: {
     id: "salarioGestor",
-    label: "Salário do gestor",
-    help: "Sem encargos.",
+    label: "Salário mensal do gestor de treinamento",
+    help: "Bruto mensal. Os encargos (×1,75) entram automaticamente.",
     placeholder: "Ex.: 12.000",
     formato: "moeda",
   },
   salarioVendedor: {
     id: "salarioVendedor",
-    label: "Salário do vendedor",
-    help: "Opcional: alimenta só linhas informativas, nunca o ROI.",
+    label: "Salário mensal do vendedor",
+    help: "Opcional. Alimenta as dimensões de turnover e fila do Custo da Inação, nunca o ROI.",
     placeholder: "Ex.: 6.000",
     formato: "moeda",
   },
   rampaMeses: {
     id: "rampaMeses",
-    label: "Meses de rampa",
-    help: "Até um vendedor novo atingir a produtividade plena.",
+    label: "Duração da rampa",
+    help: "Meses até o novo vendedor bater 100% da meta.",
     placeholder: "Ex.: 4",
     formato: "meses",
   },
   contratacoesAno: {
     id: "contratacoesAno",
-    label: "Vendedores novos por ano",
-    help: "Turnover + crescimento.",
+    label: "Novos vendedores por ano",
+    help: "Contratações previstas para os próximos 12 meses: turnover mais crescimento.",
     placeholder: "Ex.: 8",
     formato: "numero",
     inteiro: true,
@@ -143,8 +143,8 @@ export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
   },
   leadsMes: {
     id: "leadsMes",
-    label: "Oportunidades que chegam por mês",
-    help: "Quantas oportunidades novas entram no funil.",
+    label: "Oportunidades recebidas por mês",
+    help: "Leads e oportunidades novas que entram no funil mensalmente.",
     placeholder: "Ex.: 300",
     formato: "numero",
   },
@@ -156,35 +156,51 @@ export const CAMPO_DEFS: Record<Exclude<CampoId, "caminho">, CampoDef> = {
 export const TIMES_HELP =
   "Um time é o comum. Se a operação tem times com números bem diferentes, simule cada um separado: cada time tem os próprios números e o próprio ROI, e a conta ganha um consolidado.";
 
-export const CAMINHO_LABEL = "Sem a Perfecting, o que sua operação faria?";
+// A pergunta é sobre o presente porque é assim que ela se responde sem
+// esforço; a ajuda carrega a leitura contrafactual, que é a que o motor usa
+// (§4.3: a eficiência é o custo do caminho declarado, não do caminho atual).
+export const CAMINHO_LABEL = "Como vocês treinam hoje, principalmente?";
 export const CAMINHO_HELP =
-  "A economia é calculada sobre o caminho que você escolheria de verdade: um deles, não a soma de todos.";
+  "A economia é calculada sobre o caminho que você seguiria sem a Perfecting: um deles, não a soma de todos.";
 
-// Intro didática de cada passo do wizard.
-export const PASSO_INTROS: Record<1 | 2 | 3 | 4 | 5, { titulo: string; texto: string }> = {
+// O título e o subtítulo de cada uma das oito perguntas. É o `h1` da tela —
+// `PASSOS[].titulo` (em `estado.ts`) é o rótulo curto, usado onde a pergunta
+// aparece numa lista.
+export const PASSO_INTROS: Record<PassoId, { titulo: string; texto: string }> = {
   1: {
-    titulo: "Quem vende e quem treina",
-    texto:
-      "Estes números mostram quanta prática o seu time recebe hoje, e quanto tempo de gestor ela consome.",
+    titulo: "Como é a estrutura do seu time hoje?",
+    texto: "Começamos pelo básico: quem vende e quem treina na sua operação.",
   },
   2: {
-    titulo: "Como o time performa",
+    titulo: "Como a prática acontece hoje?",
     texto:
-      "A base da projeção. Os números são seus: nada vem pré-preenchido e tudo pode ser ajustado depois.",
+      "Esses dois números calibram o fator de escopo — quantas horas de gestor cada hora de prática consome.",
   },
   3: {
-    titulo: "Contratação e rampa",
+    titulo: "Quanto custa o treinamento atual?",
     texto:
-      "Quanto tempo um vendedor novo leva para render, e quantos entram por ano.",
+      "O contrafactual: o que você já gasta, em dinheiro ou em tempo de gestor, para treinar.",
   },
   4: {
-    titulo: "A alternativa sem a Perfecting",
-    texto:
-      "Toda projeção honesta compara com o que você faria no lugar. Escolha o caminho mais provável.",
+    titulo: "Números de receita da equipe",
+    texto: "Use a receita mensal recorrente da equipe que entrará no programa.",
   },
   5: {
-    titulo: "Funil (opcional)",
+    titulo: "Seu funil em dois números",
+    texto: "Percentuais atuais — vale uma estimativa honesta.",
+  },
+  6: {
+    titulo: "Rampa de novos vendedores",
+    texto: "Tempo até um novo vendedor atingir a produtividade plena.",
+  },
+  7: {
+    titulo: "Pipeline e ciclo (opcional)",
     texto:
-      "Com o ciclo de venda e o volume de oportunidades, a projeção inclui o ganho de encurtar o ciclo. Preencha os dois campos, ou pule este passo.",
+      "Quantas oportunidades novas entram no funil por mês, e quanto tempo leva uma venda. Com os dois números o motor calcula o ganho de encurtar o ciclo — pode deixar em branco.",
+  },
+  8: {
+    titulo: "Plano, cenário e contrato",
+    texto:
+      "Última etapa: como você quer contratar e quão otimista quer ser nas projeções.",
   },
 };

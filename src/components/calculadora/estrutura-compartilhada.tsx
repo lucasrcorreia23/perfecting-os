@@ -5,7 +5,6 @@ import { CAMINHOS } from "@/lib/calculadora/constants";
 import { formatNumero } from "@/lib/calculadora/format";
 import type { Caminho, EstruturaCompartilhada } from "@/lib/calculadora/types";
 import { Field } from "@/components/ui/form";
-import { SelectMenu } from "@/components/ui/select-menu";
 import { cn } from "@/lib/utils";
 import { CampoNumero } from "./campo-numero";
 
@@ -17,8 +16,12 @@ import { CampoNumero } from "./campo-numero";
 // O bloco é editável a partir de qualquer time — é estado da conta, não do
 // time —, e a linha de rateio mostra a fatia do time que está na tela.
 
-// Quais campos compartilhados pertencem a cada passo do wizard.
-export const PASSOS_DA_ESTRUTURA = [1, 3, 4] as const;
+// O bloco é dividido em três seções porque os campos vêm de perguntas
+// diferentes do quiz — mas as três aparecem juntas na etapa avançada, que é o
+// único lugar onde existe mais de um time. Enquanto elas moravam dentro das
+// perguntas 1/3/4, o formulário ramificava no meio do preenchimento; agora a
+// pergunta não sabe que a estrutura existe.
+export type SecaoEstrutura = "gestores" | "salario" | "caminho";
 
 export function Alternador({
   ativa,
@@ -68,7 +71,7 @@ export function Alternador({
           />
         </span>
       </button>
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-xs leading-5 text-(--pf-ink-soft)">
         {ativa
           ? "A estrutura é declarada uma vez para a conta. Os gestores e o custo da alternativa são rateados entre os times por número de vendedores — cada time mantém os próprios números de operação."
           : "Ative se a mesma equipe de gestores atende vários times. Sem isso, declarar os mesmos gestores em cada time contaria a mesma economia mais de uma vez."}
@@ -78,13 +81,13 @@ export function Alternador({
 }
 
 export function BlocoEstrutura({
-  passo,
+  secao,
   estrutura,
   onChange,
   vendedoresDoTime,
   vendedoresDaConta,
 }: {
-  passo: 1 | 3 | 4;
+  secao: SecaoEstrutura;
   estrutura: EstruturaCompartilhada;
   onChange: (patch: Partial<EstruturaCompartilhada>) => void;
   vendedoresDoTime: number | null;
@@ -98,10 +101,10 @@ export function BlocoEstrutura({
   const rateioTexto = (() => {
     if (peso === null) return "O rateio aparece quando os times declararem os vendedores.";
     const pct = `${formatNumero(peso * 100, 0)}%`;
-    if (passo === 1 && estrutura.numGestoresTreino !== null) {
+    if (secao === "gestores" && estrutura.numGestoresTreino !== null) {
       return `Este time responde por ${formatNumero(estrutura.numGestoresTreino * peso, 2)} dos ${formatNumero(estrutura.numGestoresTreino, 0)} gestores — ${pct} dos vendedores da conta.`;
     }
-    if (passo === 4) {
+    if (secao === "caminho") {
       const custo =
         estrutura.caminho === "externo"
           ? estrutura.custoExternoAno
@@ -118,13 +121,13 @@ export function BlocoEstrutura({
   return (
     <section className="flex flex-col gap-4 rounded-sm border border-[#2E63CD]/25 bg-[#2E63CD]/[0.03] p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-xs font-semibold text-slate-500">
+        <h3 className="pf-panel-title text-(--pf-ink-soft)">
           Estrutura compartilhada da conta
         </h3>
         <span className="text-xs text-slate-400">vale para todos os times</span>
       </div>
 
-      {passo === 1 ? (
+      {secao === "gestores" ? (
         <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
           <CampoEstrutura
             campo="numGestoresTreino"
@@ -144,13 +147,13 @@ export function BlocoEstrutura({
         </div>
       ) : null}
 
-      {passo === 3 ? (
+      {secao === "salario" ? (
         <div className="md:w-1/2">
           <CampoEstrutura campo="salarioGestor" estrutura={estrutura} onChange={onChange} />
         </div>
       ) : null}
 
-      {passo === 4 ? (
+      {secao === "caminho" ? (
         <div className="flex flex-col gap-4">
           <Field label={CAMINHO_LABEL} hint={CAMINHO_HELP}>
             <div role="radiogroup" aria-label={CAMINHO_LABEL} className="flex flex-col gap-2">
@@ -209,53 +212,6 @@ export function BlocoEstrutura({
       ) : null}
 
       <p className="text-xs leading-5 text-slate-500">{rateioTexto}</p>
-    </section>
-  );
-}
-
-// Mesma estrutura, empilhada para a sidebar de 300px: sem grid, e o caminho
-// como select em vez de radiogroup — o padrão dos outros campos de lá.
-export function CamposEstruturaSidebar({
-  estrutura,
-  onChange,
-}: {
-  estrutura: EstruturaCompartilhada;
-  onChange: (patch: Partial<EstruturaCompartilhada>) => void;
-}) {
-  return (
-    <section className="flex flex-col gap-3 border-t border-slate-100 pt-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h4 className="text-xs font-semibold text-slate-500">
-          Estrutura compartilhada
-        </h4>
-        <span className="text-xs text-slate-400">todos os times</span>
-      </div>
-      <CampoEstrutura campo="numGestoresTreino" estrutura={estrutura} onChange={onChange} />
-      <CampoEstrutura campo="horasTreinoGestorMes" estrutura={estrutura} onChange={onChange} />
-      <CampoEstrutura
-        campo="vendedoresPorGestorMes"
-        estrutura={estrutura}
-        onChange={onChange}
-      />
-      <CampoEstrutura campo="salarioGestor" estrutura={estrutura} onChange={onChange} />
-      <Field label={CAMINHO_LABEL} htmlFor="estrutura-caminho">
-        <SelectMenu
-          id="estrutura-caminho"
-          size="sm"
-          options={(Object.keys(CAMINHOS) as Caminho[]).map((id) => ({
-            value: id,
-            label: CAMINHOS[id].label,
-          }))}
-          value={estrutura.caminho ?? ""}
-          onChange={(valor) => onChange({ caminho: valor === "" ? null : (valor as Caminho) })}
-        />
-      </Field>
-      {estrutura.caminho === "externo" ? (
-        <CampoEstrutura campo="custoExternoAno" estrutura={estrutura} onChange={onChange} />
-      ) : null}
-      {estrutura.caminho === "evento" ? (
-        <CampoEstrutura campo="custoEventoAno" estrutura={estrutura} onChange={onChange} />
-      ) : null}
     </section>
   );
 }

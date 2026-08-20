@@ -21,27 +21,36 @@ const SELOS: Record<Selo, { label: string; className: string }> = {
     // "Dados fornecidos". Divergência de redação a registrar no documento; a
     // chave permanece, é o vocabulário interno do racional.
     label: "Dados fornecidos",
-    className: "bg-blue-50 text-[#2E63CD] border-[#2E63CD]/25",
+    // Fallback em todo token: os selos aparecem nas duas telas. O `bg-blue-50`
+    // é azul-frio e sobre creme denuncia outra paleta — dentro da pele vira o
+    // tint da marca; fora, continua exatamente o azul-50 de hoje.
+    className:
+      "bg-[var(--pf-brand-tint,#eff6ff)] text-[var(--pf-brand-ink,#2E63CD)] border-[var(--pf-brand,#2e63cd)]/25",
   },
   premissa: {
     label: "Premissa declarada",
-    className: "bg-amber-50 text-[#973C00] border-[#973C00]/25",
+    className:
+      "bg-[var(--pf-warn-surface,#fffbeb)] text-[var(--pf-warn-ink,#973C00)] border-[var(--pf-warn-ink,#973C00)]/25",
   },
   projecao: {
     label: "Projeção",
-    className: "bg-slate-50 text-slate-600 border-slate-200",
+    className:
+      "bg-[var(--pf-bar,#f8fafc)] text-[var(--pf-ink-soft,#475569)] border-[var(--pf-line,#e2e8f0)]",
   },
   estimativa: {
     label: "Estimativa",
-    className: "bg-slate-50 text-slate-600 border-slate-200",
+    className:
+      "bg-[var(--pf-bar,#f8fafc)] text-[var(--pf-ink-soft,#475569)] border-[var(--pf-line,#e2e8f0)]",
   },
   personalizado: {
     label: "Parâmetros personalizados",
+    // O violeta FICA: é da paleta categórica da §1, não da pele.
     className: "bg-violet-50 text-[#7C3AED] border-[#7C3AED]/25",
   },
   nao_somado: {
     label: "Não somado ao ROI",
-    className: "bg-slate-50 text-slate-500 border-slate-200",
+    className:
+      "bg-[var(--pf-bar,#f8fafc)] text-[var(--pf-ink-faint,#64748b)] border-[var(--pf-line,#e2e8f0)]",
   },
 };
 
@@ -51,7 +60,8 @@ const SELOS: Record<Selo, { label: string; className: string }> = {
 // o primeiro, quem decide é a ordem no CSS gerado. Só os selos que de fato vão
 // ao verde precisam de entrada aqui; o resto cai no claro.
 const SELOS_DESTAQUE: Partial<Record<Selo, string>> = {
-  estimativa: "bg-white/70 text-slate-600 border-trend-positive/20",
+  estimativa:
+    "bg-[var(--pf-surface-alt,#ffffff)]/70 text-[var(--pf-ink-soft,#475569)] border-trend-positive/20",
 };
 
 export function SeloEvidencia({

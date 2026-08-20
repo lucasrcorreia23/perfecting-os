@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   ArrowTrendingUpIcon,
+  BanknotesIcon,
   ExclamationTriangleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
@@ -24,11 +25,14 @@ import type {
   AvisoCoerencia,
   CampoId,
   EntradasTime,
+  PassoId,
   ResultadoTime,
 } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
+import type { HeroIcon } from "@/components/ui/types";
 import { MedidorChecagem } from "./graficos-resultado";
+import { LinhaCompacta } from "./linha-compacta";
 import { BlocoRecolhivel } from "./secao-resultado";
 
 type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
@@ -46,71 +50,74 @@ type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
 // O destaque é o bloco-resposta: o que a pessoa passou cinco passos
 // construindo. Ele se separa dos outros pelo TAMANHO do número
 // (`--text-score-xl`, um degrau acima de tudo na página) e por um wash azul na
-// diagonal sobre branco — não por superfície nem por moldura próprias. A borda
-// é a mesma `slate-200` do resto da pilha.
+// diagonal sobre a superfície — não por superfície nem por moldura próprias. A
+// borda é a mesma `--pf-line` do resto da pilha.
 //
 // Duas tentativas anteriores: superfície verde inteira (`bg-surface-positive`),
 // que obrigava toda a paleta interna a migrar para `-ink` e ainda assim lia
 // como bloco de outro produto; e contorno em gradiente azul→verde sobre esse
-// verde, em que as duas pontas do gradiente brigavam com o fundo. Sobre branco
-// o wash resolve o mesmo problema sem nenhuma das duas cobranças.
+// verde, em que as duas pontas do gradiente brigavam com o fundo. Sobre a
+// superfície clara o wash resolve o mesmo problema sem nenhuma das duas
+// cobranças.
 //
 // Classes por slot, nunca condicional apendada: `cn` é clsx puro, sem
-// tailwind-merge, então `bg-white` e um `bg-*` empilhados não se resolvem por
-// ordem de argumento.
+// tailwind-merge, então `bg-*` e um segundo `bg-*` empilhados não se resolvem
+// por ordem de argumento. É também por isso que cada `--pf-*` daqui leva
+// FALLBACK: o hero é [AMBOS], e em `link-detail` — fora de `.pf-calc` — o
+// `var()` precisa cair no literal que a classe produzia antes.
 //
 // A semântica de cor sobrevive à troca (§1, "verde = entra na conta"): só o
 // valor gerado é verde. Payback é tempo e investimento é custo — os dois ficam
-// slate-900 nos dois tons.
+// `--pf-ink` nos dois tons.
 const TOM = {
   claro: {
-    card: "rounded-sm border border-trend-positive/30 bg-white p-6",
+    card: "rounded-sm border border-trend-positive/30 bg-[var(--pf-surface,#ffffff)] p-6",
     gap: "gap-4",
-    titulo: "text-slate-700",
-    nota: "text-slate-400",
+    titulo: "text-[var(--pf-ink-soft,#475569)]",
+    nota: "text-[var(--pf-ink-faint,#94a3b8)]",
     numero: "text-(length:--text-score-lg) leading-[3.5rem] text-trend-positive",
-    regua: "sm:border-l sm:border-slate-100",
+    regua: "sm:border-l sm:border-[var(--pf-line-soft,#f1f5f9)]",
     apoioPositivo: "text-trend-positive",
-    apoioNeutro: "text-slate-900",
+    apoioNeutro: "text-[var(--pf-ink,#0f172a)]",
     // Rótulo de KPI é o que nomeia o número: em slate-500 ele quase some
     // debaixo de um valor em peso 600. Um degrau acima resolve sem competir.
-    rotulo: "text-slate-600",
-    frase: "text-slate-700",
-    chip: "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-primary/35",
-    ressalva: "text-slate-500",
-    checagem: "border-slate-100 text-slate-500",
-    checagemAlerta: "border-[#973C00]/25 text-[#973C00]",
+    rotulo: "text-[var(--pf-ink-soft,#475569)]",
+    frase: "text-[var(--pf-ink-soft,#475569)]",
+    chip: "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)] text-[var(--pf-ink-soft,#475569)] hover:border-[var(--pf-ink-faint,#cbd5e1)]/40 hover:text-[var(--pf-ink,#0f172a)] focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
+    ressalva: "text-[var(--pf-ink-faint,#64748b)]",
+    checagem: "border-[var(--pf-line-soft,#f1f5f9)] text-[var(--pf-ink-faint,#64748b)]",
+    checagemAlerta: "border-[var(--pf-warn-ink,#973C00)]/25 text-[var(--pf-warn-ink,#973C00)]",
   },
   destaque: {
-    // `bg-white` é a COR e o wash é a IMAGEM por cima dela — propriedades
+    // A superfície é a COR e o wash é a IMAGEM por cima dela — propriedades
     // diferentes, então os dois convivem sem depender da ordem das classes.
     // O gradiente morre em 60%: passando disso o canto inferior direito perde
-    // o branco e o wash vira fundo tingido, que é outra coisa.
+    // a superfície limpa e o wash vira fundo tingido, que é outra coisa.
     //
     // O que distingue este bloco é a SUPERFÍCIE, não um brilho atrás do glifo.
     // O halo radial verde que ficava sob o múltiplo era decoração: sem deslocamento
     // e sem borrão que signifique profundidade, ele só pintava um oval em volta de
     // um número que já é o maior da página. Tirado, o destaque continua inteiro —
     // e passa a valer para o bloco todo em vez de um caractere.
-    card: "rounded-md border border-slate-200 bg-white bg-linear-to-br from-primary/8 to-transparent to-60% p-6 sm:p-8",
+    card: "rounded-md border border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface,#ffffff)] bg-linear-to-br from-primary/8 to-transparent to-60% p-6 sm:p-8",
     gap: "gap-6",
-    titulo: "text-slate-800",
-    nota: "text-slate-500",
-    // Sobre branco o verde volta a ser `text-trend-positive`: `-ink` existe
-    // para segurar contraste sobre o verde claro, que saiu daqui.
+    titulo: "text-[var(--pf-ink,#334155)]",
+    nota: "text-[var(--pf-ink-faint,#64748b)]",
+    // Sobre a superfície clara o verde volta a ser `text-trend-positive`:
+    // `-ink` existe para segurar contraste sobre o verde claro, que saiu daqui.
     numero:
       "text-(length:--text-score-lg) leading-[3.5rem] @2xl:text-(length:--text-score-xl) @2xl:leading-[4.5rem] text-trend-positive",
-    regua: "sm:border-l sm:border-slate-100",
+    regua: "sm:border-l sm:border-[var(--pf-line-soft,#f1f5f9)]",
     apoioPositivo: "text-trend-positive",
-    apoioNeutro: "text-slate-900",
+    apoioNeutro: "text-[var(--pf-ink,#0f172a)]",
     // Rótulo de KPI é o que nomeia o número: em slate-500 ele quase some
     // debaixo de um valor em peso 600. Um degrau acima resolve sem competir.
-    rotulo: "text-slate-600",
-    frase: "text-slate-700",
-    chip: "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-primary/35",
-    ressalva: "text-slate-500",
-    checagem: "border-slate-100 text-slate-500",
-    checagemAlerta: "border-[#973C00]/25 text-[#973C00]",
+    rotulo: "text-[var(--pf-ink-soft,#475569)]",
+    frase: "text-[var(--pf-ink-soft,#475569)]",
+    chip: "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)] text-[var(--pf-ink-soft,#475569)] hover:border-[var(--pf-ink-faint,#cbd5e1)]/40 hover:text-[var(--pf-ink,#0f172a)] focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
+    ressalva: "text-[var(--pf-ink-faint,#64748b)]",
+    checagem: "border-[var(--pf-line-soft,#f1f5f9)] text-[var(--pf-ink-faint,#64748b)]",
+    checagemAlerta: "border-[var(--pf-warn-ink,#973C00)]/25 text-[var(--pf-warn-ink,#973C00)]",
   },
 } as const;
 
@@ -152,7 +159,7 @@ export function HeroResultado({
           primeira coisa lida — a tela abria pedindo desculpa pelo número. O
           racional migrou para o balão ao lado do múltiplo, que é onde a
           pergunta de fato nasce. */}
-      <h3 className={cn("text-center text-base font-semibold", cores.titulo)}>
+      <h3 className={cn("pf-panel-title text-center", cores.titulo)}>
         {titulo}
       </h3>
 
@@ -229,7 +236,7 @@ export function HeroResultado({
         {/* Payback numa faixa própria: é a pergunta seguinte à do múltiplo, e
             como quarta coluna da conta ele confundia — não é fator da divisão,
             é consequência dela. */}
-        <p className={cn("text-base leading-7", cores.frase)}>
+        <p className={cn("pf-lead", cores.frase)}>
           A conta se paga em{" "}
           <span className={cn("font-semibold tabular-nums", cores.apoioNeutro)}>
             {formatMeses(paybackMeses)}
@@ -306,7 +313,7 @@ export function ResultadoIncompleto({
   onIrParaPasso,
 }: {
   faltando: CampoId[];
-  onIrParaPasso?: (passo: 1 | 2 | 3 | 4 | 5) => void;
+  onIrParaPasso?: (passo: PassoId) => void;
 }) {
   const porPasso = PASSOS.map((passo) => ({
     passo,
@@ -321,10 +328,10 @@ export function ResultadoIncompleto({
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <span className="text-(length:--text-score-lg) font-semibold leading-12 tabular-nums text-slate-300">
+        <span className="text-(length:--text-score-lg) font-semibold leading-12 tabular-nums text-[var(--pf-ink-faint,#cbd5e1)]">
           —
         </span>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-[var(--pf-ink-faint,#64748b)]">
           O resultado aparece quando todos os campos obrigatórios estiverem
           preenchidos. Nunca mostramos projeção parcial.
         </p>
@@ -333,14 +340,14 @@ export function ResultadoIncompleto({
         {porPasso.map(({ passo, campos }) => (
           <li
             key={passo.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-slate-50/60 px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-[var(--pf-bar,#f8fafc)]/60 px-4 py-3"
           >
             <span className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-slate-800">
+              <span className="text-sm font-medium text-[var(--pf-ink,#334155)]">
                 Passo {passo.id}
                 {passo.titulo ? ` · ${passo.titulo}` : ""}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[var(--pf-ink-faint,#64748b)]">
                 Falta: {campos.map(labelDe).join(" · ")}
               </span>
             </span>
@@ -348,7 +355,7 @@ export function ResultadoIncompleto({
               <button
                 type="button"
                 onClick={() => onIrParaPasso(passo.id)}
-                className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full px-3 text-[13px] font-medium leading-5 text-[#2E63CD] transition-colors hover:text-[#1e4a9e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:min-h-8"
+                className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full px-3 text-[13px] font-medium leading-5 text-[var(--pf-brand,#2e63cd)] transition-colors hover:text-[var(--pf-brand-deep,#1e4a9e)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-brand,#2e63cd)]/35 sm:min-h-8"
               >
                 <PencilSquareIcon className="h-4 w-4" aria-hidden />
                 Preencher
@@ -372,16 +379,22 @@ function CabecalhoParcela({
   titulo,
   ajuda,
   valor,
+  icon: Icon,
 }: {
   titulo: string;
   ajuda: string;
   valor: string;
+  icon: HeroIcon;
 }) {
   return (
     // `relative`: o balão do HintTooltip se ancora aqui.
-    <div className="relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-3">
+    <div className="relative flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--pf-line-soft,#f1f5f9)] pb-3">
       <span className="flex items-center gap-2">
-        <h3 className="text-base font-semibold text-slate-800">{titulo}</h3>
+        <Icon
+          className="h-5 w-5 shrink-0 text-[var(--pf-ink-faint,#94a3b8)]"
+          aria-hidden
+        />
+        <h3 className="pf-panel-title text-[var(--pf-ink,#334155)]">{titulo}</h3>
         <HintTooltip text={ajuda} />
       </span>
       {/* ml-auto pelo mesmo motivo de LinhaCompacta: "Eficiência: o que deixa
@@ -390,55 +403,6 @@ function CabecalhoParcela({
       <span className="ml-auto text-lg font-semibold tabular-nums text-trend-positive">
         {valor}
       </span>
-    </div>
-  );
-}
-
-// Linha de leitura tabular: rótulo, quanto muda, quanto vale. Substitui a
-// pilha título → valor → detalhe → nota, que gastava quatro linhas por item e
-// afogava a única informação que se soma de cima a baixo.
-//
-// Exportada para o bloco do Custo da Inação, que lista parcelas com a mesma
-// pauta: uma sexta variante de linha rótulo/valor só faria as colunas pararem
-// de bater entre as seções.
-export function LinhaCompacta({
-  rotulo,
-  delta,
-  valor,
-  nota,
-  tom = "neutro",
-}: {
-  rotulo: string;
-  delta?: string;
-  valor: string;
-  nota?: string;
-  tom?: "neutro" | "positivo";
-}) {
-  return (
-    // Grade de duas trilhas, não `flex-wrap` + `justify-between`. Com flex, um
-    // rótulo comprido (os dois que carregam selo) empurrava o valor para uma
-    // segunda linha: metade das linhas da lista virava duas, o olho perdia a
-    // pauta e as duas colunas da seção paravam de bater linha a linha. Na
-    // grade quem quebra é o RÓTULO, dentro da própria trilha, e o valor fica
-    // onde sempre esteve — a lista volta a ter uma linha por parcela.
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1">
-      <dt className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
-        {rotulo}
-        {delta ? (
-          <span className="tabular-nums font-medium text-slate-500">{delta}</span>
-        ) : null}
-      </dt>
-      <dd
-        className={cn(
-          "text-right text-sm font-semibold tabular-nums",
-          tom === "positivo" ? "text-trend-positive" : "text-slate-900",
-        )}
-      >
-        {valor}
-        {nota ? (
-          <span className="ml-2 font-normal text-slate-500">{nota}</span>
-        ) : null}
-      </dd>
     </div>
   );
 }
@@ -484,6 +448,7 @@ export function EficienciaCard({
   return (
     <section className="flex flex-col gap-4">
       <CabecalhoParcela
+        icon={BanknotesIcon}
         titulo="Eficiência: o que deixa de ser gasto"
         ajuda="Projeção. O custo do caminho que você seguiria sem a Perfecting, limitado pelo valor da prática que o plano entrega."
         valor={`+${formatBRL(resultado.eficienciaAno)}/ano`}
@@ -501,8 +466,8 @@ export function EficienciaCard({
         />
       </dl>
 
-      <div className="flex flex-col gap-3 border-t border-slate-100 pt-4">
-        <p className="text-xs font-semibold text-slate-500">Não somado ao ROI</p>
+      <div className="flex flex-col gap-3 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
+        <p className="text-xs font-semibold text-[var(--pf-ink-faint,#64748b)]">Não somado ao ROI</p>
         <dl className="flex flex-col gap-3">
           <LinhaCompacta
             rotulo="Custo por hora de prática"
@@ -530,13 +495,13 @@ export function EficienciaCard({
       >
         <div className="flex flex-col gap-3 pl-6">
           {rateio ? (
-            <p className="text-sm leading-6 text-slate-600">
+            <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
               Os {formatNumero(rateio.gestoresDaConta, 0)} gestores da conta atendem mais
               de um time: {formatNumero(rateio.pctVendedores * 100, 0)}% da economia cabe
               a este. Sem o rateio, a mesma estrutura seria contada uma vez por time.
             </p>
           ) : null}
-          <p className="text-sm leading-6 text-slate-600">
+          <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
             {fator.origem === "declarado"
               ? `Seus gestores cobrem ${formatNumero(repsCobertosHoje, 0)} vendedores por mês, com ${formatNumero(entradas.horasPraticaPorRepHoje, 1)} h de prática cada — cada hora de prática consome ${formatNumero(fator.valor, 1)} h de gestor. Na carga do plano ${PLANOS[plano].label}, as mesmas horas cobririam ${formatNumero(repsCobriveisNaCarga, 1)}.`
               : `Seus números de treino ficaram fora da faixa de validade (0,25–6 h de gestor por hora de prática), então usamos a premissa de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h.`}
@@ -545,14 +510,14 @@ export function EficienciaCard({
               : ""}
           </p>
           {filaHoje !== null && filaHoje > 0 ? (
-            <p className="text-sm leading-6 text-slate-600">
+            <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
               Nessa carga, cobrir o time inteiro levaria {formatMeses(filaHoje)}. Com{" "}
               {formatNumero(resultado.cobertura * 100, 0)}% praticando em paralelo, a fila
               some — e os {formatNumero(horasGestorMes, 0)} h/mês de gestor voltam para a
               gestão.
             </p>
           ) : null}
-          <p className="text-sm leading-6 text-slate-500">
+          <p className="text-sm leading-6 text-[var(--pf-ink-faint,#64748b)]">
             As duas últimas linhas ficam fora do ROI de propósito: a comparação por hora
             já está contada na economia do caminho declarado, e nenhum cálculo aqui
             pressupõe reduzir a equipe.
@@ -599,6 +564,7 @@ export function PerformanceCard({
   return (
     <section className="flex flex-col gap-4">
       <CabecalhoParcela
+        icon={ArrowTrendingUpIcon}
         titulo="Performance: o que passa a ser ganho"
         ajuda="Projeção. Vendedores treinados vendem melhor e rampam mais rápido. Estimulamos, não controlamos; por isso o desconto de 30% em três das quatro alavancas."
         valor={`+${formatBRL(resultado.G)}/ano`}
@@ -649,7 +615,7 @@ export function PerformanceCard({
         onToggle={() => setDetalhe((atual) => !atual)}
       >
         <div className="flex flex-col gap-3 pl-6">
-          <p className="text-sm leading-6 text-slate-600">
+          <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
             {conv !== null
               ? `Conversão de ${formatPct(conv, 1)} para ${formatPct(conv + deltas.convPp, 1)} nas mesmas oportunidades. `
               : ""}
@@ -660,7 +626,7 @@ export function PerformanceCard({
             de 30% em rampa, conversão e ciclo.
           </p>
           {temFunil ? (
-            <p className="text-sm leading-6 text-slate-600">
+            <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
               {cicloTetoMordeu
                 ? "O ganho de ciclo parou no teto de funil: sem oportunidade sobrando, fechar mais rápido não gera receita nova."
                 : cicloTetoCortou
@@ -669,7 +635,7 @@ export function PerformanceCard({
             </p>
           ) : null}
           {rampaEvitada?.valorAno != null || timeEmRampa?.valorAno != null ? (
-            <p className="text-sm leading-6 text-slate-500">
+            <p className="text-sm leading-6 text-[var(--pf-ink-faint,#64748b)]">
               Fora da conta: {formatBRL(timeEmRampa?.valorAno ?? null)}/ano de folha em
               vendedores que ainda não rendem o que consomem. Esse salário não é
               economizado — encurtar a rampa faz a mesma folha render antes, e essa
@@ -692,20 +658,20 @@ export function ChecagemRealidade({ resultado }: { resultado: ResultadoOk }) {
       className={cn(
         "flex items-start gap-3 rounded-sm border p-4",
         resultado.checagemAlerta
-          ? "border-[#973C00]/25 bg-[#FFFBEB]"
-          : "border-slate-200 bg-white",
+          ? "border-[var(--pf-warn-ink,#973C00)]/25 bg-[var(--pf-warn-surface,#fffbeb)]"
+          : "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface,#ffffff)]",
       )}
     >
       {resultado.checagemAlerta ? (
-        <ExclamationTriangleIcon className="mt-1 h-5 w-5 shrink-0 text-[#973C00]" aria-hidden />
+        <ExclamationTriangleIcon className="mt-1 h-5 w-5 shrink-0 text-[var(--pf-warn-ink,#973C00)]" aria-hidden />
       ) : (
-        <ArrowTrendingUpIcon className="mt-1 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+        <ArrowTrendingUpIcon className="mt-1 h-5 w-5 shrink-0 text-[var(--pf-ink-faint,#94a3b8)]" aria-hidden />
       )}
       <div className="flex flex-col gap-1">
         <span
           className={cn(
             "text-sm font-medium",
-            resultado.checagemAlerta ? "text-[#973C00]" : "text-slate-800",
+            resultado.checagemAlerta ? "text-[var(--pf-warn-ink,#973C00)]" : "text-[var(--pf-ink,#334155)]",
           )}
         >
           Checagem de realidade
@@ -713,7 +679,7 @@ export function ChecagemRealidade({ resultado }: { resultado: ResultadoOk }) {
         <p
           className={cn(
             "text-sm leading-6",
-            resultado.checagemAlerta ? "text-[#973C00]/90" : "text-slate-600",
+            resultado.checagemAlerta ? "text-[var(--pf-warn-ink,#973C00)]/90" : "text-[var(--pf-ink-soft,#475569)]",
           )}
         >
           Os ganhos de performance projetados equivalem a{" "}
@@ -767,7 +733,7 @@ export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
       {relevantes.map((aviso, index) => (
         <p
           key={index}
-          className="flex items-start gap-2 rounded-sm border border-[#973C00]/25 bg-[#FFFBEB] px-4 py-3 text-sm leading-6 text-[#973C00]"
+          className="flex items-start gap-2 rounded-sm border border-[var(--pf-warn-ink,#973C00)]/25 bg-[var(--pf-warn-surface,#fffbeb)] px-4 py-3 text-sm leading-6 text-[var(--pf-warn-ink,#973C00)]"
         >
           <ExclamationTriangleIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden />
           {texto(aviso)}

@@ -144,7 +144,7 @@ export function CardContent({
               >
                 {isDone ? (
                   <CheckCircleIcon
-                    className="h-4 w-4 shrink-0 text-[#0F9F2E]"
+                    className="h-4 w-4 shrink-0 text-trend-positive"
                     aria-hidden
                   />
                 ) : isBlocked ? (

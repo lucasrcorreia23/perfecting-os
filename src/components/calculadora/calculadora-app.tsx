@@ -1,37 +1,38 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeftIcon,
-  ExclamationCircleIcon,
-  ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
-  DocumentTextIcon,
   QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
+import { metasCase } from "@/lib/calculadora/business-case";
 import { PASSO_INTROS } from "@/lib/calculadora/campos";
 import { timesJaCompletos, timesParaCelebrar } from "@/lib/calculadora/celebracao";
 import {
   CENARIOS,
+  MAX_ASSENTOS,
   MAX_TIMES,
-  PLANOS,
+  PLANO_DEFAULT,
   RECONCILIACAO_TOLERANCIA,
 } from "@/lib/calculadora/constants";
 import {
   PASSOS,
+  PASSO_OPCIONAL,
+  ULTIMO_PASSO,
   passoCompleto,
   progresso,
-  sanitizarNomeTime,
   timeVazio,
 } from "@/lib/calculadora/estado";
-import { formatBRL, formatPct } from "@/lib/calculadora/format";
 import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
 import { perguntasCfo } from "@/lib/calculadora/faq";
 import { computarModelo } from "@/lib/calculadora/modelo";
 import { reReconciliar } from "@/lib/calculadora/trajetoria";
-import { aplicarEstrutura, estruturaAtiva, estruturaVazia } from "@/lib/calculadora/estrutura";
+import {
+  aplicarEstrutura,
+  estruturaAtiva,
+  estruturaVazia,
+} from "@/lib/calculadora/estrutura";
 import type {
   CampoId,
   CenarioSelecionado,
@@ -39,29 +40,38 @@ import type {
   EstadoCalculadora,
   EstadoTime,
   EstruturaCompartilhada,
+  PassoId,
+  PlanoId,
   PropostaTime,
 } from "@/lib/calculadora/types";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { TOOLTIP } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { CelebracaoModal } from "./celebracao-modal";
-import { CenarioSliders } from "./cenario-sliders";
+import { CapaResultado } from "./capa-resultado";
 import { ConsolidadoView } from "./consolidado-view";
 import { CustoInacao } from "./custo-inacao";
 import { Disclaimer } from "./disclaimer";
+import { EtapaAvancada } from "./etapa-avancada";
+import { EtapaExportar } from "./etapa-exportar";
+import { EtapaMensalidade } from "./etapa-mensalidade";
+import { EtapasNav, etapasLiberadas, type EtapaId } from "./etapas-nav";
 import { CalculadoraFooter } from "./footer";
-import { EnviarBar } from "./enviar-bar";
 import { FaqPainel } from "./faq-cfo";
 import { Glossario } from "./glossario";
-import { CascataValor, ComparacaoCenarios } from "./graficos-resultado";
-import { IntroScreen } from "./intro-screen";
+import {
+  ComparacaoCenarios,
+  DecomposicaoValor,
+  InvestimentoVsRetorno,
+} from "./graficos-resultado";
 import { PassoForm } from "./passo-form";
+import { PerguntaCard } from "./pergunta-card";
+import { PerguntaProposta } from "./pergunta-proposta";
+import { ProcessandoResultado } from "./processando-resultado";
+import { TimesSidebar } from "./times-sidebar";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
   EficienciaCard,
-  HeroResultado,
   PerformanceCard,
   ResultadoIncompleto,
 } from "./resultado-time";
@@ -72,37 +82,80 @@ import {
   validarPasso,
   type ErroCampo,
 } from "@/lib/calculadora/validacao-passo";
-import { ResumoVerificavel } from "./resumo-verificavel";
-import { SeusNumerosSidebar } from "./seus-numeros-sidebar";
-import { StepperNav } from "./stepper-nav";
-import { TopProgress } from "./top-progress";
 import { PaineisTrajetoria } from "./trajetoria-panel";
 import { useAutosave } from "./use-autosave";
 
-type View =
-  | { modo: "intro" }
-  | { modo: "wizard"; timeId: string; passo: 1 | 2 | 3 | 4 | 5 }
-  | { modo: "resultado" };
+// A jornada em quatro etapas (20/08/2026).
+//
+// Antes: `intro` → um wizard de cinco passos com stepper de times à esquerda →
+// `resultado`, uma pilha de dez blocos com a sidebar "Dados preenchidos" ao lado
+// editando valores ao vivo. Agora: mensalidade → oito perguntas → relatório
+// (capa e cálculo detalhado) → exportar, com as quatro etapas sempre visíveis e
+// navegáveis no cabeçalho.
+//
+// Três mudanças estruturais que decorrem disso, e que valem registro:
+//
+// (a) A SIDEBAR "DADOS PREENCHIDOS" SAIU DO RELATÓRIO. Ela era o único jeito de
+//     mexer num número sem refazer o caminho — e também a razão de a coluna do
+//     resultado ter 264px a menos. Quem edita agora é o próprio quiz,
+//     alcançável pela etapa 02 no cabeçalho. O que NÃO saiu é o mapa de times
+//     à esquerda do QUIZ (`TimesSidebar`): ali ele não disputa espaço com um
+//     resultado, e é o único lugar de onde se enxerga o preenchimento de todos
+//     os times de uma vez.
+//
+// (b) O RECÁLCULO AO VIVO SAIU DO RESULTADO. Cenário, plano, assentos e prazo se
+//     escolhem na pergunta 8 (e o ajuste fino de deltas, na etapa avançada). No
+//     relatório, "Quanto custa" é leitura. O número parou de se mexer debaixo de
+//     quem está lendo.
+//
+// (c) OS TIMES MIGRARAM PARA A ETAPA AVANÇADA. O stepper lateral montava um mapa
+//     de times × passos ao lado de todas as perguntas para o caso comum de UM
+//     time — que é o que o próprio `TIMES_HELP` diz ser o normal.
 
-function primeiroPassoIncompleto(estado: EstadoCalculadora): {
+// (d) O RELATÓRIO É UMA CAPA SÓ. Ele já foi duas abas — "Capa" e "Cálculo
+//     detalhado" — e a segunda abria com um hero que repetia, em outro desenho,
+//     os quatro números que a capa acabara de dar. Uma decisão a menos para
+//     quem lê: a capa responde, e o cálculo continua logo abaixo, na mesma
+//     rolagem. `HeroResultado` sobrevive em `link-detail`, que é a tela interna.
+//
+// (e) ENTRE O QUIZ E O RELATÓRIO EXISTE UMA TELA. Era um modal de comemoração
+//     — o número aparecia atrás dele e a pessoa fechava uma janela para chegar
+//     ao próprio resultado. Agora é `ProcessandoResultado`, que não pede clique
+//     e entrega o relatório sozinha.
+
+type View =
+  | { modo: "mensalidade" }
+  | { modo: "quiz"; timeId: string; pergunta: PassoId }
+  | { modo: "avancado" }
+  | { modo: "processando"; timeId: string }
+  | { modo: "relatorio" }
+  | { modo: "exportar" };
+
+const ETAPA_DA_VIEW: Record<View["modo"], EtapaId> = {
+  mensalidade: "mensalidade",
+  quiz: "quiz",
+  avancado: "quiz",
+  // A tela de processamento já é o relatório do ponto de vista da régua: quem
+  // está nela terminou o quiz e não pode ver a etapa 03 recuar para "quiz".
+  processando: "relatorio",
+  relatorio: "relatorio",
+  exportar: "exportar",
+};
+
+function primeiraPerguntaIncompleta(estado: EstadoCalculadora): {
   timeId: string;
-  passo: 1 | 2 | 3 | 4 | 5;
+  pergunta: PassoId;
 } {
   for (const time of estado.times) {
     for (const passo of PASSOS) {
-      if (passo.opcional) continue;
+      if (passo.opcional || passo.campos.length === 0) continue;
       if (!passoCompleto(time.entradas, passo.id)) {
-        return { timeId: time.id, passo: passo.id };
+        return { timeId: time.id, pergunta: passo.id };
       }
     }
   }
-  return { timeId: estado.times[0].id, passo: 1 };
+  return { timeId: estado.times[0].id, pergunta: 1 };
 }
-
-// O que falta para a referência abrir. Nomeia a CONDIÇÃO, não o bloqueio:
-// "indisponível" informaria o obstáculo sem dizer a saída.
-const MOTIVO_FORMULAS =
-  "Disponível quando o resultado aparecer: preencha os campos obrigatórios de um time.";
 
 export function CalculadoraApp({
   token,
@@ -123,40 +176,24 @@ export function CalculadoraApp({
 }) {
   const [estado, setEstado] = useState(estadoSalvo);
   const [glossarioAberto, setGlossarioAberto] = useState(false);
-  // Os dois painéis dividem a mesma faixa de 360px: abrir um fecha o outro.
   const [faqAberto, setFaqAberto] = useState(false);
-  // Preferência de UI, só da sessão: a calculadora não guarda nada no
-  // dispositivo (o link é o estado), e recolher a sidebar não é dado do
-  // cliente para entrar no autosave.
-  const [sidebarAberta, setSidebarAberta] = useState(true);
   const [timeAtivoId, setTimeAtivoId] = useState(estadoSalvo.times[0].id);
   const [removendoTime, setRemovendoTime] = useState<EstadoTime | null>(null);
 
   // Estado derivado (§4.11): com a estrutura compartilhada ativa, cada time já
-  // carrega a fatia que lhe cabe. Serve para LER — gating, progresso, stepper.
+  // carrega a fatia que lhe cabe. Serve para LER — gating, progresso.
   // As mutações continuam no estado cru, que é o que se persiste.
   const estadoDerivado = useMemo(() => aplicarEstrutura(estado), [estado]);
 
   const prog = useMemo(() => progresso(estado), [estado]);
-  // Quantas etapas cada time já fechou — detalhe do hover na barra do topo.
-  const progressoPorTime = useMemo(
-    () =>
-      estadoDerivado.times.map((time) => ({
-        id: time.id,
-        nome: time.nome,
-        etapas: PASSOS.filter((passo) => passoCompleto(time.entradas, passo.id)).length,
-        totalEtapas: PASSOS.length,
-      })),
-    [estadoDerivado.times],
-  );
   const tudoCompleto = prog.porTime.every((time) => time.completo);
 
   const [view, setView] = useState<View>(() => {
-    if (tudoCompleto && prog.preenchidos > 0) return { modo: "resultado" };
-    return { modo: "intro" };
+    if (tudoCompleto && prog.preenchidos > 0) return { modo: "relatorio" };
+    return { modo: "mensalidade" };
   });
 
-  // Erros do passo em que a pessoa está. Só nascem quando ela TENTA avançar —
+  // Erros da pergunta em que a pessoa está. Só nascem quando ela TENTA avançar —
   // validar enquanto digita acusaria campo vazio que ela ainda vai preencher.
   const [errosPasso, setErrosPasso] = useState<ErroCampo[]>([]);
 
@@ -170,28 +207,9 @@ export function CalculadoraApp({
 
   // O momento em que o número passa a existir. A semente roda no primeiro
   // render: quem volta com o link pronto entra com todos os times já vistos e
-  // não é recebido por um modal a cada recarregamento (ver `celebracao.ts`).
+  // vai direto ao relatório, sem atravessar o processamento a cada recarga
+  // (ver `celebracao.ts` — a regra não mudou, só o que ela desbloqueia).
   const timesVistos = useRef<string[]>(timesJaCompletos(prog));
-  const [celebrandoTimeId, setCelebrandoTimeId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Quem fecha o último campo ainda está no passo 5: a comemoração espera a
-    // tela de resultado, que é onde o número aparece.
-    if (view.modo !== "resultado") return;
-    const novos = timesParaCelebrar(timesVistos.current, prog);
-    const time = modelo.times.find(
-      (item) => novos.includes(item.id) && item.resultado.status === "ok",
-    );
-    if (!time) return;
-    timesVistos.current = [...timesVistos.current, time.id];
-    setCelebrandoTimeId(time.id);
-    // `prog` e `modelo` são derivados de `estado` — depender do estado evita um
-    // efeito que roda a cada render.
-  }, [view.modo, estado]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const timeCelebrado = celebrandoTimeId
-    ? modelo.times.find((time) => time.id === celebrandoTimeId)
-    : undefined;
 
   // -------------------------------------------------------------------------
   // Mutações do estado (o visitante é dono dos times e da proposta)
@@ -200,9 +218,7 @@ export function CalculadoraApp({
   const patchTime = useCallback((timeId: string, patch: Partial<EstadoTime>) => {
     setEstado((atual) => ({
       ...atual,
-      times: atual.times.map((time) =>
-        time.id === timeId ? { ...time, ...patch } : time,
-      ),
+      times: atual.times.map((time) => (time.id === timeId ? { ...time, ...patch } : time)),
     }));
   }, []);
 
@@ -231,19 +247,14 @@ export function CalculadoraApp({
     [patchTime],
   );
 
-  const setProposta = useCallback(
-    (timeId: string, patch: Partial<PropostaTime>) => {
-      setEstado((atual) => ({
-        ...atual,
-        times: atual.times.map((time) =>
-          time.id === timeId
-            ? { ...time, proposta: { ...time.proposta, ...patch } }
-            : time,
-        ),
-      }));
-    },
-    [],
-  );
+  const setProposta = useCallback((timeId: string, patch: Partial<PropostaTime>) => {
+    setEstado((atual) => ({
+      ...atual,
+      times: atual.times.map((time) =>
+        time.id === timeId ? { ...time, proposta: { ...time.proposta, ...patch } } : time,
+      ),
+    }));
+  }, []);
 
   const setPrazo = useCallback((prazoMeses: number) => {
     setEstado((atual) => ({ ...atual, prazoMeses }));
@@ -283,13 +294,9 @@ export function CalculadoraApp({
 
   const addTime = useCallback((): string | null => {
     if (estado.times.length >= MAX_TIMES) return null;
-    // Criado fora do updater para o id ficar disponível de forma síncrona
-    // (navegar direto para o passo 1 do time novo).
     const novo = timeVazio(`Time ${estado.times.length + 1}`);
     setEstado((atual) =>
-      atual.times.length >= MAX_TIMES
-        ? atual
-        : { ...atual, times: [...atual.times, novo] },
+      atual.times.length >= MAX_TIMES ? atual : { ...atual, times: [...atual.times, novo] },
     );
     return novo.id;
   }, [estado.times.length]);
@@ -298,17 +305,25 @@ export function CalculadoraApp({
     (timeId: string) => {
       setEstado((atual) => {
         if (atual.times.length <= 1) return atual;
-        const restantes = atual.times.filter((time) => time.id !== timeId);
-        return { ...atual, times: restantes };
+        return {
+          ...atual,
+          times: atual.times.filter((time) => time.id !== timeId),
+        };
       });
       setTimeAtivoId((ativo) => {
         if (ativo !== timeId) return ativo;
         const restante = estado.times.find((time) => time.id !== timeId);
         return restante?.id ?? ativo;
       });
-      setView((atual) =>
-        atual.modo === "wizard" && atual.timeId === timeId ? { modo: "resultado" } : atual,
-      );
+      setView((atual) => {
+        if (atual.modo !== "quiz" || atual.timeId !== timeId) return atual;
+        // Continua no quiz, no time que sobrou e na mesma pergunta: cair na
+        // etapa avançada por ter removido um time seria trocar de assunto.
+        const restante = estado.times.find((time) => time.id !== timeId);
+        return restante
+          ? { modo: "quiz", timeId: restante.id, pergunta: atual.pergunta }
+          : { modo: "mensalidade" };
+      });
     },
     [estado.times],
   );
@@ -316,7 +331,7 @@ export function CalculadoraApp({
   // -------------------------------------------------------------------------
 
   const timeAtualId =
-    view.modo === "wizard" && estado.times.some((t) => t.id === view.timeId)
+    view.modo === "quiz" && estado.times.some((t) => t.id === view.timeId)
       ? view.timeId
       : estado.times.some((t) => t.id === timeAtivoId)
         ? timeAtivoId
@@ -324,6 +339,7 @@ export function CalculadoraApp({
   const timeModelo =
     modelo.times.find((time) => time.id === timeAtualId) ?? modelo.times[0];
   const multiTime = estado.times.length > 1;
+
   // Os três cenários com as MESMAS entradas (aba Scenario Comparison do
   // Excel). Null enquanto o time estiver incompleto — nunca faixa parcial.
   const comparacao = useMemo(
@@ -336,8 +352,7 @@ export function CalculadoraApp({
       ),
     [timeModelo.entradas, timeModelo.proposta, timeModelo.precoMes, modelo.prazoMeses],
   );
-  // As objeções de CFO com os números deste link. Time incompleto ⇒ as
-  // respostas existem sem número (nunca projeção parcial).
+
   const perguntas = useMemo(
     () =>
       perguntasCfo({
@@ -352,26 +367,81 @@ export function CalculadoraApp({
       }),
     [timeModelo, modelo.preco, modelo.prazoMeses, comparacao, multiTime],
   );
+
+  // As metas do case de 90 dias. Derivadas do resultado, nunca de volta para
+  // dentro dele — `null` enquanto o time não fecha.
+  const metas = useMemo(
+    () =>
+      metasCase(
+        timeModelo.resultado,
+        timeModelo.entradas,
+        timeModelo.proposta.plano,
+        timeModelo.proposta.assentos,
+      ),
+    [timeModelo],
+  );
+
+  const cenarioLabel =
+    timeModelo.sel.modo === "preset"
+      ? `cenário ${CENARIOS[timeModelo.sel.cenario].label}`
+      : "conjunto de parâmetros personalizados";
+
   const estrutura = estado.estrutura ?? estruturaVazia();
   const vendedoresDaConta = estado.times.reduce(
     (total, time) => total + (time.entradas.numVendedores ?? 0),
     0,
   );
-  // Último passo do último time: aqui "Continuar" já é "Ver resultado".
-  const fimDoWizard =
-    view.modo === "wizard" &&
-    view.passo === 5 &&
-    estado.times.findIndex((time) => time.id === timeAtualId) ===
-      estado.times.length - 1;
 
-  function irParaWizard(timeId: string, passo: 1 | 2 | 3 | 4 | 5) {
+  // A referência de fórmulas abre quando existe número para conferir.
+  const formulasLiberadas = modelo.times.some((time) => time.resultado.status === "ok");
+
+  // -------------------------------------------------------------------------
+  // Navegação
+  // -------------------------------------------------------------------------
+
+  function irParaQuiz(timeId: string, pergunta: PassoId) {
+    setErrosPasso([]);
     setTimeAtivoId(timeId);
-    setView({ modo: "wizard", timeId, passo });
+    setView({ modo: "quiz", timeId, pergunta });
+  }
+
+  // A ÚNICA porta do relatório. Ela decide, num lugar só, se a pessoa atravessa
+  // o processamento ou entra direto: atravessa quem acabou de fechar a conta de
+  // um time NESTA sessão, e entra direto quem já sabia o número — o mesmo corte
+  // que separava "descobriu agora" de "já sabia" quando o payoff era um modal.
+  function irParaRelatorio() {
+    setErrosPasso([]);
+    const novos = timesParaCelebrar(timesVistos.current, prog);
+    const time = modelo.times.find(
+      (item) => novos.includes(item.id) && item.resultado.status === "ok",
+    );
+    if (!time) return setView({ modo: "relatorio" });
+    // Marcar aqui, e não quando a tela termina: se a pessoa sair no meio do
+    // processamento, o time já conta como visto e ela não é interceptada de
+    // novo na próxima vez que abrir o relatório.
+    timesVistos.current = [...timesVistos.current, time.id];
+    setTimeAtivoId(time.id);
+    return setView({ modo: "processando", timeId: time.id });
+  }
+
+  function irParaEtapa(etapa: EtapaId) {
+    // A outra metade da trava. O botão desabilitado em `EtapasNav` é
+    // afordância; quem monta a chamada por fora (teclado, código, um futuro
+    // atalho) passaria por cima dele. A condição é a MESMA função, não uma
+    // cópia — duas versões da regra divergiriam no primeiro ajuste.
+    if (!etapasLiberadas(preenchimento, ETAPA_DA_VIEW[view.modo])[etapa]) return;
+    setErrosPasso([]);
+    if (etapa === "mensalidade") return setView({ modo: "mensalidade" });
+    if (etapa === "quiz") {
+      const posicao = primeiraPerguntaIncompleta(estadoDerivado);
+      return irParaQuiz(posicao.timeId, posicao.pergunta);
+    }
+    if (etapa === "relatorio") return irParaRelatorio();
+    return setView({ modo: "exportar" });
   }
 
   // Foca e rola até o primeiro campo pendente. Sem isso a mensagem existe mas
-  // a pessoa ainda precisa caçar o campo — que é a lacuna que o erro por passo
-  // tinha e este por campo veio resolver.
+  // a pessoa ainda precisa caçar o campo.
   function focarCampo(campo: string) {
     requestAnimationFrame(() => {
       const alvo =
@@ -382,10 +452,10 @@ export function CalculadoraApp({
     });
   }
 
-  function avancarWizard() {
-    if (view.modo !== "wizard") return;
+  function avancarQuiz() {
+    if (view.modo !== "quiz") return;
 
-    const pendencias = validarPasso(timeModelo.estadoTime.entradas, view.passo);
+    const pendencias = validarPasso(timeModelo.estadoTime.entradas, view.pergunta);
     if (pendencias.length > 0) {
       setErrosPasso(pendencias);
       focarCampo(pendencias[0].campo);
@@ -393,53 +463,45 @@ export function CalculadoraApp({
     }
     setErrosPasso([]);
 
-    if (view.passo < 5) {
-      setView({ modo: "wizard", timeId: view.timeId, passo: (view.passo + 1) as 2 | 3 | 4 | 5 });
+    if (view.pergunta < ULTIMO_PASSO) {
+      setView({
+        modo: "quiz",
+        timeId: view.timeId,
+        pergunta: (view.pergunta + 1) as PassoId,
+      });
       return;
     }
-    const indice = estado.times.findIndex((time) => time.id === view.timeId);
-    const proximo = estado.times[indice + 1];
-    if (proximo) {
-      irParaWizard(proximo.id, 1);
-    } else {
-      setTimeAtivoId(estado.times[0].id);
-      setView({ modo: "resultado" });
-    }
+    // Depois da pergunta 8 vem a etapa avançada, que é onde se criam os outros
+    // times e se sobrescrevem os deltas. Dali sai o relatório.
+    setView({ modo: "avancado" });
   }
 
-  // O passo 5 é opcional e agora diz isso: a saída limpa os dois campos (a
+  function voltarQuiz() {
+    setErrosPasso([]);
+    if (view.modo !== "quiz") return;
+    if (view.pergunta > 1) {
+      setView({
+        modo: "quiz",
+        timeId: view.timeId,
+        pergunta: (view.pergunta - 1) as PassoId,
+      });
+      return;
+    }
+    setView({ modo: "mensalidade" });
+  }
+
+  // A pergunta opcional diz que é opcional: a saída limpa os dois campos (a
   // regra é dois ou nenhum) e segue em frente, sem cobrar nada.
   function pularFunil() {
-    if (view.modo !== "wizard") return;
+    if (view.modo !== "quiz") return;
     setCampo(view.timeId, "cicloDias", null);
     setCampo(view.timeId, "leadsMes", null);
     setErrosPasso([]);
-    avancarDoPasso5();
-  }
-
-  function avancarDoPasso5() {
-    if (view.modo !== "wizard") return;
-    const indice = estado.times.findIndex((time) => time.id === view.timeId);
-    const proximo = estado.times[indice + 1];
-    if (proximo) {
-      irParaWizard(proximo.id, 1);
-    } else {
-      setTimeAtivoId(estado.times[0].id);
-      setView({ modo: "resultado" });
-    }
-  }
-
-  function voltarWizard() {
-    setErrosPasso([]);
-    if (view.modo !== "wizard") return;
-    if (view.passo > 1) {
-      setView({ modo: "wizard", timeId: view.timeId, passo: (view.passo - 1) as 1 | 2 | 3 | 4 });
-      return;
-    }
-    const indice = estado.times.findIndex((time) => time.id === view.timeId);
-    const anterior = estado.times[indice - 1];
-    if (anterior) setView({ modo: "wizard", timeId: anterior.id, passo: 5 });
-    else setView({ modo: "intro" });
+    setView({
+      modo: "quiz",
+      timeId: view.timeId,
+      pergunta: (view.pergunta + 1) as PassoId,
+    });
   }
 
   // Trajetória salva re-reconciliada quando o G mudou entre sessões/edições —
@@ -459,476 +521,363 @@ export function CalculadoraApp({
     return { g: reReconciliar(editada, G, margemAnual).pontos, ajustada: true };
   }, [timeModelo]);
 
-  // A referência de fórmulas abre quando existe número para conferir. Antes
-  // disso ela responderia uma pergunta que ninguém fez — e o PDF descreve o
-  // motor inteiro, incluindo a escada de preço.
-  const formulasLiberadas = modelo.times.some((time) => time.resultado.status === "ok");
-
   // -------------------------------------------------------------------------
 
-  const header = (
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <Image
-          src="/logotipo.svg"
-          alt="Perfecting"
-          width={224}
-          height={36}
-          priority
-          className="h-6 w-auto"
-        />
-        <span className="hidden h-5 w-px bg-slate-200 sm:block" aria-hidden />
-        <span className="hidden text-xs text-slate-400 sm:block">Calculadora de ROI</span>
-      </div>
-      <div className="flex items-center gap-2">
-        {view.modo !== "intro" ? (
-          <span className="hidden items-center gap-2 text-xs text-slate-400 sm:flex" role="status">
-            {autosave.status === "salvando"
-              ? "Salvando…"
-              : autosave.status === "erro"
-                ? "Reconectando…"
-                : autosave.salvoEm
-                  ? "Salvo automaticamente"
-                  : null}
-            {autosave.status === "salvo" ? (
-              <CheckCircleIcon className="h-4 w-4 text-trend-positive" aria-hidden />
-            ) : null}
-          </span>
-        ) : null}
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={QuestionMarkCircleIcon}
-          onClick={() => {
-            setGlossarioAberto(false);
-            setFaqAberto(true);
-          }}
+  const acoesHeader = (
+    <>
+      {view.modo !== "mensalidade" ? (
+        <span
+          className="hidden items-center gap-2 text-sm text-(--pf-ink-faint) lg:flex"
+          role="status"
         >
-          Perguntas comuns
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={BookOpenIcon}
-          onClick={() => {
-            setFaqAberto(false);
-            setGlossarioAberto(true);
-          }}
-        >
-          Glossário
-        </Button>
-        {/* O PDF com as fórmulas, para conferir a conta fora da tela. É <a>, e
-            não botão: quem audita quer abrir em outra aba e guardar o
-            endereço. Servido pela rota que valida o MESMO token do link, então
-            expira e é revogado junto com ele — não é URL aberta na internet.
-
-            Fica VISÍVEL e bloqueado enquanto não há resultado, em vez de
-            sumir: escondido, ninguém descobre que a referência existe; assim a
-            pessoa vê que ela está ali e o balão diz o que falta para abrir. A
-            rota repete a mesma trava — botão desabilitado é afordância, não
-            controle de acesso. */}
-        <span className="group relative inline-flex">
-          <ButtonLink
-            href={`/api/publico/calculadora/${token}/formulas`}
-            target="_blank"
-            rel="noopener"
-            variant="secondary"
-            size="sm"
-            icon={DocumentTextIcon}
-            disabled={!formulasLiberadas}
-            aria-label={
-              formulasLiberadas
-                ? undefined
-                : `Fórmulas (PDF). ${MOTIVO_FORMULAS}`
-            }
-          >
-            <span className="hidden sm:inline">Fórmulas (PDF)</span>
-            <span className="sm:hidden">Fórmulas</span>
-          </ButtonLink>
-          {!formulasLiberadas ? (
-            // `group-focus-within` além do hover: o controle segue focável de
-            // propósito, e sem isso quem chega por teclado encontra um botão
-            // mudo sem saber por quê.
-            <span
-              className={cn(
-                TOOLTIP,
-                "left-auto right-0 group-focus-within:visible group-focus-within:opacity-100",
-              )}
-            >
-              {MOTIVO_FORMULAS}
-            </span>
+          {autosave.status === "salvando"
+            ? "Salvando…"
+            : autosave.status === "erro"
+              ? "Reconectando…"
+              : autosave.salvoEm
+                ? "Salvo automaticamente"
+                : null}
+          {autosave.status === "salvo" ? (
+            <CheckCircleIcon className="h-4 w-4 text-trend-positive" aria-hidden />
           ) : null}
         </span>
-      </div>
-    </header>
+      ) : null}
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={QuestionMarkCircleIcon}
+        onClick={() => {
+          setGlossarioAberto(false);
+          setFaqAberto(true);
+        }}
+      >
+        <span className="hidden sm:inline">Perguntas comuns</span>
+        <span className="sm:hidden">Perguntas</span>
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={BookOpenIcon}
+        onClick={() => {
+          setFaqAberto(false);
+          setGlossarioAberto(true);
+        }}
+      >
+        <span className="hidden sm:inline">Glossário</span>
+        <span className="sm:hidden">Termos</span>
+      </Button>
+    </>
   );
+
+  // A régua de progresso das quatro etapas. Cada uma diz o quanto de si já foi
+  // vencido — não onde a pessoa está, que é o que a pílula ativa já mostra.
+  const preenchimento: Record<EtapaId, number> = {
+    mensalidade: estado.times[0].entradas.numVendedores !== null ? 1 : 0,
+    quiz: prog.total > 0 ? prog.preenchidos / prog.total : 0,
+    relatorio: tudoCompleto && prog.preenchidos > 0 ? 1 : 0,
+    exportar: autosave.submittedAt ? 1 : 0,
+  };
 
   return (
     <main
       className={cn(
-        "page-fade-in flex min-h-[100dvh] flex-col bg-[#f3f6fc] transition-[padding] duration-300",
+        "page-fade-in flex min-h-[100dvh] flex-col bg-(--pf-canvas) transition-[padding] duration-300",
         // Só o Glossário encolhe a página: ele é gaveta, e o formulário segue
-        // editável ao lado. As Perguntas viraram MODAL — reservar a faixa de
-        // 360px para elas empurrava a tela inteira para a esquerda ao abrir,
-        // que é exatamente o salto que o overlay deveria evitar.
+        // editável ao lado. As Perguntas são modal.
         glossarioAberto && "sm:pr-[360px]",
       )}
     >
-      {view.modo !== "intro" ? (
-        <TopProgress
-          preenchidos={prog.preenchidos}
-          total={prog.total}
-          times={progressoPorTime}
-        />
-      ) : null}
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
-        {header}
+      <EtapasNav
+        etapaAtual={ETAPA_DA_VIEW[view.modo]}
+        onIr={irParaEtapa}
+        preenchimento={preenchimento}
+        acoes={acoesHeader}
+      />
 
-        {view.modo === "intro" ? (
-          <div className="flex flex-1 items-center justify-center py-10">
-            <IntroScreen
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+        {view.modo === "mensalidade" ? (
+          <div className="flex flex-1 items-center justify-center">
+            <EtapaMensalidade
               clientName={clientName}
               expiresAt={expiresAt}
+              numVendedores={estado.times[0].entradas.numVendedores}
+              plano={estado.times[0].proposta.plano ?? PLANO_DEFAULT}
+              prazoMeses={estado.prazoMeses}
               temProgresso={prog.preenchidos > 0}
+              onChangeVendedores={(valor) =>
+                setCampo(estado.times[0].id, "numVendedores", valor)
+              }
+              onChangePlano={(plano) => setProposta(estado.times[0].id, { plano })}
               onComecar={() => {
-                if (tudoCompleto) {
-                  setView({ modo: "resultado" });
+                if (tudoCompleto && prog.preenchidos > 0) {
+                  irParaRelatorio();
                 } else {
-                  const posicao = primeiroPassoIncompleto(estadoDerivado);
-                  irParaWizard(posicao.timeId, posicao.passo);
+                  const posicao = primeiraPerguntaIncompleta(estadoDerivado);
+                  irParaQuiz(posicao.timeId, posicao.pergunta);
                 }
               }}
             />
           </div>
         ) : null}
 
-        {view.modo === "wizard" ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[264px_1fr]">
+        {view.modo === "quiz" ? (
+          // Duas colunas: o mapa de times à esquerda, a pergunta à direita. O
+          // card mantém o próprio `max-w-2xl` dentro do `1fr` — a medida de
+          // leitura não muda porque ganhou vizinho.
+          <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[264px_1fr]">
             <div className="lg:sticky lg:top-8 lg:self-start">
-              <StepperNav
+              <TimesSidebar
                 times={estadoDerivado.times}
                 timeAtual={timeAtualId}
-                passoAtual={view.passo}
-                onIrPara={irParaWizard}
+                passoAtual={view.pergunta}
+                onIrPara={irParaQuiz}
                 onAddTime={() => {
                   const novoId = addTime();
-                  if (novoId) irParaWizard(novoId, 1);
+                  if (novoId) irParaQuiz(novoId, 1);
                 }}
                 onRemoverTime={multiTime ? (time) => setRemovendoTime(time) : undefined}
                 podeAdicionar={estado.times.length < MAX_TIMES}
               />
             </div>
 
-            <div className="fade-in-up flex flex-col gap-6 rounded-sm border border-slate-200/80 bg-white p-6 shadow-[var(--shadow-sm)] sm:p-8">
-              <div className="flex flex-col gap-2">
-                {/* Sem selo de evidência nas etapas: a tela inteira é
-                    formulário, o selo só repetiria "isto é um campo". A origem
-                    volta a ser declarada onde há saída (sidebar, resultado). */}
-                <h1 className="text-xl font-semibold text-slate-900">
-                  {PASSO_INTROS[view.passo].titulo}
-                </h1>
-                <p className="text-sm leading-6 text-slate-500">
-                  {PASSO_INTROS[view.passo].texto}
-                </p>
-              </div>
-
-              {/* Entradas CRUAS aqui: o formulário edita o que se persiste. As
-                  derivadas (rateadas) alimentam só o resultado. */}
+            <PerguntaCard
+              passo={view.pergunta}
+              titulo={PASSO_INTROS[view.pergunta].titulo}
+              texto={PASSO_INTROS[view.pergunta].texto}
+              erro={resumoDoErro(errosPasso)}
+              onVoltar={voltarQuiz}
+              onAvancar={avancarQuiz}
+              rotuloAvancar={
+                view.pergunta === ULTIMO_PASSO ? "Continuar → ajustes avançados" : "Avançar"
+              }
+              acaoSecundaria={
+                view.pergunta === PASSO_OPCIONAL
+                  ? {
+                      label: "Não tenho esses dados — pular esta etapa",
+                      onClick: pularFunil,
+                    }
+                  : undefined
+              }
+            >
               {/* Enter avança, como em qualquer formulário — mas não quando o
-                  alvo é um botão, senão a tecla dispararia a ação dele. */}
+                alvo é um botão, senão a tecla dispararia a ação dele. */}
               <div
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
                   const alvo = event.target as HTMLElement;
                   if (alvo.tagName === "BUTTON" || alvo.tagName === "TEXTAREA") return;
                   event.preventDefault();
-                  avancarWizard();
+                  avancarQuiz();
                 }}
               >
-              <PassoForm
-                passo={view.passo}
-                entradas={timeModelo.estadoTime.entradas}
-                erros={errosPorCampo(errosPasso)}
-                onChange={(campo, valor) => {
-                  // O erro daquele campo some assim que ele é tocado: manter a
-                  // frase vermelha embaixo de um campo já preenchido é ruído.
-                  setErrosPasso((atuais) => atuais.filter((erro) => erro.campo !== campo));
-                  setCampo(timeAtualId, campo, valor);
-                }}
-                multiTime={multiTime}
-                estrutura={estrutura}
-                onChangeEstrutura={setEstrutura}
-                vendedoresDaConta={vendedoresDaConta}
-              />
+                {view.pergunta === ULTIMO_PASSO ? (
+                  <PerguntaProposta
+                    proposta={timeModelo.estadoTime.proposta}
+                    prazoMeses={modelo.prazoMeses}
+                    sel={timeModelo.sel}
+                    assentosDefault={timeModelo.assentosDefault}
+                    assentosLimitados={timeModelo.assentosLimitados}
+                    numVendedores={timeModelo.entradas.numVendedores}
+                    planoHerdado={timeModelo.estadoTime.proposta.assentos === null}
+                    onChangePlano={(plano) => setProposta(timeAtualId, { plano })}
+                    onChangeAssentos={(assentos) =>
+                      setProposta(timeAtualId, {
+                        assentos: Math.min(assentos, MAX_ASSENTOS),
+                      })
+                    }
+                    onChangePrazo={setPrazo}
+                    onChangeCenario={(sel) => setCenario(timeAtualId, sel)}
+                  />
+                ) : (
+                  // Entradas CRUAS aqui: o formulário edita o que se persiste. As
+                  // derivadas (rateadas) alimentam só o resultado.
+                  <PassoForm
+                    passo={view.pergunta}
+                    entradas={timeModelo.estadoTime.entradas}
+                    erros={errosPorCampo(errosPasso)}
+                    vendedoresHerdados={
+                      timeModelo.estadoTime.entradas.numVendedores !== null
+                    }
+                    onChange={(campo, valor) => {
+                      // O erro daquele campo some assim que ele é tocado: manter
+                      // a frase vermelha embaixo de um campo já preenchido é ruído.
+                      setErrosPasso((atuais) =>
+                        atuais.filter((erro) => erro.campo !== campo),
+                      );
+                      setCampo(timeAtualId, campo, valor);
+                    }}
+                  />
+                )}
               </div>
-
-              {/* Anúncio único para leitor de tela. A marcação por campo já
-                  está lá em cima; aqui é só o aviso de que algo travou. */}
-              {resumoDoErro(errosPasso) ? (
-                <p
-                  role="alert"
-                  className="flex items-start gap-2 rounded-sm bg-[#FEF2F2] p-4 text-sm leading-6 text-trend-negative"
-                >
-                  <ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-                  {resumoDoErro(errosPasso)}
-                </p>
-              ) : null}
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="secondary" icon={ArrowLeftIcon} onClick={voltarWizard}>
-                    Voltar
-                  </Button>
-                  {/* Passo opcional com saída declarada: sem isto, "opcional"
-                      só existia no título e a pessoa ficava sem saber se podia
-                      seguir com os campos em branco. */}
-                  {view.passo === 5 ? (
-                    <button
-                      type="button"
-                      onClick={pularFunil}
-                      className={cn(
-                        "inline-flex min-h-[44px] cursor-pointer items-center rounded-full px-2 text-[13px] font-medium text-slate-600 sm:min-h-8",
-                        "transition-colors hover:text-slate-900 hover:underline hover:underline-offset-[3px]",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-                      )}
-                    >
-                      Não tenho esses dados — pular esta etapa
-                    </button>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Atalho para sair do wizard antes do fim; some quando o
-                      próprio botão primário já é "Ver resultado". */}
-                  {tudoCompleto && !fimDoWizard ? (
-                    <Button
-                      variant="tertiary"
-                      onClick={() => {
-                        setTimeAtivoId(timeAtualId);
-                        setView({ modo: "resultado" });
-                      }}
-                    >
-                      Ver resultado
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="primary"
-                    icon={ArrowRightIcon}
-                    iconPosition="right"
-                    onClick={avancarWizard}
-                  >
-                    {fimDoWizard ? "Ver resultado" : "Continuar"}
-                  </Button>
-                </div>
-              </div>
-            </div>
+            </PerguntaCard>
           </div>
         ) : null}
 
-        {view.modo === "resultado" ? (
-          <div className="flex flex-col gap-6">
-            {multiTime ? (
-              <ConsolidadoView
-                consolidado={modelo.consolidado}
-                times={modelo.times}
-                timeAtivo={timeAtualId}
-                onSelecionarTime={setTimeAtivoId}
-                onAddTime={() => {
-                  const novoId = addTime();
-                  if (novoId) irParaWizard(novoId, 1);
-                }}
-                podeAdicionar={estado.times.length < MAX_TIMES}
+        {view.modo === "avancado" ? (
+          <EtapaAvancada
+            modelo={modelo}
+            estrutura={estrutura}
+            vendedoresDaConta={vendedoresDaConta}
+            onChangeEstrutura={setEstrutura}
+            onChangeCampo={setCampo}
+            onChangePlano={(timeId, plano: PlanoId) => setProposta(timeId, { plano })}
+            onChangeAssentos={(timeId, assentos) =>
+              setProposta(timeId, {
+                assentos: assentos === null ? null : Math.min(assentos, MAX_ASSENTOS),
+              })
+            }
+            onChangeCenario={setCenario}
+            onAddTime={() => {
+              const novoId = addTime();
+              if (novoId) irParaQuiz(novoId, 1);
+            }}
+            onRemoverTime={(time) => setRemovendoTime(time.estadoTime)}
+            onVoltar={() => irParaQuiz(estado.times[0].id, ULTIMO_PASSO)}
+            onVerRelatorio={irParaRelatorio}
+          />
+        ) : null}
+
+        {view.modo === "processando" ? (
+          <ProcessandoResultado
+            nomeTime={timeModelo.nome}
+            multiTime={multiTime}
+            onPronto={() => setView({ modo: "relatorio" })}
+          />
+        ) : null}
+
+        {view.modo === "relatorio" ? (
+          <div className="@container flex flex-col gap-6">
+            {/* A capa responde, e o cálculo continua abaixo na mesma rolagem.
+                Quando o time ativo não fechou a conta, quem aparece é a rede
+                (`ResultadoIncompleto`) — uma capa inteira de travessões diria
+                menos do que a lista do que falta. */}
+            {timeModelo.resultado.status === "ok" ? (
+              <CapaResultado
+                modelo={modelo}
+                timeAtivo={timeModelo}
+                dataCalculo={dataCalculo}
+                onVerDetalhado={() =>
+                  document
+                    .getElementById("ao-longo-de-12-meses")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+                onAjustarProposta={() => irParaQuiz(timeAtualId, ULTIMO_PASSO)}
               />
             ) : null}
 
-            {/* Recolher a sidebar devolve os 264px à leitura. Como a coluna do
-                resultado é `@container`, a container query que decide o par
-                Eficiência/Performance reflowa junto — o recolhimento paga em
-                largura e em altura.
-
-                A transição é só `lg:`: abaixo disso a coluna é `1fr` e a troca
-                de layout vem da media query, que não se anima. */}
-            <div
-              className={cn(
-                "grid grid-cols-1 gap-6",
-                "lg:transition-[grid-template-columns] lg:duration-200 lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-                // 4rem = 64px: o rail recolhido é só a seta, e 64px mantêm o
-                // alvo de toque confortável sem devolver largura ao resultado.
-                sidebarAberta ? "lg:grid-cols-[264px_1fr]" : "lg:grid-cols-[4rem_1fr]",
-              )}
-            >
-              <div className="order-2 lg:order-1 lg:sticky lg:top-8 lg:self-start">
-                <SeusNumerosSidebar
-                  nome={timeModelo.nome}
-                  multiTime={multiTime}
-                  entradas={timeModelo.estadoTime.entradas}
-                  estrutura={estrutura}
-                  onChangeEstrutura={setEstrutura}
-                  onChange={(campo, valor) => setCampo(timeAtualId, campo, valor)}
-                  onChangeNome={(nome) =>
-                    patchTime(timeAtualId, { nome: sanitizarNomeTime(nome, "Time") })
-                  }
-                  onVoltarAoPassoAPasso={() => irParaWizard(timeAtualId, 1)}
-                  onRemoverTime={
-                    multiTime
-                      ? () => setRemovendoTime(timeModelo.estadoTime)
-                      : undefined
-                  }
-                  onAddTime={
-                    estado.times.length < MAX_TIMES && !multiTime
-                      ? () => {
-                          const novoId = addTime();
-                          if (novoId) irParaWizard(novoId, 1);
-                        }
-                      : undefined
-                  }
-                  aberta={sidebarAberta}
-                  onToggle={() => setSidebarAberta((atual) => !atual)}
+            {/* A pilha de sempre, com `gap-2` (8px): blocos que quase se tocam,
+                e quem separa é a quebra de superfície, não a distância. */}
+            <div className="flex flex-col gap-2">
+              {multiTime ? (
+                <ConsolidadoView
+                  consolidado={modelo.consolidado}
+                  times={modelo.times}
+                  timeAtivo={timeAtualId}
+                  onSelecionarTime={setTimeAtivoId}
+                  onAddTime={() => setView({ modo: "avancado" })}
+                  podeAdicionar={estado.times.length < MAX_TIMES}
                 />
-              </div>
+              ) : null}
 
-              {/* Quatro seções nomeadas, na ordem da decisão: resposta → como
-                  se desenrola → de onde vem → quanto custa. A trajetória vem
-                  logo depois do hero porque o convite a desenhar a curva
-                  precisa chegar antes do cansaço.
+              {timeModelo.resultado.status === "ok" ? (
+                <>
+                  {/* O hero saiu daqui: ele repetia, noutro desenho, os quatro
+                      números que a capa acabou de dar — e a "checagem de
+                      realidade" que ele carregava no rodapé já vive dentro do
+                      `PerformanceCard`, logo abaixo. `HeroResultado` continua
+                      exportado porque `link-detail` (tela interna) o usa. */}
+                  <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
 
-                  Blocos principais empilhados com `gap-2` (8px): quase se
-                  tocam, e o que os separa é a quebra de superfície, não a
-                  distância. O container único que veio antes (`divide-y` com
-                  `py-12` por faixa) punha 96px de vazio entre dois títulos —
-                  respiro demais vira buraco. Quem faz hierarquia aqui é o
-                  contorno do hero e a ordem, não o espaço. */}
-              <div className="@container order-1 flex flex-col gap-2 lg:order-2">
-                {timeModelo.resultado.status === "ok" ? (
-                  <>
-                    {/* Sem SecaoResultado: o hero é o topo da página e já traz o
-                        próprio cabeçalho — "O resultado" era rótulo do rótulo. */}
-                    <div className="flex flex-col gap-6">
-                      <HeroResultado
-                        titulo={
-                          multiTime
-                            ? `${timeModelo.nome}: ROI potencial com a Perfecting`
-                            : "Seu ROI potencial com a Perfecting"
-                        }
-                        roi={timeModelo.resultado.roi}
-                        paybackMeses={timeModelo.resultado.paybackMeses}
-                        valorAno={timeModelo.resultado.valorAno}
+                  <SecaoResultado
+                    id="ao-longo-de-12-meses"
+                    titulo="Ao longo de 12 meses"
+                    descricao="Editar a curva muda só a forma, nunca o ROI."
+                  >
+                    <PaineisTrajetoria
+                      margemMensalAtual={timeModelo.resultado.margemMensalAtual}
+                      G={timeModelo.resultado.G}
+                      valorAno={timeModelo.resultado.valorAno}
+                      precoAno={timeModelo.resultado.precoAno}
+                      eficienciaAno={timeModelo.resultado.eficienciaAno}
+                      editada={trajetoriaInfo.g}
+                      onEditar={(g) => setTrajetoria(timeAtualId, g)}
+                      nota={
+                        trajetoriaInfo.ajustada
+                          ? "Suas premissas mudaram desde a última edição, então a curva foi re-reconciliada preservando a forma que você desenhou."
+                          : null
+                      }
+                    />
+                  </SecaoResultado>
+
+                  <SecaoResultado
+                    id="de-onde-vem"
+                    titulo="De onde vem o número"
+                    descricao="As duas metades da soma."
+                    divisor
+                    ritmo="amplo"
+                  >
+                    {/* O racional em uma imagem: abre o bloco com a pergunta
+                          mais simples de todas — o que você paga contra o que
+                          volta —, antes de qualquer decomposição. */}
+                    <div className="flex flex-col gap-4">
+                      <h3 className="pf-panel-title text-(--pf-ink-soft)">
+                        O racional em uma imagem
+                      </h3>
+                      <InvestimentoVsRetorno
                         precoAno={timeModelo.resultado.precoAno}
-                        // Traduz o múltiplo em vez de repetir os três números
-                        // que estão logo acima (e o plano/assentos, que estão
-                        // no chip ao lado): dito duas vezes, nenhum deles ganha
-                        // peso — só custa uma linha a mais antes da checagem.
-                        frase={`Cada R$ 1 investido devolve ${formatBRL(timeModelo.resultado.roi, 2)} em margem no primeiro ano.`}
-                        // A conta inteira num balão: valor ÷ investimento, e
-                        // de onde sai cada metade do numerador.
-                        racional={`${formatBRL(timeModelo.resultado.valorAno)} de valor ÷ ${formatBRL(timeModelo.resultado.precoAno)} de investimento no ano. O valor soma ${formatBRL(timeModelo.resultado.eficienciaAno)} de eficiência (o custo do caminho que você declarou, limitado pelo teto do plano) e ${formatBRL(timeModelo.resultado.G)} de performance (ticket, conversão, rampa e ciclo, com desconto de 30% em três delas e cobertura de ${formatPct(timeModelo.resultado.cobertura * 100, 0)} dos vendedores).`}
-                        chips={[
-                          {
-                            label:
-                              timeModelo.sel.modo === "preset"
-                                ? `Cenário ${CENARIOS[timeModelo.sel.cenario].label}`
-                                : "Parâmetros personalizados",
-                            href: "#de-onde-vem",
-                          },
-                          {
-                            label: `${PLANOS[timeModelo.proposta.plano].label} · ${timeModelo.proposta.assentos} assentos · ${modelo.prazoMeses} meses`,
-                            href: "#quanto-custa",
-                          },
-                        ]}
-                        checagem={{
-                          pct: timeModelo.resultado.checagemRealidadePct,
-                          alerta: timeModelo.resultado.checagemAlerta,
-                        }}
-                        tom="destaque"
+                        valorAno={timeModelo.resultado.valorAno}
                       />
-                      <AvisosCoerencia avisos={timeModelo.resultado.avisos} />
                     </div>
-                  </>
-                ) : null}
 
-                {timeModelo.resultado.status === "ok" ? (
-                  <>
-                    <SecaoResultado
-                      id="ao-longo-de-12-meses"
-                      titulo="Ao longo de 12 meses"
-                      descricao="Editar a curva muda só a forma, nunca o ROI."
-                    >
-                      <PaineisTrajetoria
-                        margemMensalAtual={timeModelo.resultado.margemMensalAtual}
-                        G={timeModelo.resultado.G}
-                        valorAno={timeModelo.resultado.valorAno}
-                        precoAno={timeModelo.resultado.precoAno}
-                        eficienciaAno={timeModelo.resultado.eficienciaAno}
-                        editada={trajetoriaInfo.g}
-                        onEditar={(g) => setTrajetoria(timeAtualId, g)}
-                        nota={
-                          trajetoriaInfo.ajustada
-                            ? "Suas premissas mudaram desde a última edição, então a curva foi re-reconciliada preservando a forma que você desenhou."
-                            : null
-                        }
-                      />
-                    </SecaoResultado>
-
-                    <SecaoResultado
-                      id="de-onde-vem"
-                      titulo="De onde vem o número"
-                      descricao="As duas metades da soma."
-                      divisor
-                      // Quatro sub-tópicos (o par, a cascata, os parâmetros e a
-                      // faixa dos cenários) na seção mais alta da página. Com o
-                      // `gap-6` padrão eles ficavam à mesma distância uns dos
-                      // outros que o título fica do primeiro — nenhuma cadência,
-                      // e 1.700px de blocos de peso igual.
-                      ritmo="amplo"
-                    >
-                      {/* Container query, não breakpoint de viewport: o que
-                          decide se cabem duas colunas é a largura DESTA coluna
-                          (a sidebar come 264px fixos). Com `xl:` a seção mais
-                          alta da página empilhava em qualquer janela abaixo de
-                          1280px, dobrando de altura sem necessidade.
-
-                          Fio no vão, não `divide-x`: o gap vai a zero e cada
-                          coluna paga o próprio `p*-10`, então o fio fica no meio
-                          dos 80px em vez de colado na segunda coluna. Empilhado
-                          ele some — dois blocos em sequência já se separam pelo
-                          gap, e uma régua horizontal ali competiria com o fio do
-                          cabeçalho logo acima. */}
-                      <div className="grid grid-cols-1 gap-8 @3xl:grid-cols-2 @3xl:gap-0">
-                        <div className="@3xl:pr-10">
-                          <EficienciaCard
-                            resultado={timeModelo.resultado}
-                            entradas={timeModelo.entradas}
-                            plano={timeModelo.proposta.plano}
-                            rateio={
-                              estruturaAtiva(estado)
-                                ? {
-                                    gestoresDaConta: estrutura.numGestoresTreino,
-                                    pctVendedores:
-                                      vendedoresDaConta > 0
-                                        ? (timeModelo.estadoTime.entradas.numVendedores ?? 0) /
-                                          vendedoresDaConta
-                                        : 0,
-                                  }
-                                : null
-                            }
-                          />
-                        </div>
-                        <div className="@3xl:border-l @3xl:border-slate-100 @3xl:pl-10">
-                          <PerformanceCard
-                            resultado={timeModelo.resultado}
-                            entradas={timeModelo.entradas}
-                          />
-                        </div>
+                    {/* Container query, não breakpoint de viewport: o que
+                          decide se cabem duas colunas é a largura DESTA coluna. */}
+                    <div className="grid grid-cols-1 gap-8 @3xl:grid-cols-2 @3xl:gap-0">
+                      <div className="@3xl:pr-10">
+                        <EficienciaCard
+                          resultado={timeModelo.resultado}
+                          entradas={timeModelo.entradas}
+                          plano={timeModelo.proposta.plano}
+                          rateio={
+                            estruturaAtiva(estado)
+                              ? {
+                                  gestoresDaConta: estrutura.numGestoresTreino,
+                                  pctVendedores:
+                                    vendedoresDaConta > 0
+                                      ? (timeModelo.estadoTime.entradas.numVendedores ??
+                                          0) / vendedoresDaConta
+                                      : 0,
+                                }
+                              : null
+                          }
+                        />
                       </div>
-                      <CascataValor resultado={timeModelo.resultado} />
-                      <CenarioSliders
-                        sel={timeModelo.sel}
-                        entradas={timeModelo.entradas}
-                        onChange={(sel) => setCenario(timeAtualId, sel)}
-                      />
-                      {comparacao ? (
+                      <div className="@3xl:border-l @3xl:border-(--pf-line-soft) @3xl:pl-10">
+                        <PerformanceCard
+                          resultado={timeModelo.resultado}
+                          entradas={timeModelo.entradas}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <h3 className="pf-panel-title text-(--pf-ink-soft)">
+                        Decomposição do valor — as alavancas
+                      </h3>
+                      <DecomposicaoValor resultado={timeModelo.resultado} />
+                    </div>
+
+                    {/* Os sliders saíram daqui: a projeção se escolhe na
+                          pergunta 8 e se afina na etapa avançada. A faixa dos
+                          três cenários fica — ela é LEITURA, e é o que permite
+                          decidir sobre a faixa em vez de sobre um ponto. */}
+                    {comparacao ? (
+                      <div className="flex flex-col gap-4">
+                        <h3 className="pf-panel-title text-(--pf-ink-soft)">
+                          Comparação de cenários
+                        </h3>
                         <ComparacaoCenarios
                           linhas={comparacao}
-                          precoAno={timeModelo.resultado.precoAno}
+                          precoMes={timeModelo.resultado.precoMes}
                           cenarioAtivo={
                             timeModelo.sel.modo === "preset"
                               ? timeModelo.sel.cenario
@@ -936,80 +885,86 @@ export function CalculadoraApp({
                           }
                           personalizado={timeModelo.sel.modo === "personalizado"}
                         />
-                      ) : null}
-                    </SecaoResultado>
-                  </>
-                ) : (
-                  // Sem título de seção: o gating já se explica sozinho, e
-                  // inventar um cabeçalho aqui seria informação nova. O bloco
-                  // paga a própria superfície, como as seções ao lado.
-                  <div className="rounded-md border border-slate-200 bg-white p-6 sm:p-8">
-                    <ResultadoIncompleto
-                      faltando={timeModelo.resultado.faltando}
-                      onIrParaPasso={(passo) => irParaWizard(timeAtualId, passo)}
-                    />
-                  </div>
-                )}
-
-                {/* Enquadra o preço que vem logo abaixo: o leitor já viu de
-                    onde vem o número, e agora vê o tamanho do problema que ele
-                    endereça. Nunca somado ao ROI — ver `coi.ts`. */}
-                {timeModelo.coi ? (
-                  <SecaoResultado
-                    id="o-que-esta-em-jogo"
-                    titulo="O que está em jogo hoje"
-                    descricao="A lacuna que o programa endereça, medida com os seus números."
-                  >
-                    <CustoInacao
-                      coi={timeModelo.coi}
-                      onIrParaPasso={(passo) => irParaWizard(timeAtualId, passo)}
-                    />
+                      </div>
+                    ) : null}
                   </SecaoResultado>
-                ) : null}
+                </>
+              ) : (
+                <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
+                  <ResultadoIncompleto
+                    faltando={timeModelo.resultado.faltando}
+                    onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
+                  />
+                </div>
+              )}
 
+              {timeModelo.coi ? (
                 <SecaoResultado
-                  id="quanto-custa"
-                  titulo="Quanto custa"
-                  descricao="Plano, assentos e prazo recalculam o número acima na hora."
+                  id="o-que-esta-em-jogo"
+                  titulo="O que está em jogo hoje"
+                  descricao="A lacuna que o programa endereça, medida com os seus números."
                 >
-                  <QuantoCusta
-                    times={modelo.times}
-                    preco={modelo.preco}
-                    prazoMeses={modelo.prazoMeses}
-                    onChangePlano={(timeId, plano) => setProposta(timeId, { plano })}
-                    onChangeAssentos={(timeId, assentos) =>
-                      setProposta(timeId, { assentos })
+                  <CustoInacao
+                    coi={timeModelo.coi}
+                    precoAno={
+                      timeModelo.resultado.status === "ok" ? timeModelo.resultado.precoAno : null
                     }
-                    onChangePrazo={setPrazo}
+                    onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
                   />
                 </SecaoResultado>
+              ) : null}
 
-                <ResumoVerificavel
+              {/* Leitura, não controle. Quem monta a proposta é a pergunta 8;
+                    aqui ela é conferida, e o atalho leva de volta a ela. */}
+              <SecaoResultado
+                id="quanto-custa"
+                titulo="Quanto custa"
+                descricao="A proposta que você montou na etapa 02."
+                acao={
+                  <Button
+                    variant="tertiary"
+                    size="sm"
+                    onClick={() => irParaQuiz(timeAtualId, ULTIMO_PASSO)}
+                  >
+                    Ajustar proposta
+                  </Button>
+                }
+              >
+                <QuantoCusta
+                  times={modelo.times}
                   preco={modelo.preco}
                   prazoMeses={modelo.prazoMeses}
-                  times={modelo.times}
-                  consolidado={modelo.consolidado}
-                  dataCalculo={dataCalculo}
+                  readOnly
+                  cabecalho={false}
                 />
+              </SecaoResultado>
 
-                {/* Só quando o Resumo não renderiza: ele traz o próprio
-                    disclaimer, e é o único bloco que a impressão enxerga. */}
-                {modelo.consolidado.status !== "ok" ? (
-                  <div className="px-6 pt-2">
-                    <Disclaimer />
-                  </div>
-                ) : null}
-              </div>
+              {modelo.consolidado.status !== "ok" ? (
+                <div className="px-6 pt-2">
+                  <Disclaimer />
+                </div>
+              ) : null}
             </div>
-
-            <EnviarBar
-              autosaveStatus={autosave.status}
-              salvoEm={autosave.salvoEm}
-              submittedAt={autosave.submittedAt}
-              completo={tudoCompleto}
-              onEnviar={autosave.enviar}
-            />
           </div>
+        ) : null}
+
+        {view.modo === "exportar" ? (
+          <EtapaExportar
+            modelo={modelo}
+            dataCalculo={dataCalculo}
+            token={token}
+            formulasLiberadas={formulasLiberadas}
+            metas={metas}
+            cenarioLabel={cenarioLabel}
+            nomeTime={timeModelo.nome}
+            multiTime={multiTime}
+            perguntas={perguntas}
+            autosaveStatus={autosave.status}
+            salvoEm={autosave.salvoEm}
+            submittedAt={autosave.submittedAt}
+            completo={tudoCompleto}
+            onEnviar={autosave.enviar}
+          />
         ) : null}
       </div>
 
@@ -1021,21 +976,6 @@ export function CalculadoraApp({
         onClose={() => setFaqAberto(false)}
         perguntas={perguntas}
       />
-
-      {/* `key` no time: cada comemoração é uma montagem nova, e a contagem
-          começa do zero sem herdar o número da anterior. */}
-      {timeCelebrado && timeCelebrado.resultado.status === "ok" ? (
-        <CelebracaoModal
-          key={timeCelebrado.id}
-          open
-          onClose={() => setCelebrandoTimeId(null)}
-          nomeTime={timeCelebrado.nome}
-          multiTime={multiTime}
-          roi={timeCelebrado.resultado.roi}
-          paybackMeses={timeCelebrado.resultado.paybackMeses}
-          valorAno={timeCelebrado.resultado.valorAno}
-        />
-      ) : null}
 
       <ConfirmModal
         open={removendoTime !== null}

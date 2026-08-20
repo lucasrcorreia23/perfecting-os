@@ -44,11 +44,11 @@ export function ConsolidadoView({
           tom="destaque"
         />
       ) : (
-        <section className="flex flex-col gap-2 rounded-sm border border-slate-200 bg-white p-6">
-          <span className="text-(length:--text-score-lg) font-semibold leading-12 tabular-nums text-slate-300">
+        <section className="flex flex-col gap-2 rounded-sm border border-(--pf-line) bg-(--pf-surface) p-6">
+          <span className="text-(length:--text-score-lg) font-semibold leading-12 tabular-nums text-(--pf-ink-faint)">
             —
           </span>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-(--pf-ink-soft)">
             O consolidado da conta aparece quando todos os times estiverem
             completos, nunca com resultado parcial.
           </p>
@@ -56,29 +56,29 @@ export function ConsolidadoView({
       )}
 
       {consolidado.status === "ok" ? (
-        <div className="flex flex-wrap gap-x-6 gap-y-1 px-1 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 px-1 text-sm text-(--pf-ink-soft)">
           <span>
             Cobertura da conta:{" "}
-            <span className="font-medium tabular-nums text-slate-700">
+            <span className="font-medium tabular-nums text-(--pf-ink)">
               {formatPct(consolidado.cobertura * 100, 0)}
             </span>
           </span>
           <span>
             Receita por vendedor:{" "}
-            <span className="font-medium tabular-nums text-slate-700">
+            <span className="font-medium tabular-nums text-(--pf-ink)">
               {formatBRL(consolidado.receitaPorVendedor)}/mês
             </span>
           </span>
           <span>
             Conversão média:{" "}
-            <span className="font-medium tabular-nums text-slate-700">
+            <span className="font-medium tabular-nums text-(--pf-ink)">
               {formatPct(consolidado.conversaoMediaPct, 1)}
             </span>
           </span>
           {consolidado.cicloMedioDias !== null ? (
             <span>
               Ciclo médio:{" "}
-              <span className="font-medium tabular-nums text-slate-700">
+              <span className="font-medium tabular-nums text-(--pf-ink)">
                 {formatDias(consolidado.cicloMedioDias)}
               </span>
             </span>
@@ -99,21 +99,21 @@ export function ConsolidadoView({
               onClick={() => onSelecionarTime(time.id)}
               className={cn(
                 "flex min-h-[44px] cursor-pointer flex-col justify-center gap-1 rounded-sm border px-4 py-2 text-left transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
                 ativo
-                  ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
-                  : "border-slate-200 bg-white hover:border-slate-300",
+                  ? "border-(--pf-brand) bg-(--pf-brand-tint)"
+                  : "border-(--pf-line) bg-(--pf-surface-alt) hover:border-(--pf-ink-faint)/40",
               )}
             >
               <span
                 className={cn(
                   "text-sm font-medium",
-                  ativo ? "text-[#2E63CD]" : "text-slate-800",
+                  ativo ? "text-(--pf-brand)" : "text-(--pf-ink)",
                 )}
               >
                 {time.nome}
               </span>
-              <span className="text-xs tabular-nums text-slate-500">
+              <span className="text-sm tabular-nums text-(--pf-ink-soft)">
                 {ok && time.resultado.status === "ok"
                   ? `ROI ${formatX(time.resultado.roi)} · payback ${formatMeses(time.resultado.paybackMeses)} · ${
                       time.sel.modo === "preset"
@@ -129,7 +129,7 @@ export function ConsolidadoView({
           <button
             type="button"
             onClick={onAddTime}
-            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm border border-dashed border-slate-300 bg-white px-4 text-sm font-medium text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm border border-dashed border-(--pf-ink-faint)/40 bg-(--pf-surface) px-4 text-sm font-medium text-(--pf-ink-soft) transition-colors hover:border-(--pf-ink-faint)/60 hover:text-(--pf-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35"
           >
             <PlusIcon className="h-4 w-4" aria-hidden />
             Adicionar time

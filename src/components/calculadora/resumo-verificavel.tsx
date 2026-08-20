@@ -157,12 +157,12 @@ export function ResumoVerificavel({
         <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           <SeloEvidencia selo="projecao" />
-          <p className="text-base leading-7 text-slate-700">{sintese}</p>
+          <p className="pf-lead text-(--pf-ink-soft)">{sintese}</p>
         </div>
 
-        {/* Payback fica slate: é tempo, não parcela que entra na conta — o
-            hero já diz o mesmo sobre o mesmo número. */}
-        <div className="grid grid-cols-3 gap-6 border-y border-slate-100 py-6">
+        {/* Payback fica na tinta neutra: é tempo, não parcela que entra na
+            conta — o hero já diz o mesmo sobre o mesmo número. */}
+        <div className="grid grid-cols-3 gap-6 border-y border-(--pf-line-soft) py-6">
           {[
             { rotulo: "ROI", valor: formatX(consolidado.roi), positivo: true },
             {
@@ -177,11 +177,13 @@ export function ResumoVerificavel({
             },
           ].map((item) => (
             <div key={item.rotulo} className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-slate-600">{item.rotulo}</span>
+              <span className="text-sm font-medium text-(--pf-ink-soft)">
+                {item.rotulo}
+              </span>
               <span
                 className={cn(
                   "text-xl font-semibold tabular-nums",
-                  item.positivo ? "text-trend-positive" : "text-slate-900",
+                  item.positivo ? "text-trend-positive" : "text-(--pf-ink)",
                 )}
               >
                 {item.valor}
@@ -191,7 +193,7 @@ export function ResumoVerificavel({
         </div>
 
         {custoDiaPerfecting !== null && custoDiaGestor !== null ? (
-          <p className="text-base leading-7 text-slate-700">
+          <p className="pf-lead text-(--pf-ink-soft)">
             <span className="font-medium tabular-nums">
               {formatBRL(custoDiaPerfecting, 2)}
             </span>{" "}
@@ -209,7 +211,7 @@ export function ResumoVerificavel({
             folha perderia a única leitura contrafactual da tela. Recupera, não
             soma: o invariante 1 vale no papel também. */}
         {!multiTime && coi !== null && coi.totalAno > 0 ? (
-          <p className="text-base leading-7 text-slate-700">
+          <p className="pf-lead text-(--pf-ink-soft)">
             A lacuna estimada hoje é de{" "}
             <span className="font-medium tabular-nums">{formatBRL(coi.totalAno)}</span> por
             ano, e o programa recupera{" "}
@@ -228,22 +230,22 @@ export function ResumoVerificavel({
             oferta, e seis réguas dariam a elas peso de subtotal. Sem caixa em
             volta — a tabela mora dentro do container do resumo e uma borda
             própria seria a terceira aninhada. */}
-        <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
-          <span className="text-sm font-semibold text-slate-700">Oferta</span>
+        <div className="flex flex-col gap-3 border-t border-(--pf-line-soft) pt-6">
+          <span className="text-sm font-semibold text-(--pf-ink-soft)">Oferta</span>
           <table className="w-full border-collapse text-base" data-zebra>
             <tbody>
               {linhasOferta.map((linha) => (
-                <tr key={linha.rotulo} className="odd:bg-slate-50">
+                <tr key={linha.rotulo} className="odd:bg-(--pf-bar)">
                   <th
                     scope="row"
-                    className="px-4 py-4 text-left align-baseline font-normal whitespace-nowrap text-slate-700"
+                    className="px-4 py-4 text-left align-baseline font-normal whitespace-nowrap text-(--pf-ink-soft)"
                   >
                     {linha.rotulo}
                   </th>
-                  <td className="px-4 py-4 text-right align-baseline font-medium tabular-nums text-slate-900">
+                  <td className="px-4 py-4 text-right align-baseline font-medium tabular-nums text-(--pf-ink)">
                     {linha.valor}
                     {linha.nota ? (
-                      <span className="mt-1.5 block text-sm leading-6 font-normal text-slate-600">
+                      <span className="mt-1.5 block text-sm leading-6 font-normal text-(--pf-ink-soft)">
                         {linha.nota}
                       </span>
                     ) : null}
@@ -254,7 +256,7 @@ export function ResumoVerificavel({
           </table>
         </div>
 
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-sm leading-6 text-(--pf-ink-soft)">
           Nenhum número desta tela foi medido em campo: são projeções sobre premissas
           declaradas e editáveis. Próximo passo é acordar o baseline dos indicadores
           que você quer mover e o escopo do piloto — a partir dele, esta projeção passa
@@ -265,7 +267,7 @@ export function ResumoVerificavel({
             `#resumo-verificavel` sai na impressão, e a folha sem ele violaria
             o invariante 10. Quando este bloco não renderiza (resultado
             incompleto), `calculadora-app` mostra o disclaimer no lugar. */}
-        <div className="border-t border-slate-100 pt-6">
+        <div className="border-t border-(--pf-line-soft) pt-6">
           <Disclaimer />
         </div>
         </section>

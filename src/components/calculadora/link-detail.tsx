@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { CalculatorStatusChip } from "@/components/ui/calculator-status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Disclaimer } from "./disclaimer";
-import { CascataValor, ComparacaoCenarios } from "./graficos-resultado";
+import { ComparacaoCenarios, DecomposicaoValor } from "./graficos-resultado";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
@@ -323,7 +323,12 @@ export function LinkDetail({
                           />
                         </div>
                       </div>
-                      <CascataValor resultado={time.resultado} />
+                      <div className="flex flex-col gap-4">
+                        <h4 className="text-sm font-semibold text-slate-700">
+                          Decomposição do valor — as alavancas
+                        </h4>
+                        <DecomposicaoValor resultado={time.resultado} />
+                      </div>
                       {/* Os três cenários lado a lado: o interno precisa saber
                           qual faixa o cliente tinha à frente quando enviou. */}
                       {(() => {
@@ -334,14 +339,19 @@ export function LinkDetail({
                           modelo.prazoMeses,
                         );
                         return linhas ? (
-                          <ComparacaoCenarios
-                            linhas={linhas}
-                            precoAno={time.resultado.precoAno}
-                            cenarioAtivo={
-                              time.sel.modo === "preset" ? time.sel.cenario : time.sel.base
-                            }
-                            personalizado={time.sel.modo === "personalizado"}
-                          />
+                          <div className="flex flex-col gap-4">
+                            <h4 className="text-sm font-semibold text-slate-700">
+                              Comparação de cenários
+                            </h4>
+                            <ComparacaoCenarios
+                              linhas={linhas}
+                              precoMes={time.precoMes}
+                              cenarioAtivo={
+                                time.sel.modo === "preset" ? time.sel.cenario : time.sel.base
+                              }
+                              personalizado={time.sel.modo === "personalizado"}
+                            />
+                          </div>
                         ) : null;
                       })()}
                       <PaineisTrajetoria
@@ -378,8 +388,11 @@ export function LinkDetail({
             <h3 className="text-sm font-semibold text-slate-900">Entradas preenchidas</h3>
             {modelo.times.map((time) => (
               <div key={time.id} className="flex flex-col gap-2">
+                {/* Sem `uppercase`: a §2 proíbe caixa alta em texto de UI e
+                    nomeia justamente este caso — nome que veio do visitante não
+                    é reescrito pela tela. */}
                 {multiTime ? (
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <span className="text-xs font-semibold text-slate-500">
                     {time.nome}
                   </span>
                 ) : null}

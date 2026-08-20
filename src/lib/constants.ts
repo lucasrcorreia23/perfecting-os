@@ -18,6 +18,33 @@ export type LeadQualificacao = Enums<"lead_qualificacao">;
 export const PERFECTING_WHATSAPP_LABEL = "(48) 99918-6496";
 export const PERFECTING_WHATSAPP_URL = "https://wa.me/5548999186496";
 
+/*
+ * Paleta categórica do guideline (§1), nomeada num lugar só. Antes cada etapa,
+ * status e chip repetia o hex à mão: 39 literais para oito swatches, e trocar
+ * um swatch queria dizer caçar todos. `PALETA.grafite` é a cor categórica;
+ * `PALETA_FALLBACK` é o cinza de quando não há swatch — o §1 distingue os dois.
+ */
+export const PALETA = {
+  azul: "#2E63CD",
+  violeta: "#7C3AED",
+  verde: "#0F9F2E",
+  ambar: "#D97706",
+  rosa: "#E11D48",
+  ciano: "#0891B2",
+  magenta: "#DB2777",
+  grafite: "#475569",
+} as const;
+
+/* Fallback de swatch ausente (§1) — o mesmo cinza de `--color-trend-neutral`. */
+export const PALETA_FALLBACK = "#94A3B8";
+
+/* Tendência (§1). Fora de className, onde a utilitária do token não alcança. */
+export const TREND = {
+  positivo: "#0F9F2E",
+  negativo: "#9F0F0F",
+  neutro: PALETA_FALLBACK,
+} as const;
+
 // Paleta categórica do guideline (§1) aplicada às etapas do workflow.
 export const STAGE_ORDER: WorkflowStage[] = [
   "diagnosticar",
@@ -29,31 +56,31 @@ export const STAGE_ORDER: WorkflowStage[] = [
 ];
 
 export const STAGES: Record<WorkflowStage, { label: string; color: string }> = {
-  diagnosticar: { label: "Diagnosticar", color: "#2E63CD" },
-  priorizar: { label: "Priorizar", color: "#7C3AED" },
-  construir: { label: "Construir", color: "#D97706" },
-  calibrar: { label: "Calibrar", color: "#0891B2" },
-  executar: { label: "Executar", color: "#0F9F2E" },
-  medir: { label: "Medir", color: "#DB2777" },
+  diagnosticar: { label: "Diagnosticar", color: PALETA.azul },
+  priorizar: { label: "Priorizar", color: PALETA.violeta },
+  construir: { label: "Construir", color: PALETA.ambar },
+  calibrar: { label: "Calibrar", color: PALETA.ciano },
+  executar: { label: "Executar", color: PALETA.verde },
+  medir: { label: "Medir", color: PALETA.magenta },
 };
 
 export const STATUSES: Record<ClientStatus, { label: string; color: string }> =
   {
-    ativo: { label: "Ativo", color: "#0F9F2E" },
-    em_risco: { label: "Em risco", color: "#D97706" },
-    pausado: { label: "Pausado", color: "#475569" },
-    encerrado: { label: "Encerrado", color: "#94A3B8" },
+    ativo: { label: "Ativo", color: PALETA.verde },
+    em_risco: { label: "Em risco", color: PALETA.ambar },
+    pausado: { label: "Pausado", color: PALETA.grafite },
+    encerrado: { label: "Encerrado", color: PALETA_FALLBACK },
   };
 
 export const ACTIVITY_STATUSES: Record<
   ActivityStatus,
   { label: string; color: string }
 > = {
-  pendente: { label: "Pendente", color: "#475569" },
-  em_andamento: { label: "Em andamento", color: "#2E63CD" },
+  pendente: { label: "Pendente", color: PALETA.grafite },
+  em_andamento: { label: "Em andamento", color: PALETA.azul },
   // Âmbar, não vermelho: bloqueada é aviso; vermelho já significa "atrasado".
-  bloqueada: { label: "Bloqueada", color: "#D97706" },
-  concluida: { label: "Concluída", color: "#0F9F2E" },
+  bloqueada: { label: "Bloqueada", color: PALETA.ambar },
+  concluida: { label: "Concluída", color: PALETA.verde },
 };
 
 export const ACTIVITY_STATUS_ORDER: ActivityStatus[] = [
@@ -68,9 +95,9 @@ export const RESPONSAVEIS: Record<
   Responsavel,
   { label: string; color: string }
 > = {
-  cliente: { label: "Cliente", color: "#0891B2" },
-  perfecting: { label: "Perfecting", color: "#2E63CD" },
-  ambos: { label: "Perfecting & Cliente", color: "#7C3AED" },
+  cliente: { label: "Cliente", color: PALETA.ciano },
+  perfecting: { label: "Perfecting", color: PALETA.azul },
+  ambos: { label: "Perfecting & Cliente", color: PALETA.violeta },
 };
 
 export const ATIVIDADE_TIPOS: Record<AtividadeTipo, { label: string }> = {
@@ -93,9 +120,9 @@ export const CRITICIDADES: Record<
   Criticidade,
   { label: string; color: string }
 > = {
-  baixa: { label: "Baixa", color: "#94A3B8" },
-  media: { label: "Média", color: "#D97706" },
-  alta: { label: "Alta", color: "#9F0F0F" },
+  baixa: { label: "Baixa", color: PALETA_FALLBACK },
+  media: { label: "Média", color: PALETA.ambar },
+  alta: { label: "Alta", color: TREND.negativo },
 };
 
 export type EventType =
@@ -115,10 +142,10 @@ export type EventType =
 export type PostState = "rascunho" | "agendado" | "publicado" | "arquivado";
 
 export const POST_STATES: Record<PostState, { label: string; color: string }> = {
-  rascunho: { label: "Rascunho", color: "#475569" },
-  agendado: { label: "Agendado", color: "#D97706" },
-  publicado: { label: "Publicado", color: "#0F9F2E" },
-  arquivado: { label: "Arquivado", color: "#94A3B8" },
+  rascunho: { label: "Rascunho", color: PALETA.grafite },
+  agendado: { label: "Agendado", color: PALETA.ambar },
+  publicado: { label: "Publicado", color: PALETA.verde },
+  arquivado: { label: "Arquivado", color: PALETA_FALLBACK },
 };
 
 export const POST_STATE_ORDER: PostState[] = [
@@ -132,20 +159,20 @@ export const FUNNEL_STATUSES: Record<
   FunnelStatus,
   { label: string; color: string }
 > = {
-  rascunho: { label: "Rascunho", color: "#475569" },
-  publicado: { label: "Publicado", color: "#0F9F2E" },
-  arquivado: { label: "Arquivado", color: "#94A3B8" },
+  rascunho: { label: "Rascunho", color: PALETA.grafite },
+  publicado: { label: "Publicado", color: PALETA.verde },
+  arquivado: { label: "Arquivado", color: PALETA_FALLBACK },
 };
 
 export const LEAD_STATUSES: Record<
   LeadStatus,
   { label: string; color: string }
 > = {
-  novo: { label: "Novo", color: "#2E63CD" },
-  em_contato: { label: "Em contato", color: "#0891B2" },
-  qualificado: { label: "Qualificado", color: "#7C3AED" },
-  descartado: { label: "Descartado", color: "#94A3B8" },
-  convertido: { label: "Convertido", color: "#0F9F2E" },
+  novo: { label: "Novo", color: PALETA.azul },
+  em_contato: { label: "Em contato", color: PALETA.ciano },
+  qualificado: { label: "Qualificado", color: PALETA.violeta },
+  descartado: { label: "Descartado", color: PALETA_FALLBACK },
+  convertido: { label: "Convertido", color: PALETA.verde },
 };
 
 export const LEAD_STATUS_ORDER: LeadStatus[] = [
@@ -160,9 +187,9 @@ export const QUALIFICACOES: Record<
   LeadQualificacao,
   { label: string; color: string }
 > = {
-  frio: { label: "Frio", color: "#0891B2" },
-  morno: { label: "Morno", color: "#D97706" },
-  quente: { label: "Quente", color: "#E11D48" },
+  frio: { label: "Frio", color: PALETA.ciano },
+  morno: { label: "Morno", color: PALETA.ambar },
+  quente: { label: "Quente", color: PALETA.rosa },
 };
 
 export const QUALIFICACAO_ORDER: LeadQualificacao[] = [
@@ -184,10 +211,10 @@ export const CALCULATOR_LINK_STATUSES: Record<
   "ativo" | "concluido" | "expirado" | "revogado",
   { label: string; color: string }
 > = {
-  ativo: { label: "Ativo", color: "#0F9F2E" },
-  concluido: { label: "Concluído", color: "#2E63CD" },
-  expirado: { label: "Expirado", color: "#94A3B8" },
-  revogado: { label: "Revogado", color: "#475569" },
+  ativo: { label: "Ativo", color: PALETA.verde },
+  concluido: { label: "Concluído", color: PALETA.azul },
+  expirado: { label: "Expirado", color: PALETA_FALLBACK },
+  revogado: { label: "Revogado", color: PALETA.grafite },
 };
 
 // Capa de post — espelha o file_size_limit do bucket marketing-media.

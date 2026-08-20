@@ -59,6 +59,10 @@ export type EntradasTime = {
   leadsMes: number | null;
 };
 
+// As oito perguntas do quiz (etapa 02). Mora aqui, e não em `estado.ts`, para
+// `campos.ts` poder tipar `PASSO_INTROS` sem importar o módulo que a importa.
+export type PassoId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
 export type CampoId = keyof EntradasTime;
 
 // Deltas das quatro alavancas. Com ciclo ≥ 7 dias, o ciclo opera em DIAS

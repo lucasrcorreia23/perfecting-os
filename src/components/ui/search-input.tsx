@@ -21,7 +21,7 @@ export function SearchInput({
     <div
       className={cn(
         "flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4",
-        "transition-colors focus-within:border-[#2E63CD]/40",
+        "transition-colors focus-within:border-primary/40",
         size === "lg" ? "h-11" : "h-11 sm:h-9",
         className,
       )}

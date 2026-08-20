@@ -2,7 +2,23 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
 
-// Formulários (§8.10): label → ajuda → input, nessa ordem.
+// Formulários: rótulo → input → ajuda → erro, nessa ordem.
+//
+// A ordem foi INVERTIDA em 20/08/2026 por decisão do decisor. A §8.10 dizia
+// "nunca a descrição depois do campo", e a razão original era boa: quem lê a
+// explicação antes de digitar erra menos. O que mudou foi o peso relativo das
+// duas coisas na jornada da calculadora — com o rótulo em caixa alta e o campo
+// em amarelo, rótulo e input viraram um par visual forte, e uma frase de duas
+// ou três linhas ENTRE eles separava justamente o que a pessoa opera junto. A
+// explicação continua ligada ao input por `aria-describedby`, então o leitor de
+// tela a anuncia no foco, antes de digitar, independentemente da ordem no DOM.
+//
+// O rótulo usa `.pf-label`: fora da pele é o `text-sm font-medium` de sempre e
+// nada no app interno muda; dentro dela vira o "label de campo" do §3.2 —
+// 12px, peso 700, caixa alta, tracking +10%. A regra do decisor (20/08/2026) é
+// que TUDO o que a pessoa precisa ler para preencher fica em caixa alta: numa
+// tela em que o campo editável é amarelo e grita, o rótulo tinha de ter voz
+// para ser encontrado antes dele, e sentence case em 14px não tinha.
 //
 // Duas formas de dizer a mesma coisa, e a escolha não é de gosto: `help` põe a
 // explicação como linha visível sob o rótulo (o que o §8.10 pede) e `hint` a
@@ -33,98 +49,99 @@ export function Field({
   // 12px justamente a frase que explica o campo.
   escala?: "app" | "leitura";
   // Em grade de duas ou três colunas, os campos precisam dividir as MESMAS
-  // faixas: rótulo com rótulo, ajuda com ajuda, input com input. Com cada
-  // campo montando a própria pilha, uma ajuda de três linhas empurra só o seu
-  // input, e a linha inteira sai torta — foi o que apareceu quando a ajuda
-  // deixou de ser ícone e virou texto. `grid-rows-subgrid` faz o campo herdar
-  // as faixas do pai em vez de inventar as suas; o pai declara
+  // faixas: rótulo com rótulo, input com input, ajuda com ajuda. Com cada campo
+  // montando a própria pilha, um rótulo que quebra em duas linhas empurra só o
+  // seu input, e a linha inteira sai torta. `grid-rows-subgrid` faz o campo
+  // herdar as faixas do pai em vez de inventar as suas; o pai declara
   // `grid-rows-[auto_auto_auto_auto]`.
+  //
+  // Com a ajuda EMBAIXO (20/08/2026) o subgrid ficou mais barato, não menos
+  // necessário: a ajuda longa deixou de empurrar o próprio input para baixo,
+  // mas o alinhamento superior continua dependendo de o rótulo ocupar uma faixa
+  // compartilhada.
   alinhado?: boolean;
   children: ReactNode;
 }) {
   const leitura = escala === "leitura";
   const labelEl = (
-    <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">
+    // Os tokens da pele da calculadora entram com FALLBACK: dentro de
+    // `.pf-calc` o rótulo acompanha o creme, e em todo o resto do app o
+    // fallback devolve o mesmo slate de sempre. Sem isto, todo rótulo de campo
+    // da jornada pública ficaria em cinza frio sobre fundo quente.
+    <label htmlFor={htmlFor} className="pf-label text-[var(--pf-ink,#334155)]">
       {label}
     </label>
   );
 
+  // `pf-hint` é o nível "hint/microcopy" do §3.2 (12px). Dentro da pele a
+  // hierarquia do campo não depende mais do tamanho: o rótulo é caixa alta de
+  // 12px e a ajuda é sentence case de 12px — são a CAIXA e o peso que separam
+  // os dois, não dois pixels.
+  const ajudaEl = help ? (
+    <p
+      id={htmlFor ? `${htmlFor}-ajuda` : undefined}
+      className={cn(
+        leitura
+          ? "pf-hint text-[var(--pf-ink-soft,#475569)]"
+          : "text-xs text-[var(--pf-ink-faint,#64748b)]",
+      )}
+    >
+      {help}
+    </p>
+  ) : null;
+
+  const erroEl = error ? (
+    <p
+      id={htmlFor ? `${htmlFor}-erro` : undefined}
+      className={cn(
+        "text-trend-negative",
+        leitura ? "text-sm leading-6" : "text-xs",
+      )}
+    >
+      {error}
+    </p>
+  ) : null;
+
+  // A linha só vira `relative flex` quando há hint — o balão se ancora nela, e
+  // os formulários sem hint ficam com o DOM de sempre.
+  const cabecalhoEl = hint ? (
+    <div className="relative flex items-center gap-1">
+      {labelEl}
+      <HintTooltip text={hint} />
+    </div>
+  ) : (
+    labelEl
+  );
+
   if (alinhado) {
     return (
-      <div className="row-span-4 grid grid-rows-subgrid gap-y-1.5">
-        {hint ? (
-          <div className="relative flex items-center gap-1.5">
-            {labelEl}
-            <HintTooltip text={hint} />
-          </div>
-        ) : (
-          labelEl
-        )}
-        {/* Faixas vazias continuam ocupando a linha: é o que mantém o input
-            do vizinho na mesma altura quando um campo não tem ajuda. */}
-        {help ? (
-          <p
-            id={htmlFor ? `${htmlFor}-ajuda` : undefined}
-            className={cn(
-              leitura ? "text-sm leading-6 text-slate-600" : "text-xs text-slate-500",
-            )}
-          >
-            {help}
-          </p>
-        ) : (
-          <span aria-hidden />
-        )}
-        <div className="self-end">{children}</div>
-        {error ? (
-          <p
-            id={htmlFor ? `${htmlFor}-erro` : undefined}
-            className={cn("text-trend-negative", leitura ? "text-sm leading-6" : "text-xs")}
-          >
-            {error}
-          </p>
-        ) : (
-          <span aria-hidden />
-        )}
+      // Quatro faixas de subgrid na ordem nova: rótulo → input → ajuda → erro.
+      // Continuam sendo subgrid porque é ele que dá o alinhamento superior: a
+      // faixa 1 tem a altura do rótulo mais alto da LINHA, então todos os
+      // inputs começam na mesma altura mesmo quando um rótulo quebra em duas.
+      // O que a ordem nova resolve é o caso oposto — com a ajuda acima, uma
+      // explicação de três linhas empurrava o próprio input para baixo e fazia
+      // a faixa crescer para todos por causa de um campo só. Embaixo, a ajuda
+      // cresce para o rodapé, onde não há o que desalinhar.
+      <div className="row-span-4 grid grid-rows-subgrid gap-y-2">
+        {cabecalhoEl}
+        <div className="self-start">{children}</div>
+        {/* Faixas vazias continuam ocupando a linha: é o que mantém a ajuda do
+            vizinho na mesma altura quando um campo não tem ajuda nenhuma. */}
+        {ajudaEl ?? <span aria-hidden />}
+        {erroEl ?? <span aria-hidden />}
       </div>
     );
   }
 
   return (
+    // Rótulo e input colados, ajuda e erro pendurados embaixo: o par que a
+    // pessoa OPERA fica junto, e o que explica sai do caminho entre os dois.
     <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-0.5">
-        {/* A linha só vira `relative flex` quando há hint — o balão se ancora
-            nela, e os formulários sem hint ficam com o DOM de sempre. */}
-        {hint ? (
-          <div className="relative flex items-center gap-1.5">
-            {labelEl}
-            <HintTooltip text={hint} />
-          </div>
-        ) : (
-          labelEl
-        )}
-        {help ? (
-          <p
-            id={htmlFor ? `${htmlFor}-ajuda` : undefined}
-            className={cn(
-              leitura ? "text-sm leading-6 text-slate-600" : "text-xs text-slate-500",
-            )}
-          >
-            {help}
-          </p>
-        ) : null}
-      </div>
+      {cabecalhoEl}
       {children}
-      {error ? (
-        <p
-          id={htmlFor ? `${htmlFor}-erro` : undefined}
-          className={cn(
-            "text-trend-negative",
-            leitura ? "text-sm leading-6" : "text-xs",
-          )}
-        >
-          {error}
-        </p>
-      ) : null}
+      {ajudaEl}
+      {erroEl}
     </div>
   );
 }
@@ -164,7 +181,7 @@ export function FormSection({
 const INPUT_CLASSES = cn(
   "w-full border border-slate-200 bg-white px-4 text-sm text-slate-900",
   "outline-none transition-colors placeholder:text-slate-400",
-  "focus:border-[#2E63CD]/40",
+  "focus:border-primary/40",
   "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
 );
 

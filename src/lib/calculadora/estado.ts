@@ -29,6 +29,7 @@ import type {
   EstadoTime,
   EstruturaCompartilhada,
   FaixaMargemId,
+  PassoId,
   PlanoId,
   PropostaTime,
 } from "./types";
@@ -38,45 +39,67 @@ const TRAJETORIA_VALOR_MAX = 1e13;
 const NOME_MAX = 60;
 const ID_MAX = 40;
 
+// As oito perguntas do quiz (etapa 02). Uma pergunta por tela, no máximo dois
+// campos numéricos cada — o passo 1 pedia cinco números de uma vez, e quem lê
+// esta tela (§8.12b: finanças, 45+, abre o link uma vez) desistia antes de
+// responder o primeiro.
+//
+// A pergunta 8 não tem `campos`: ela edita a PROPOSTA (plano, assentos, prazo,
+// cenário), que vive fora de `EntradasTime`. Array vazio ⇒ `passoCompleto`
+// devolve true por `every`, que é o certo — não há o que faltar ali.
 export const PASSOS: {
-  id: 1 | 2 | 3 | 4 | 5;
+  id: PassoId;
   titulo: string;
   campos: CampoId[];
   opcional?: boolean;
 }[] = [
   {
     id: 1,
-    titulo: "",
-    campos: [
-      "numVendedores",
-      "numGestoresTreino",
-      "horasTreinoGestorMes",
-      "vendedoresPorGestorMes",
-      "horasPraticaPorRepHoje",
-    ],
+    titulo: "Estrutura do time",
+    campos: ["numVendedores", "numGestoresTreino", "horasTreinoGestorMes"],
   },
   {
     id: 2,
-    titulo: "Como o time performa",
-    campos: ["receitaMensal", "ticketMedio", "conversaoPct", "margemPct"],
+    titulo: "Como a prática acontece",
+    campos: ["vendedoresPorGestorMes", "horasPraticaPorRepHoje"],
   },
   {
     id: 3,
-    titulo: "Contratação e rampa",
-    campos: ["salarioGestor", "salarioVendedor", "rampaMeses", "contratacoesAno"],
+    titulo: "Custo do treinamento atual",
+    campos: ["salarioGestor", "salarioVendedor", "caminho", "custoExternoAno", "custoEventoAno"],
   },
   {
     id: 4,
-    titulo: "A alternativa sem a Perfecting",
-    campos: ["caminho", "custoExternoAno", "custoEventoAno"],
+    titulo: "Receita da equipe",
+    campos: ["receitaMensal", "ticketMedio"],
   },
   {
     id: 5,
-    titulo: "Funil (opcional)",
-    campos: ["cicloDias", "leadsMes"],
+    titulo: "Funil",
+    campos: ["conversaoPct", "margemPct"],
+  },
+  {
+    id: 6,
+    titulo: "Rampa",
+    campos: ["rampaMeses", "contratacoesAno"],
+  },
+  {
+    id: 7,
+    titulo: "Pipeline e ciclo",
+    campos: ["leadsMes", "cicloDias"],
     opcional: true,
   },
+  {
+    id: 8,
+    titulo: "Plano, cenário e contrato",
+    campos: [],
+  },
 ];
+
+/** A pergunta opcional, derivada — nunca um número literal espalhado. */
+export const PASSO_OPCIONAL: PassoId = PASSOS.find((passo) => passo.opcional)!.id;
+
+export const ULTIMO_PASSO: PassoId = PASSOS[PASSOS.length - 1].id;
 
 export function entradasVazias(): EntradasTime {
   return {
@@ -279,10 +302,13 @@ export function parseEstado(json: unknown): EstadoCalculadora {
   return { v: 2, prazoMeses, estrutura: sanitizarEstrutura(fonte.estrutura), times };
 }
 
-export function passoCompleto(entradas: EntradasTime, passoId: 1 | 2 | 3 | 4 | 5): boolean {
-  if (passoId === 5) return funilPreenchido(entradas);
-  const faltando = camposFaltando(entradas);
+export function passoCompleto(entradas: EntradasTime, passoId: PassoId): boolean {
   const passo = PASSOS.find((p) => p.id === passoId)!;
+  // A pergunta opcional não tem "completo" pelo gating (nenhum dos dois campos
+  // é obrigatório): completa é ter os dois, que é o que liga a alavanca de
+  // ciclo. A regra mora em `funilPreenchido`, não aqui.
+  if (passo.opcional) return funilPreenchido(entradas);
+  const faltando = camposFaltando(entradas);
   return passo.campos.every((campo) => !faltando.includes(campo));
 }
 
@@ -381,3 +407,5 @@ export function diffCamposAlterados(
   }
   return alterados;
 }
+
+export type { PassoId };

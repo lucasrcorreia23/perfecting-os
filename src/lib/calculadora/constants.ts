@@ -204,7 +204,7 @@ export const PRAZO_COPY: Record<number, string> = {
 // ── Custo da Inação (COI) ────────────────────────────────────────────────────
 // Aba "Custo da Inação" de `ROI_Perfecting_Corrigido.xlsx` (19/08/2026) e o
 // bloco `Premissas!B68–E73` que nasceu com ela. Aquele arquivo é INSUMO, não
-// fonte: o Template (SHA `1f17a03a…`) e o PDF seguem mandando no motor — ver a
+// fonte: o Template (SHA `96c88e20…`) e o PDF seguem mandando no motor — ver a
 // auditoria E-30…E-36 em `docs/calculadora-erratas-v5.md`.
 //
 // São benchmarks de mercado, não custo interno: o §9 e o invariante 13 seguem
@@ -227,3 +227,21 @@ export const COI_NO_DECISION = 0.5; // C46 — deals perdidos para o status quo
 export const COI_FRACAO_COACHAVEL = 0.2; // C47 — é o haircut da dimensão
 export const COI_SEMANAS_ESPERA = 2; // C55
 export const COI_HORAS_PERDIDAS_SEMANA = 0.5; // C56
+
+// ---------------------------------------------------------------------------
+// Case de sucesso (bloco "Próximo passo", 20/08/2026)
+//
+// A janela de prova que a proposta oferece. Os três números são hipótese [H]
+// comercial — não saem do Template nem do PDF, e por isso vivem aqui em vez de
+// nascer literais no componente: quando forem ratificados (ou trocados), muda
+// um lugar só.
+//
+// Por que 3 meses e por que estas metas: as alavancas de receita (ticket,
+// conversão, ciclo) levam mais de um trimestre para aparecer no pipe, então
+// ancorar o case nelas seria prometer o que a janela não entrega. As quatro
+// metas abaixo são de ADOÇÃO e de tempo de gestor — o que de fato se move em
+// 90 dias, e o que precede qualquer ganho de receita.
+export const CASE_JANELA_MESES = 3;
+export const CASE_JANELA_DIAS = 90;
+export const CASE_ADOCAO_PCT = 80; // % dos assentos com prática semanal
+export const CASE_CSAT_MIN = 4.5; // pulso quinzenal, escala de 5

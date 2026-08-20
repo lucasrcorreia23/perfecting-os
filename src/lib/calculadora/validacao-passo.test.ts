@@ -31,26 +31,30 @@ function completo(): EntradasTime {
 
 describe("validarPasso", () => {
   it("não acusa nada num passo completo", () => {
-    for (const passo of [1, 2, 3, 4, 5] as const) {
-      expect(validarPasso(completo(), passo), `passo ${passo}`).toEqual([]);
+    for (const passo of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
+      expect(validarPasso(completo(), passo), `pergunta ${passo}`).toEqual([]);
     }
   });
 
-  it("acusa todos os campos vazios do passo, e só os do passo", () => {
+  it("acusa todos os campos vazios da pergunta, e só os dela", () => {
     const erros = validarPasso(entradasVazias(), 1);
     expect(erros.map((e) => e.campo)).toEqual([
       "numVendedores",
       "numGestoresTreino",
       "horasTreinoGestorMes",
+    ]);
+    // A prática é a pergunta 2; a receita, a 4. Nenhuma vaza para a 1.
+    expect(erros.some((e) => e.campo === "horasPraticaPorRepHoje")).toBe(false);
+    expect(erros.some((e) => e.campo === "receitaMensal")).toBe(false);
+
+    expect(validarPasso(entradasVazias(), 2).map((e) => e.campo)).toEqual([
       "vendedoresPorGestorMes",
       "horasPraticaPorRepHoje",
     ]);
-    // Nada do passo 2 vaza para o passo 1.
-    expect(erros.some((e) => e.campo === "receitaMensal")).toBe(false);
   });
 
   it("nomeia o campo na mensagem", () => {
-    const erros = validarPasso({ ...completo(), ticketMedio: null }, 2);
+    const erros = validarPasso({ ...completo(), ticketMedio: null }, 4);
     expect(erros).toEqual([
       {
         campo: "ticketMedio",
@@ -60,24 +64,24 @@ describe("validarPasso", () => {
     ]);
   });
 
-  it("salarioVendedor é opcional e não bloqueia o passo 3", () => {
+  it("salarioVendedor é opcional e não bloqueia a pergunta 3", () => {
     const entradas = { ...completo(), salarioVendedor: null };
     expect(validarPasso(entradas, 3)).toEqual([]);
   });
 
   it("valor fora do domínio bloqueia como se estivesse vazio", () => {
-    expect(validarPasso({ ...completo(), conversaoPct: 120 }, 2).map((e) => e.campo)).toEqual(
+    expect(validarPasso({ ...completo(), conversaoPct: 120 }, 5).map((e) => e.campo)).toEqual(
       ["conversaoPct"],
     );
-    expect(validarPasso({ ...completo(), margemPct: 150 }, 2).map((e) => e.campo)).toEqual([
+    expect(validarPasso({ ...completo(), margemPct: 150 }, 5).map((e) => e.campo)).toEqual([
       "margemPct",
     ]);
   });
 });
 
-describe("validarPasso — passo 4 e os custos condicionais", () => {
+describe("validarPasso — pergunta 3 e os custos condicionais", () => {
   it("sem caminho escolhido, pede a escolha", () => {
-    const erros = validarPasso({ ...completo(), caminho: null }, 4);
+    const erros = validarPasso({ ...completo(), caminho: null }, 3);
     expect(erros).toEqual([
       {
         campo: "caminho",
@@ -88,47 +92,47 @@ describe("validarPasso — passo 4 e os custos condicionais", () => {
   });
 
   it("caminho externo sem custo bloqueia", () => {
-    const erros = validarPasso({ ...completo(), caminho: "externo" }, 4);
+    const erros = validarPasso({ ...completo(), caminho: "externo" }, 3);
     expect(erros.map((e) => e.campo)).toEqual(["custoExternoAno"]);
   });
 
   it("caminho evento sem custo bloqueia", () => {
-    const erros = validarPasso({ ...completo(), caminho: "evento" }, 4);
+    const erros = validarPasso({ ...completo(), caminho: "evento" }, 3);
     expect(erros.map((e) => e.campo)).toEqual(["custoEventoAno"]);
   });
 
   it("o custo do outro caminho não é cobrado", () => {
     const entradas = { ...completo(), caminho: "externo" as const, custoExternoAno: 150_000 };
-    expect(validarPasso(entradas, 4)).toEqual([]);
+    expect(validarPasso(entradas, 3)).toEqual([]);
   });
 
   it("caminho nenhum não pede custo", () => {
-    expect(validarPasso({ ...completo(), caminho: "nenhum" }, 4)).toEqual([]);
+    expect(validarPasso({ ...completo(), caminho: "nenhum" }, 3)).toEqual([]);
   });
 });
 
-describe("validarPasso — passo 5 é opcional, dois ou nenhum", () => {
+describe("validarPasso — a pergunta 7 é opcional, dois ou nenhum", () => {
   it("vazio passa", () => {
-    expect(validarPasso(completo(), 5)).toEqual([]);
+    expect(validarPasso(completo(), 7)).toEqual([]);
   });
 
   it("os dois preenchidos passam", () => {
-    expect(validarPasso({ ...completo(), cicloDias: 45, leadsMes: 300 }, 5)).toEqual([]);
+    expect(validarPasso({ ...completo(), cicloDias: 45, leadsMes: 300 }, 7)).toEqual([]);
   });
 
   it("pela metade acusa nos DOIS campos — apagar também resolve", () => {
-    const soCiclo = validarPasso({ ...completo(), cicloDias: 45 }, 5);
+    const soCiclo = validarPasso({ ...completo(), cicloDias: 45 }, 7);
     expect(soCiclo.map((e) => e.campo)).toEqual(["cicloDias", "leadsMes"]);
     expect(soCiclo[0].mensagem).toBe("Preencha os dois campos do ciclo — ou pule a etapa.");
 
-    const soLeads = validarPasso({ ...completo(), leadsMes: 300 }, 5);
+    const soLeads = validarPasso({ ...completo(), leadsMes: 300 }, 7);
     expect(soLeads.map((e) => e.campo)).toEqual(["cicloDias", "leadsMes"]);
   });
 });
 
 describe("rótulos e mensagens", () => {
   it("o caminho tem rótulo próprio, não o id", () => {
-    expect(rotuloDe("caminho")).toBe("Sem a Perfecting, o que sua operação faria?");
+    expect(rotuloDe("caminho")).toBe("Como vocês treinam hoje, principalmente?");
     expect(mensagemDe("caminho")).toBe("Escolha uma opção para continuar.");
   });
 
@@ -148,23 +152,23 @@ describe("rótulos e mensagens", () => {
 describe("errosPorCampo e resumoDoErro", () => {
   it("indexa por campo", () => {
     // Indexa pela CURTA: é ela que vai sob o campo.
-    const mapa = errosPorCampo(validarPasso(entradasVazias(), 2));
+    const mapa = errosPorCampo(validarPasso(entradasVazias(), 4));
     expect(mapa.receitaMensal).toBe("Preencha para continuar.");
     expect(mapa.numVendedores).toBeUndefined();
   });
 
   it("anuncia uma frase só, com a contagem quando há mais de um", () => {
     expect(resumoDoErro([])).toBeNull();
-    expect(resumoDoErro(validarPasso({ ...completo(), ticketMedio: null }, 2))).toBe(
+    expect(resumoDoErro(validarPasso({ ...completo(), ticketMedio: null }, 4))).toBe(
       "Preencha “Ticket médio” para continuar.",
     );
     const varios = resumoDoErro(validarPasso(entradasVazias(), 1));
-    expect(varios).toContain("Preencha “Vendedores” para continuar.");
-    expect(varios).toContain("Faltam 5 campos");
+    expect(varios).toContain("Preencha “Número de vendedores” para continuar.");
+    expect(varios).toContain("Faltam 3 campos");
   });
 
   it("no funil pela metade anuncia a frase do funil, sem contagem", () => {
-    const resumo = resumoDoErro(validarPasso({ ...completo(), cicloDias: 45 }, 5));
+    const resumo = resumoDoErro(validarPasso({ ...completo(), cicloDias: 45 }, 7));
     expect(resumo).toBe("Preencha os dois campos do ciclo — ou pule a etapa.");
   });
 });

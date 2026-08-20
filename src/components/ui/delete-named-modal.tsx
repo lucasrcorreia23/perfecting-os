@@ -62,7 +62,7 @@ export function DeleteNamedModal({
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
           autoComplete="off"
-          className="h-12 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#2E63CD]/40"
+          className="h-12 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary/40"
         />
       </label>
       <div className="flex items-center justify-end gap-3 pt-1">

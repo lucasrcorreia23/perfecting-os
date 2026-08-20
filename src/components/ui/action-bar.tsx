@@ -30,7 +30,7 @@ export function ActionBar({
           type="button"
           onClick={() => setConfirming("discard")}
           className={cn(
-            "cursor-pointer rounded-full text-[13px] font-medium text-[#1e293b] underline-offset-[3px]",
+            "cursor-pointer rounded-full text-[13px] font-medium text-slate-800 underline-offset-[3px]",
             "transition-opacity hover:underline hover:opacity-70",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
           )}

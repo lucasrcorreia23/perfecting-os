@@ -37,18 +37,18 @@ export function EnviarBar({
   return (
     // Último bloco da página, não barra flutuante: rola junto com o conteúdo.
     // Sem sombra — ela existia para descolar a barra do que passava por baixo.
-    <div className="rounded-md border border-slate-200 bg-white px-4 py-4 sm:px-6">
+    <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) px-4 py-4 sm:px-6">
       <div className="flex w-full flex-wrap items-center justify-between gap-3">
         <span
           role="status"
-          className="flex items-center gap-2 text-xs text-slate-500"
+          className="flex items-center gap-2 text-sm text-(--pf-ink-soft)"
         >
           {autosaveStatus === "salvo" || (autosaveStatus === "idle" && salvoEm) ? (
             <CheckCircleIcon className="h-4 w-4 text-trend-positive" aria-hidden />
           ) : null}
           {statusTexto}
           {submittedAt ? (
-            <span className="text-slate-400">
+            <span className="text-(--pf-ink-faint)">
               · enviado em {formatDateTime(submittedAt)}
             </span>
           ) : null}
@@ -56,11 +56,11 @@ export function EnviarBar({
 
         <div className="flex items-center gap-3">
           {confirmado ? (
-            <span className="text-xs font-medium text-trend-positive" role="status">
+            <span className="text-sm font-medium text-trend-positive" role="status">
               {submittedAt ? "Envio atualizado." : "Enviado."}
             </span>
           ) : !completo ? (
-            <span className="text-xs text-slate-400">
+            <span className="text-sm text-(--pf-ink-faint)">
               Complete todos os campos para enviar
             </span>
           ) : null}

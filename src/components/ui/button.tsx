@@ -35,16 +35,23 @@ type ButtonLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
 // Botões do guideline (§8.1): primary com gradiente + brilho no hover,
 // secondary branco, tertiary estilo link, danger sólido.
 const VARIANTS = {
+  // As duas paradas do gradiente são tokens com fallback: fora da pele, o par
+  // é o mesmo azul de sempre e nada no app interno muda; dentro de `.pf-calc`
+  // ele vira preto (§13). Preto é o que a ação principal da jornada pede — numa
+  // página creme onde o azul já marca link, seleção e foco, um CTA azul empata
+  // com tudo o que é só navegação, e o "Avançar" é a única coisa a fazer ali.
   primary: cn(
-    "bg-[linear-gradient(145deg,#3d75dd,#2e63cd)] text-white",
+    "bg-[linear-gradient(145deg,var(--pf-cta-from,#3d75dd),var(--pf-cta-to,#2e63cd))] text-white",
     "border border-white/20 [box-shadow:inset_0_1px_0_rgba(255,255,255,0.18)]",
     "hover:[filter:brightness(1.07)_saturate(1.04)]",
-    "disabled:bg-none disabled:bg-[#94A3B8] disabled:hover:[filter:none]",
+    "disabled:bg-none disabled:bg-slate-400 disabled:hover:[filter:none]",
   ),
+  // O `secondary` é branco cheio com fio slate frio, a única peça que denunciava
+  // outra paleta sobre o creme. Com fallback, nada muda fora de `.pf-calc`.
   secondary: cn(
-    "bg-white text-slate-900 border border-slate-200",
-    "hover:bg-[#f8fafc] hover:border-slate-300",
-    "disabled:opacity-70 disabled:hover:bg-white disabled:hover:border-slate-200",
+    "bg-[var(--pf-surface-alt,#ffffff)] text-[var(--pf-ink,#0f172a)] border border-[var(--pf-line,#e2e8f0)]",
+    "hover:bg-[var(--pf-bar,#f8fafc)] hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",
+    "disabled:opacity-70 disabled:hover:bg-[var(--pf-surface-alt,#ffffff)] disabled:hover:border-[var(--pf-line,#e2e8f0)]",
   ),
   tertiary: cn(
     "text-primary bg-transparent border border-transparent",
@@ -52,9 +59,9 @@ const VARIANTS = {
     "disabled:opacity-70 disabled:hover:text-primary",
   ),
   danger: cn(
-    "bg-[#DC2626] text-white border border-transparent",
-    "hover:bg-[#B91C1C]",
-    "disabled:bg-[#94A3B8] disabled:hover:bg-[#94A3B8]",
+    "bg-red-600 text-white border border-transparent",
+    "hover:bg-red-700",
+    "disabled:bg-slate-400 disabled:hover:bg-slate-400",
   ),
 } as const;
 

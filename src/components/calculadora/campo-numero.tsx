@@ -68,20 +68,38 @@ export function CampoNumero({
   const { prefixo, sufixo } = AFIXOS[formato];
 
   return (
+    // O campo amarelo com texto azul é a assinatura da pele (§13): é a legenda
+    // de cor da planilha que originou o produto — "fonte azul sobre fundo
+    // amarelo = seu input". Numa tela que é toda leitura, o amarelo diz sem
+    // precisar de rótulo o que a pessoa tem de preencher.
+    //
+    // FALLBACK OBRIGATÓRIO em cada token: este componente é [AMBOS]. O caminho
+    // é `link-detail → quanto-custa → campo-numero`, ou seja o consultor edita
+    // assentos e prazo neste mesmo campo, FORA da pele. Sem o fallback o
+    // `var()` fica inválido no computed value e o campo perde o fundo lá.
     <div
       className={cn(
-        "flex h-12 items-center gap-2 rounded-full border bg-white px-4 transition-colors",
+        "flex h-12 items-center gap-2 rounded-full px-4 transition-colors",
+        // Borda de 1,5px e sombra INTERNA (§5.1 do DESIGN_SYSTEM): é o que faz
+        // a célula parecer afundada em vez de só pintada de amarelo. Com 1px e
+        // sem inset, o campo lia como um chip colorido — decoração, não um
+        // lugar onde se digita. O inset entra com fallback transparente: fora
+        // da pele o campo é branco e uma sombra interna ali seria sujeira.
+        "border-[1.5px] bg-[var(--pf-input,#ffffff)]",
+        "shadow-[inset_0_2px_0_var(--pf-input-inset,transparent)]",
         invalido
           ? "border-trend-negative/50"
-          : "border-slate-200 focus-within:border-[#2E63CD]/40",
+          : "border-[var(--pf-input-border,#e2e8f0)] focus-within:border-[var(--pf-input-text,#2e63cd)]",
         // O anel é o indicador; a borda só acompanha. O `outline-none` do
         // `input` mata o foco nativo, então sem isto o campo era o único
-        // controle da tela sem foco visível — e são 16 deles na sidebar.
-        "focus-within:ring-2 focus-within:ring-primary/35",
+        // controle da tela sem foco visível.
+        "focus-within:ring-2 focus-within:ring-[var(--pf-brand,#2e63cd)]/35",
       )}
     >
       {prefixo ? (
-        <span className="shrink-0 text-sm text-slate-600">{prefixo}</span>
+        <span className="shrink-0 text-sm text-[var(--pf-ink-soft,#475569)]">
+          {prefixo}
+        </span>
       ) : null}
       <input
         id={id}
@@ -106,10 +124,26 @@ export function CampoNumero({
           const parsed = parseNumero(cru);
           onChange(parsed === null ? null : inteiro ? Math.trunc(parsed) : parsed);
         }}
-        className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
+        // Mono 700 no valor (§3.1: "números em mono são regra absoluta"). É a
+        // mono que alinha dígito com dígito quando os campos viram coluna, e é
+        // o peso 700 que faz o valor digitado pesar mais que qualquer rótulo em
+        // volta — o campo editável é o único lugar da tela onde a pessoa manda.
+        //
+        // 16px e não 14: o valor que ela acabou de digitar não pode ser o texto
+        // menor da linha em que vive.
+        //
+        // O placeholder é `--pf-ink-soft`, não o azul esmaecido: sobre o
+        // amarelo, azul a 55% dá 2,69:1 — abaixo do piso, e era exatamente o
+        // defeito que a passagem de polish de 18/08 corrigiu. Trocar o MATIZ
+        // (e não baixar o contraste) é o que impede o placeholder de ser lido
+        // como valor preenchido, que é o defeito pior. `font-normal` no
+        // placeholder pela mesma razão: em 700 ele viraria valor.
+        className="pf-mono w-full min-w-0 bg-transparent text-base font-bold text-[var(--pf-input-text,#0f172a)] outline-none placeholder:font-sans placeholder:font-normal placeholder:text-[var(--pf-ink-soft,#64748b)]"
       />
       {sufixo ? (
-        <span className="shrink-0 text-sm text-slate-600">{sufixo}</span>
+        <span className="shrink-0 text-sm text-[var(--pf-ink-soft,#475569)]">
+          {sufixo}
+        </span>
       ) : null}
     </div>
   );

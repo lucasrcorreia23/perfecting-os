@@ -20,6 +20,12 @@ import { SeloEvidencia } from "./selo-evidencia";
 // time, prazo da conta. Tudo recalcula na hora (escada, rateio, ROI). No
 // detalhe interno o mesmo componente renderiza somente leitura: é a proposta
 // que o cliente montou e enviou.
+//
+// FALLBACK OBRIGATÓRIO em cada `--pf-*`: este bloco é [AMBOS]. Dentro da pele
+// (§13) ele veste o creme; em `link-detail`, fora dela, o `var()` cai no
+// literal que a classe produzia antes e nada muda para o consultor. Nunca a
+// forma curta `bg-(--pf-x)` aqui — sem fallback ela fica inválida lá e o bloco
+// perde fundo e borda.
 
 const PLANOS_IDS = Object.keys(PLANOS) as PlanoId[];
 
@@ -28,6 +34,7 @@ export function QuantoCusta({
   preco,
   prazoMeses,
   readOnly = false,
+  cabecalho = true,
   onChangePlano,
   onChangeAssentos,
   onChangePrazo,
@@ -36,6 +43,14 @@ export function QuantoCusta({
   preco: PrecoConta;
   prazoMeses: number;
   readOnly?: boolean;
+  /**
+   * Falso quando quem chama já nomeou o bloco. A jornada pública desde
+   * 20/08/2026 põe este componente dentro de uma `SecaoResultado` com título e
+   * descrição próprios — o cabeçalho interno viraria o segundo título do mesmo
+   * bloco, e ainda dizia "a proposta que o CLIENTE montou", copy da tela
+   * interna, para o próprio cliente.
+   */
+  cabecalho?: boolean;
   onChangePlano?: (timeId: string, plano: PlanoId) => void;
   onChangeAssentos?: (timeId: string, assentos: number | null) => void;
   onChangePrazo?: (prazoMeses: number) => void;
@@ -62,19 +77,21 @@ export function QuantoCusta({
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold text-slate-700">
-            {readOnly ? "A proposta que o cliente montou" : "Monte a sua proposta"}
-          </h3>
-          <SeloEvidencia selo="dado_do_cliente" />
+      {cabecalho ? (
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="pf-panel-title text-[var(--pf-ink-soft,#475569)]">
+              {readOnly ? "A proposta que o cliente montou" : "Monte a sua proposta"}
+            </h3>
+            <SeloEvidencia selo="dado_do_cliente" />
+          </div>
+          <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
+            {readOnly
+              ? "Plano, assentos e prazo escolhidos por quem preencheu a calculadora."
+              : "Planos definem consumo de prática, não preço: o preço vem do volume total de horas. Mexa à vontade: tudo recalcula na hora."}
+          </p>
         </div>
-        <p className="text-sm leading-6 text-slate-600">
-          {readOnly
-            ? "Plano, assentos e prazo escolhidos por quem preencheu a calculadora."
-            : "Planos definem consumo de prática, não preço: o preço vem do volume total de horas. Mexa à vontade: tudo recalcula na hora."}
-        </p>
-      </div>
+      ) : null}
 
       {/* Proposta por time: plano + assentos.
 
@@ -92,11 +109,11 @@ export function QuantoCusta({
               key={time.id}
               className={cn(
                 "flex flex-col gap-4",
-                multiTime && "border-t border-slate-100 pt-6 first:border-t-0 first:pt-0",
+                multiTime && "border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6 first:border-t-0 first:pt-0",
               )}
             >
               {multiTime ? (
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="pf-label text-[var(--pf-ink-soft,#475569)]">
                   {time.nome}
                 </span>
               ) : null}
@@ -113,24 +130,24 @@ export function QuantoCusta({
                       onClick={() => onChangePlano?.(time.id, plano)}
                       className={cn(
                         "flex min-h-[44px] flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
                         interativo ? "cursor-pointer" : "cursor-default",
                         ativo
-                          ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
-                          : "border-slate-200 bg-white",
-                        interativo && !ativo && "hover:border-slate-300",
+                          ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
+                          : "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)]",
+                        interativo && !ativo && "hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",
                         readOnly && !ativo && "opacity-50",
                       )}
                     >
                       <span
                         className={cn(
                           "text-sm font-medium",
-                          ativo ? "text-[#2E63CD]" : "text-slate-800",
+                          ativo ? "text-[var(--pf-brand-ink,#2E63CD)]" : "text-[var(--pf-ink,#334155)]",
                         )}
                       >
                         {PLANOS[plano].label}
                       </span>
-                      <span className="text-sm text-slate-600">
+                      <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
                         {PLANOS[plano].horasMes} h de prática por vendedor/mês
                       </span>
                     </button>
@@ -142,7 +159,7 @@ export function QuantoCusta({
                 <div className="flex flex-col gap-2">
                   <label
                     htmlFor={`assentos-${time.id}`}
-                    className="text-sm font-medium text-slate-700"
+                    className="pf-label text-[var(--pf-ink-soft,#475569)]"
                   >
                     Assentos
                   </label>
@@ -156,11 +173,11 @@ export function QuantoCusta({
                       onChange={(valor) => onChangeAssentos?.(time.id, valor)}
                     />
                   ) : (
-                    <span className="text-sm font-semibold tabular-nums text-slate-900">
+                    <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)]">
                       {time.proposta.assentos > 0 ? time.proposta.assentos : "—"}
                     </span>
                   )}
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
                     {time.assentosLimitados
                       ? `Travado no tamanho do time (${time.proposta.assentos}): assento acima do time não é cobrado, porque não gera retorno.`
                       : time.assentosDefault && time.proposta.assentos > 0
@@ -169,13 +186,13 @@ export function QuantoCusta({
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:text-right">
-                  <span className="text-sm font-medium text-slate-700">
+                  <span className="text-sm font-medium text-[var(--pf-ink-soft,#475569)]">
                     Prática contratada
                   </span>
                   {/* Mesma caixa de linha do campo ao lado (h-11 / sm:h-10 em
                       `CampoNumero`), para o valor derivado assentar na altura do
                       valor digitado em vez de flutuar entre ele e a ajuda. */}
-                  <span className="flex h-11 items-center text-sm font-semibold tabular-nums text-slate-900 sm:h-10 sm:justify-end">
+                  <span className="flex h-11 items-center text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)] sm:h-10 sm:justify-end">
                     {horasTime > 0 ? `${formatNumero(horasTime, 0)} h/mês` : "—"}
                   </span>
                 </div>
@@ -186,21 +203,22 @@ export function QuantoCusta({
       </div>
 
       {/* Investimento */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6">
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600">Investimento</span>
-          {/* Preço fica slate: custo nunca é verde nem vermelho. Com os ganhos
+          <span className="text-sm text-[var(--pf-ink-soft,#475569)]">Investimento</span>
+          {/* Preço fica no tom neutro (`--pf-ink`): custo nunca é verde nem
+              vermelho — e o token não muda isso, só a temperatura. Com os ganhos
               em verde, o contraste já diz qual dos dois é qual. */}
-          <span className="text-(length:--text-score-md) font-semibold leading-9 tabular-nums text-slate-900">
+          <span className="text-(length:--text-score-md) font-semibold leading-9 tabular-nums text-[var(--pf-ink,#0f172a)]">
             {preco.horasMes > 0 ? `${formatBRL(preco.mensal)}/mês` : "—"}
           </span>
           {preco.pisoAplicado && preco.horasMes > 0 ? (
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
               cobrança mínima por conta de {formatBRL(13_000)}
             </span>
           ) : null}
           {precoParcial ? (
-            <span className="text-sm leading-6 text-slate-600">
+            <span className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
               {foraDoPreco.length === 1
                 ? `${foraDoPreco[0].nome} ainda está incompleto e entra no preço quando fechar o preenchimento.`
                 : `${foraDoPreco.length} times ainda incompletos entram no preço quando fecharem o preenchimento.`}
@@ -209,14 +227,14 @@ export function QuantoCusta({
         </div>
         {gran ? (
           <div className="flex flex-col gap-1 text-right">
-            <span className="text-sm text-slate-600">Por vendedor, por dia útil</span>
-            <span className="text-sm font-semibold tabular-nums text-slate-900">
+            <span className="text-sm text-[var(--pf-ink-soft,#475569)]">Por vendedor, por dia útil</span>
+            <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink,#0f172a)]">
               {formatBRL(gran.custoDiaPorVendedor, 2)} investidos ·{" "}
               <span className="text-trend-positive">
                 {formatBRL(gran.retornoDiaPorAssento, 2)} de retorno projetado
               </span>
             </span>
-            <span className="text-sm leading-6 text-slate-600">
+            <span className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
               {formatX(gran.retornoDiaPorAssento / gran.custoDiaPorVendedor)} por dia, o
               mesmo ROI da conta, só muda a régua
             </span>
@@ -227,7 +245,7 @@ export function QuantoCusta({
       {/* Extrato da escada — detalhe sob demanda: o preço é a âncora, a
           decomposição fica a um clique de quem quiser conferir. */}
       {preco.horasMes > 0 ? (
-        <div className="border-t border-slate-100 pt-6">
+        <div className="border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6">
           <BlocoRecolhivel
             id="extrato-preco"
             titulo="De onde vem esse preço"
@@ -241,27 +259,27 @@ export function QuantoCusta({
                   de subtotais pressupõe, e ver a largura de cada faixa explica
                   "progressiva por faixa" mais rápido que a frase. */}
               <EscadaPrecoGrafico preco={preco} />
-              <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 text-sm">
+              <div className="flex flex-col gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4 text-sm">
                 {preco.extrato.map((faixa, index) => (
                   <div key={index} className="flex items-baseline justify-between gap-4">
-                    <span className="text-slate-600">
+                    <span className="text-[var(--pf-ink-soft,#475569)]">
                       {formatNumero(faixa.horasNaFaixa, 0)} h × {formatBRL(faixa.taxaHora)}/h
                     </span>
-                    <span className="tabular-nums text-slate-800">
+                    <span className="tabular-nums text-[var(--pf-ink,#334155)]">
                       {formatBRL(faixa.subtotal)}
                     </span>
                   </div>
                 ))}
                 {preco.pisoAplicado ? (
                   <div className="flex items-baseline justify-between gap-4">
-                    <span className="text-slate-600">Cobrança mínima da conta</span>
-                    <span className="tabular-nums font-medium text-slate-900">
+                    <span className="text-[var(--pf-ink-soft,#475569)]">Cobrança mínima da conta</span>
+                    <span className="tabular-nums font-medium text-[var(--pf-ink,#0f172a)]">
                       {formatBRL(preco.mensal)}
                     </span>
                   </div>
                 ) : null}
               </div>
-              <p className="text-sm leading-6 text-slate-600">
+              <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
                 {formatNumero(preco.horasMes, 0)} h de prática/mês · taxa efetiva de{" "}
                 {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais horas, menor a taxa:
                 a escada é progressiva por faixa.
@@ -272,8 +290,8 @@ export function QuantoCusta({
       ) : null}
 
       {/* Prazo */}
-      <div className="flex flex-col gap-3 border-t border-slate-100 pt-6">
-        <h3 className="text-sm font-semibold text-slate-700">Prazo do contrato</h3>
+      <div className="flex flex-col gap-3 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6">
+        <h3 className="pf-panel-title text-[var(--pf-ink-soft,#475569)]">Prazo do contrato</h3>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {PRAZOS_MESES.map((prazo) => {
             const ativo = prazoMeses === prazo;
@@ -286,41 +304,41 @@ export function QuantoCusta({
                 onClick={() => onChangePrazo?.(prazo)}
                 className={cn(
                   "flex min-h-[44px] flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
                   interativo ? "cursor-pointer" : "cursor-default",
                   ativo
-                    ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
-                    : "border-slate-200 bg-white",
-                  interativo && !ativo && "hover:border-slate-300",
+                    ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
+                    : "border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface-alt,#ffffff)]",
+                  interativo && !ativo && "hover:border-[var(--pf-ink-faint,#cbd5e1)]/40",
                   readOnly && !ativo && "opacity-50",
                 )}
               >
                 <span
                   className={cn(
                     "text-sm font-medium",
-                    ativo ? "text-[#2E63CD]" : "text-slate-800",
+                    ativo ? "text-[var(--pf-brand-ink,#2E63CD)]" : "text-[var(--pf-ink,#334155)]",
                   )}
                 >
                   {prazo} meses
                 </span>
-                <span className="text-sm leading-6 text-slate-600">
+                <span className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
                   {PRAZO_COPY[prazo]}
                 </span>
               </button>
             );
           })}
         </div>
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
           Prazo não altera preço: compra trava de reajuste (12m+) e nível de serviço
           (24m).
         </p>
       </div>
 
       {/* Nível de serviço + total */}
-      <div className="flex flex-col gap-4 border-t border-slate-100 pt-6 text-sm">
+      <div className="flex flex-col gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6 text-sm">
         <div className="flex items-baseline justify-between gap-4">
-          <span className="text-slate-600">O que está incluído ({nivel.nome})</span>
-          <span className="text-right text-slate-600">{nivel.incluso}</span>
+          <span className="text-[var(--pf-ink-soft,#475569)]">O que está incluído ({nivel.nome})</span>
+          <span className="text-right text-[var(--pf-ink-soft,#475569)]">{nivel.incluso}</span>
         </div>
         {/* O degrau que o prazo de 24 meses compra (§4.9) — sem efeito sobre
             preço, mas a tela promete e agora entrega. */}
@@ -330,16 +348,16 @@ export function QuantoCusta({
           </p>
         ) : null}
         <div className="flex items-baseline justify-between gap-4">
-          <span className="text-slate-600">Total de horas do contrato</span>
-          <span className="tabular-nums text-slate-800">
+          <span className="text-[var(--pf-ink-soft,#475569)]">Total de horas do contrato</span>
+          <span className="tabular-nums text-[var(--pf-ink,#334155)]">
             {preco.horasMes > 0 ? `${formatNumero(preco.horasMes * prazoMeses, 0)} h` : "—"}
           </span>
         </div>
-        <div className="flex items-baseline justify-between gap-4 border-t border-slate-100 pt-4">
-          <span className="font-medium text-slate-900">
+        <div className="flex items-baseline justify-between gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
+          <span className="font-medium text-[var(--pf-ink,#0f172a)]">
             Total do contrato ({prazoMeses} meses)
           </span>
-          <span className="tabular-nums font-semibold text-slate-900">
+          <span className="tabular-nums font-semibold text-[var(--pf-ink,#0f172a)]">
             {preco.horasMes > 0 ? formatBRL(preco.mensal * prazoMeses) : "—"}
           </span>
         </div>

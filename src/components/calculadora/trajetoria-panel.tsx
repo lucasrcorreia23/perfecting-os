@@ -37,6 +37,13 @@ const PAD = { top: 18, right: 20, bottom: 30, left: 64 };
 // `text-trend-positive` aqui. Uma constante única em vez de dez literais
 // espalhados: o token de `globals.css` continua sendo a fonte, e este é o
 // único ponto do arquivo que precisa acompanhá-lo.
+//
+// O CROMO do desenho (grade e rótulos de eixo) é a exceção, e vai por CLASSE:
+// atributo de apresentação com `var()` não é confiável entre navegadores, e a
+// classe emite declaração CSS de verdade — é o que faz o eixo acompanhar a
+// pele (§13) sem mexer em `link-detail`, onde o fallback devolve o cinza de
+// hoje. As SÉRIES continuam literais: verde é "entra na conta" e azul é o
+// investimento (§1), e as legendas em HTML repetem o mesmo literal por `cor`.
 const VERDE = "#0F9F2E";
 
 // O painel acumulado começa no mês 0 (a origem faz parte da história: as duas
@@ -90,7 +97,7 @@ function EixoY({ esc }: { esc: Escala }) {
               x2={VB_W - PAD.right}
               y1={py}
               y2={py}
-              stroke="#e2e8f0"
+              className="stroke-[var(--pf-line,#e2e8f0)]"
               strokeWidth={1}
               strokeDasharray={valor === 0 ? undefined : "3 4"}
             />
@@ -99,7 +106,7 @@ function EixoY({ esc }: { esc: Escala }) {
               y={py + 3.5}
               textAnchor="end"
               fontSize={10}
-              fill="#94a3b8"
+              className="fill-[var(--pf-ink-faint,#94a3b8)]"
             >
               {formatBRLCompacto(valor)}
             </text>
@@ -124,12 +131,12 @@ function EixoX({ esc, dominioX = "0a12" }: { esc: Escala; dominioX?: DominioX })
           y={VB_H - 10}
           textAnchor="middle"
           fontSize={10}
-          fill="#94a3b8"
+          className="fill-[var(--pf-ink-faint,#94a3b8)]"
         >
           {mes}
         </text>
       ))}
-      <text x={VB_W - PAD.right} y={VB_H - 0.5} textAnchor="end" fontSize={9} fill="#cbd5e1">
+      <text x={VB_W - PAD.right} y={VB_H - 0.5} textAnchor="end" fontSize={9} className="fill-[var(--pf-ink-faint,#cbd5e1)]">
         meses
       </text>
     </g>
@@ -222,7 +229,7 @@ function SliderMes({
         />
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-1/2 w-2 -translate-x-1/2 rounded-full bg-[#ECEAE4]"
+          className="pointer-events-none absolute inset-y-0 left-1/2 w-2 -translate-x-1/2 rounded-full bg-[var(--pf-bar,#ECEAE4)]"
         />
         <span
           aria-hidden
@@ -233,12 +240,12 @@ function SliderMes({
           aria-hidden
           className={cn(
             "pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-trend-positive",
-            "peer-focus-visible:ring-4 peer-focus-visible:ring-primary/35",
+            "peer-focus-visible:ring-4 peer-focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
           )}
           style={{ bottom: baseThumb, height: THUMB, width: THUMB }}
         />
       </div>
-      <span className="text-xs tabular-nums text-slate-400">{mes}</span>
+      <span className="text-xs tabular-nums text-[var(--pf-ink-faint,#94a3b8)]">{mes}</span>
     </div>
   );
 }
@@ -291,7 +298,7 @@ function PainelMensalTrajetoria({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--pf-ink-faint,#64748b)]">
         <ItemLegenda cor="#94a3b8" traco="tracejado">
           Margem mensal sem programa
         </ItemLegenda>
@@ -378,27 +385,27 @@ function PainelMensalTrajetoria({
 
         {ativo ? (
           <div
-            className="pointer-events-none absolute top-0 z-10 flex flex-col gap-1 rounded-md border border-slate-200 bg-white p-3 text-xs shadow-[var(--shadow-sm)]"
+            className="pointer-events-none absolute top-0 z-10 flex flex-col gap-1 rounded-md border border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-surface,#ffffff)] p-3 text-xs shadow-[var(--shadow-sm)]"
             style={{
               left: `${(esc.x(ativo.mes) / VB_W) * 100}%`,
               // Perto das bordas o balão vira para dentro em vez de vazar.
               transform: `translateX(${ativo.mes <= 3 ? "-8%" : ativo.mes >= 10 ? "-92%" : "-50%"})`,
             }}
           >
-            <span className="font-semibold text-slate-900">Mês {ativo.mes}</span>
-            <span className="whitespace-nowrap text-slate-500">
+            <span className="font-semibold text-[var(--pf-ink,#0f172a)]">Mês {ativo.mes}</span>
+            <span className="whitespace-nowrap text-[var(--pf-ink-faint,#64748b)]">
               Margem mensal sem programa:{" "}
-              <span className="font-medium tabular-nums text-slate-700">
+              <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
                 {formatBRLCompacto(ativo.semPrograma)}
               </span>
             </span>
-            <span className="whitespace-nowrap text-slate-500">
+            <span className="whitespace-nowrap text-[var(--pf-ink-faint,#64748b)]">
               Média projetada com Perfecting:{" "}
-              <span className="font-medium tabular-nums text-slate-700">
+              <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
                 {formatBRLCompacto(ativo.mediaProjetada)}
               </span>
             </span>
-            <span className="whitespace-nowrap text-slate-500">
+            <span className="whitespace-nowrap text-[var(--pf-ink-faint,#64748b)]">
               Sua expectativa por mês:{" "}
               <span className="font-medium tabular-nums text-trend-positive">
                 {formatBRLCompacto(ativo.suaExpectativa)}
@@ -409,7 +416,7 @@ function PainelMensalTrajetoria({
       </div>
 
       {editavel ? (
-        <div className="rounded-sm bg-slate-50/60 p-4">
+        <div className="rounded-sm bg-[var(--pf-bar,#f8fafc)]/60 p-4">
           <div className="rolagem-esvanecida-x flex items-end gap-1 overflow-x-auto">
             {series.suaExpectativa.map((ponto, index) => (
               <SliderMes
@@ -501,14 +508,14 @@ export function PainelATrajetoria({
         />
       </svg>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--pf-ink-faint,#64748b)]">
         <ItemLegenda cor={VERDE}>Com o programa</ItemLegenda>
         <ItemLegenda cor="#94a3b8" traco="tracejado">
           Trajetória sem o programa (margem atual projetada)
         </ItemLegenda>
         <span className="ml-auto tabular-nums">
           Gap no mês 12:{" "}
-          <span className="font-medium text-slate-700">{formatBRL(series.gapMes12)}</span>
+          <span className="font-medium text-[var(--pf-ink-soft,#475569)]">{formatBRL(series.gapMes12)}</span>
         </span>
       </div>
     </div>
@@ -516,7 +523,15 @@ export function PainelATrajetoria({
 }
 
 // ---------------------------------------------------------------------------
-// Painel B — em quanto tempo se paga (cruzamento === payback, invariante 7)
+// Painel B — em quanto tempo se paga (cruzamento === payback, invariante 7).
+//
+// A curva do valor acumulado é VERDE desde 20/08/2026 (era azul): "entra na
+// conta" (§1) vale aqui como em todo o resto da tela, e o azul volta a ser
+// só o que a pele usa para link, foco e opção selecionada. O custo anual
+// continua slate e TRACEJADO — não vira uma segunda curva acumulada: mudar
+// esse traço mudaria o que "cruzamento" significa, e o invariante 7 é sobre
+// o cruzamento com a linha PLANA do custo total, não com um custo que sobe
+// mês a mês.
 // ---------------------------------------------------------------------------
 
 export function PainelBTrajetoria({
@@ -583,7 +598,7 @@ export function PainelBTrajetoria({
         <path
           d={caminho(series.base, esc)}
           fill="none"
-          stroke="#2E63CD"
+          stroke={VERDE}
           strokeWidth={2.25}
           strokeLinejoin="round"
         />
@@ -593,7 +608,7 @@ export function PainelBTrajetoria({
               cx={esc.x(series.paybackMeses)}
               cy={esc.y(series.custoAnual)}
               r={5}
-              fill="#2E63CD"
+              fill={VERDE}
               stroke="#fff"
               strokeWidth={2}
             />
@@ -603,7 +618,7 @@ export function PainelBTrajetoria({
               textAnchor="middle"
               fontSize={10}
               fontWeight={600}
-              fill="#2E63CD"
+              fill={VERDE}
             >
               payback: mês{" "}
               {series.paybackMeses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
@@ -612,8 +627,8 @@ export function PainelBTrajetoria({
         ) : null}
       </svg>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
-        <ItemLegenda cor="#2E63CD">Valor acumulado (média projetada, base do ROI)</ItemLegenda>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--pf-ink-faint,#64748b)]">
+        <ItemLegenda cor={VERDE}>Valor acumulado (média projetada, base do ROI)</ItemLegenda>
         {series.editado ? (
           <ItemLegenda cor="#94a3b8" traco="pontilhado">
             Com a trajetória que você desenhou
@@ -621,7 +636,7 @@ export function PainelBTrajetoria({
         ) : null}
       </div>
 
-      <p className="text-xs leading-5 text-slate-400">
+      <p className="text-xs leading-5 text-[var(--pf-ink-faint,#94a3b8)]">
         {paybackVisivel
           ? `O cruzamento marca o payback: ${formatMeses(series.paybackMeses)} de valor gerado cobrem o custo anual total.`
           : `O payback projetado (${formatMeses(series.paybackMeses)}) fica além da janela de 12 meses do gráfico.`}
@@ -711,10 +726,10 @@ export function PaineisTrajetoria({
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold text-slate-700">Trajetória projetada</h3>
+          <h3 className="pf-panel-title text-[var(--pf-ink-soft,#475569)]">Trajetória projetada</h3>
           <SeloEvidencia selo={editada ? "dado_do_cliente" : "projecao"} />
           {editada && !editando ? (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[var(--pf-ink-faint,#94a3b8)]">
               a reta original segue como média projetada, base do ROI
             </span>
           ) : null}
@@ -759,7 +774,7 @@ export function PaineisTrajetoria({
       <div
         role="tablist"
         aria-label="Painéis da trajetória"
-        className="rolagem-limpa flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/60 p-1"
+        className="rolagem-limpa flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--pf-line,#e2e8f0)] bg-[var(--pf-bar,#f8fafc)]/60 p-1"
         onKeyDown={(event) => {
           if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
           event.preventDefault();
@@ -780,10 +795,10 @@ export function PaineisTrajetoria({
               onClick={() => setAba(item.id)}
               className={cn(
                 "flex h-11 cursor-pointer items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors sm:h-9",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pf-brand,#2e63cd)]/35",
                 ativa
-                  ? "bg-white text-slate-900 shadow-[var(--shadow-sm)]"
-                  : "text-slate-500 hover:text-slate-700",
+                  ? "bg-[var(--pf-surface-alt,#ffffff)] text-[var(--pf-ink,#0f172a)] shadow-[var(--shadow-sm)]"
+                  : "text-[var(--pf-ink-faint,#64748b)] hover:text-[var(--pf-ink-soft,#475569)]",
               )}
             >
               {item.label}
@@ -818,26 +833,26 @@ export function PaineisTrajetoria({
 
       {editando ? (
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-slate-800">
+          <p className="text-sm font-medium text-[var(--pf-ink,#334155)]">
             {somaExata
               ? "Seus checkpoints somam exatamente o total projetado."
               : `Seus checkpoints somam ${formatNumero((pctSoma ?? 1) * 100, 0)}% do total projetado.`}
           </p>
-          <p className="text-xs leading-5 text-slate-400">
+          <p className="text-xs leading-5 text-[var(--pf-ink-faint,#94a3b8)]">
             Editar a trajetória não altera o ROI nem o total projetado. Ao concluir,
             os meses são reajustados proporcionalmente, preservando a forma que você
             desenhou.
           </p>
         </div>
       ) : (
-        <p className="text-xs leading-5 text-slate-400">
+        <p className="text-xs leading-5 text-[var(--pf-ink-faint,#94a3b8)]">
           {editada
             ? "Esta é a forma que você desenhou. O ROI, o payback e o valor do ano continuam vindo da média projetada."
             : "A projeção distribui o ganho uniformemente: nenhuma oscilação é inventada. Este ROI ainda não tem curva: a forma, quem dá é você."}
         </p>
       )}
 
-      {nota ? <p className="text-xs leading-5 text-slate-400">{nota}</p> : null}
+      {nota ? <p className="text-xs leading-5 text-[var(--pf-ink-faint,#94a3b8)]">{nota}</p> : null}
     </section>
   );
 }

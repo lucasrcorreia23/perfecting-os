@@ -12,12 +12,16 @@ import {
 import type { LinhaCenario } from "@/lib/calculadora/cenarios-comparacao";
 import type { Cenario, PrecoConta, ResultadoTime } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
+import { LinhaCompacta } from "./linha-compacta";
 
-// Gráficos do resultado em SVG próprio — zero dependências, mesmas convenções
-// dos painéis de trajetória (§8 das diretrizes): viewBox de 640 de largura
-// escalando por `w-full`, grade `#e2e8f0` tracejada, legendas em HTML fora do
-// SVG. Rótulos em 12–13px e cinzas um degrau mais escuros que a convenção
-// original: quem lê esta tela costuma ter mais de 45 anos, e 10px em
+// Gráficos do resultado — a maioria em SVG próprio (zero dependências, mesmas
+// convenções dos painéis de trajetória, §8 das diretrizes: viewBox de 640 de
+// largura escalando por `w-full`, grade tracejada em `--pf-line`, legendas em
+// HTML fora do SVG). Três blocos (`InvestimentoVsRetorno`, `DecomposicaoValor`,
+// `ComparacaoCenarios`) viraram HTML puro em 20/08/2026: são listas de barras
+// e cards com rótulo/valor — texto real, sem nada que um `aria-label` precise
+// recitar de novo. Rótulos em 12–13px e cinzas um degrau mais escuros que a
+// convenção original: quem lê esta tela costuma ter mais de 45 anos, e 10px em
 // `#94a3b8` não sobrevive a isso.
 //
 // Nenhum destes componentes é dono da própria superfície: todos renderizam
@@ -26,202 +30,150 @@ import { cn } from "@/lib/utils";
 
 type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
 
-// `stroke`/`fill` são atributos, não classes: uma constante por arquivo, como
-// em `trajetoria-panel.tsx`. Os tokens de `globals.css` seguem sendo a fonte.
-const VERDE = "#0F9F2E";
+// Duas famílias de cor, e o mecanismo é diferente em cada uma.
+//
+// O CROMO (grade, trilho de fundo, rótulo de eixo) usa CLASSE Tailwind —
+// `stroke-[var(--pf-line,#e2e8f0)]` e afins. `stroke`/`fill` como atributo de
+// apresentação com `var()` não é confiável entre navegadores; a classe emite
+// declaração CSS de verdade, e é ela que faz o desenho acompanhar a pele (§13)
+// sem mudar nada em `link-detail`, onde o fallback devolve o cinza de sempre.
+// Onde entrou classe, o atributo saiu junto: atributo de apresentação perde
+// para qualquer regra CSS, e manter os dois só confunde quem lê.
+//
+// As SÉRIES DE DADO que continuam em SVG usam literal: verde é "entra na
+// conta" (§1) e slate é a coluna do custo. Nos gráficos que viraram HTML, o
+// mesmo papel é feito por classe (`text-trend-positive`, `bg-trend-positive`)
+// — aqui não há atributo de apresentação para competir com ela.
 const AZUL = "#2E63CD";
-const SLATE_300 = "#cbd5e1";
-const SLATE_400 = "#64748b";
 const SLATE_500 = "#475569";
 const SLATE_700 = "#334155";
-const GRADE = "#e2e8f0";
 
 // ---------------------------------------------------------------------------
-// Cascata do valor: eficiência + as quatro alavancas = valor do ano.
-//
-// Substitui a antiga faixa `EquacaoValor`, que dizia a mesma soma em texto. A
-// cascata mostra o TAMANHO relativo de cada parcela — que é a pergunta que um
-// CFO faz depois de ver o total ("o que aqui é economia de custo e o que é
-// receita nova?"). A linha em prosa sobrevive abaixo do desenho, porque é ela
-// que o leitor de tela recebe.
+// O racional em uma imagem: o que você paga contra o que a operação devolve,
+// lado a lado. Abre "De onde vem o número" — a primeira comparação de quem
+// vai bancar a conta, antes de qualquer detalhe (20/08/2026).
 // ---------------------------------------------------------------------------
 
-const CASCATA_VB_H = 236;
-const CASCATA_PAD = { top: 26, right: 16, bottom: 46, left: 64 };
 const VB_W = 640;
 
-// Eixo sem a moeda: "R$" repetido em cinco ticks é ruído, e ainda estourava a
-// calha de rótulos — o maior valor saía com o "R" cortado pela borda. A moeda
-// aparece onde o número é lido de fato: no rótulo da barra e na frase abaixo.
-function rotuloEixo(valor: number): string {
-  return formatBRLCompacto(valor).replace("R$ ", "");
+export function InvestimentoVsRetorno({
+  precoAno,
+  valorAno,
+}: {
+  precoAno: number;
+  valorAno: number;
+}) {
+  const maior = Math.max(precoAno, valorAno, 1);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">
+            Investimento/ano
+          </span>
+          <span className="text-sm font-semibold tabular-nums text-[var(--pf-ink-soft,#475569)]">
+            {formatBRL(precoAno)}
+          </span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
+          <div
+            className="h-full rounded-full bg-[var(--pf-ink-faint,#64748b)]"
+            style={{ width: `${Math.min(100, (precoAno / maior) * 100)}%` }}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">Retorno/ano</span>
+          <span className="text-sm font-semibold tabular-nums text-trend-positive">
+            {formatBRL(valorAno)}
+          </span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
+          <div
+            className="h-full rounded-full bg-trend-positive"
+            style={{ width: `${Math.min(100, (valorAno / maior) * 100)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-type Degrau = { rotulo: string; valor: number };
+// ---------------------------------------------------------------------------
+// Decomposição do valor: eficiência + as alavancas de performance, uma barra
+// por parcela. Substituiu a cascata (barras flutuantes somando degrau a
+// degrau) por pedido do decisor em 20/08/2026: o CFO quer comparar o TAMANHO
+// de cada parcela lado a lado, não acompanhar a soma subindo. HTML em vez de
+// SVG desta vez — rótulo, legenda e valor já são texto real, então não
+// precisam de um `aria-label` recitando os cinco números de novo.
+// ---------------------------------------------------------------------------
 
-export function CascataValor({ resultado }: { resultado: ResultadoOk }) {
+type Degrau = { rotulo: string; valor: number; legenda: string };
+
+export function DecomposicaoValor({ resultado }: { resultado: ResultadoOk }) {
   const { parcelas } = resultado;
   const degraus: Degrau[] = [
-    { rotulo: "Eficiência", valor: resultado.eficienciaAno },
-    { rotulo: "Ticket", valor: parcelas.margemTicketAno },
-    { rotulo: "Rampa", valor: parcelas.margemRampaAno },
-    { rotulo: "Conversão", valor: parcelas.ganhoConversaoAno },
+    {
+      rotulo: "Eficiência",
+      valor: resultado.eficienciaAno,
+      legenda: "custo de treino que você deixa de queimar",
+    },
+    {
+      rotulo: "Ticket médio",
+      valor: parcelas.margemTicketAno,
+      legenda: "negócios maiores pelo mesmo funil",
+    },
+    {
+      rotulo: "Rampa",
+      valor: parcelas.margemRampaAno,
+      legenda: "novos vendedores produtivos mais cedo",
+    },
+    {
+      rotulo: "Conversão",
+      valor: parcelas.ganhoConversaoAno,
+      legenda: "mais fechamento sobre o mesmo pipeline",
+    },
   ];
   if (parcelas.ganhoCicloAno !== null) {
-    degraus.push({ rotulo: "Ciclo", valor: parcelas.ganhoCicloAno });
+    degraus.push({
+      rotulo: "Ciclo de vendas",
+      valor: parcelas.ganhoCicloAno,
+      legenda: "pipeline girando mais rápido",
+    });
   }
 
-  const total = resultado.valorAno;
-  const colunas = degraus.length + 1; // + a coluna do total
-  const plotW = VB_W - CASCATA_PAD.left - CASCATA_PAD.right;
-  const plotH = CASCATA_VB_H - CASCATA_PAD.top - CASCATA_PAD.bottom;
-  const passo = plotW / colunas;
-  const larguraBarra = Math.min(64, passo * 0.62);
-  const yMax = total > 0 ? total : 1;
-  const y = (valor: number) => CASCATA_PAD.top + (1 - valor / yMax) * plotH;
-  const centro = (index: number) => CASCATA_PAD.left + passo * (index + 0.5);
-
-  // Base acumulada de cada degrau: a barra flutua entre o acumulado anterior
-  // e o novo. A do total desce até a linha de base.
-  let acumulado = 0;
-  const barras = degraus.map((degrau) => {
-    const de = acumulado;
-    acumulado += degrau.valor;
-    return { ...degrau, de, ate: acumulado };
-  });
-
-  const descricao = `Composição do valor anual de ${formatBRL(total)}: ${barras
-    .map((barra) => `${barra.rotulo} ${formatBRL(barra.valor)}`)
-    .join(", ")}.`;
+  const maior = Math.max(...degraus.map((degrau) => degrau.valor), 1);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rolagem-esvanecida-x overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${VB_W} ${CASCATA_VB_H}`}
-          className="w-full min-w-[520px]"
-          role="img"
-          aria-label={descricao}
-        >
-          {/* Grade e eixo de valor */}
-          {Array.from({ length: 5 }, (_, index) => {
-            const valor = (yMax / 4) * index;
-            const py = y(valor);
-            return (
-              <g key={index} aria-hidden>
-                <line
-                  x1={CASCATA_PAD.left}
-                  x2={VB_W - CASCATA_PAD.right}
-                  y1={py}
-                  y2={py}
-                  stroke={GRADE}
-                  strokeWidth={1}
-                  strokeDasharray={index === 0 ? undefined : "3 4"}
-                />
-                <text
-                  x={CASCATA_PAD.left - 8}
-                  y={py + 3.5}
-                  textAnchor="end"
-                  fontSize={12}
-                  fill={SLATE_400}
-                >
-                  {rotuloEixo(valor)}
-                </text>
-              </g>
-            );
-          })}
+      <ul className="flex flex-col gap-5">
+        {degraus.map((degrau) => (
+          <li key={degrau.rotulo} className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">
+                {degrau.rotulo}
+              </span>
+              <span className="text-sm font-semibold tabular-nums text-trend-positive">
+                {formatBRL(degrau.valor)}
+              </span>
+            </div>
+            <p className="text-xs text-[var(--pf-ink-faint,#64748b)]">{degrau.legenda}</p>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--pf-bar,#f1f5f9)]">
+              <div
+                className="h-full rounded-full bg-trend-positive"
+                style={{ width: `${Math.min(100, (degrau.valor / maior) * 100)}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
 
-          {barras.map((barra, index) => {
-            const topo = y(barra.ate);
-            const base = y(barra.de);
-            const altura = Math.max(2, base - topo);
-            const x = centro(index) - larguraBarra / 2;
-            const proximo = index < barras.length - 1 ? centro(index + 1) : centro(index + 1);
-            return (
-              <g key={barra.rotulo}>
-                <rect
-                  x={x}
-                  y={topo}
-                  width={larguraBarra}
-                  height={altura}
-                  rx={3}
-                  fill={VERDE}
-                  fillOpacity={0.92}
-                />
-                {/* Fio que carrega o acumulado para o próximo degrau: sem ele
-                    as barras flutuantes viram colunas soltas. */}
-                <line
-                  x1={x + larguraBarra}
-                  x2={proximo - larguraBarra / 2}
-                  y1={topo}
-                  y2={topo}
-                  stroke={SLATE_300}
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                  aria-hidden
-                />
-                <text
-                  x={centro(index)}
-                  y={topo - 7}
-                  textAnchor="middle"
-                  fontSize={12}
-                  fill={SLATE_500}
-                >
-                  {formatBRLCompacto(barra.valor)}
-                </text>
-                <text
-                  x={centro(index)}
-                  y={CASCATA_VB_H - 26}
-                  textAnchor="middle"
-                  fontSize={12}
-                  fill={SLATE_400}
-                >
-                  {barra.rotulo}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Total: desce até a base, com peso maior — é a resposta da soma. */}
-          <g>
-            <rect
-              x={centro(barras.length) - larguraBarra / 2}
-              y={y(total)}
-              width={larguraBarra}
-              height={Math.max(2, y(0) - y(total))}
-              rx={3}
-              fill={VERDE}
-            />
-            <text
-              x={centro(barras.length)}
-              y={y(total) - 7}
-              textAnchor="middle"
-              fontSize={13}
-              fontWeight={600}
-              fill={VERDE}
-            >
-              {formatBRLCompacto(total)}
-            </text>
-            <text
-              x={centro(barras.length)}
-              y={CASCATA_VB_H - 26}
-              textAnchor="middle"
-              fontSize={12}
-              fontWeight={600}
-              fill={SLATE_700}
-            >
-              Valor/ano
-            </text>
-          </g>
-        </svg>
-      </div>
-
-      {/* Uma linha, não um parágrafo: o desenho já mostra os tamanhos, e o
-          leitor de tela recebe a composição inteira pelo aria-label do SVG.
-          A prosa que existia aqui recitava os mesmos cinco números. */}
-      <p className="text-sm leading-6 text-slate-600">
-        <span className="font-medium text-slate-700">Eficiência</span> é custo que deixa
-        de existir; <span className="font-medium text-slate-700">performance</span> é
+      {/* A prosa que fecha o bloco sobrevive à troca de desenho: é ela que o
+          leitor de tela recebe primeiro, antes de percorrer a lista. */}
+      <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
+        <span className="font-medium text-[var(--pf-ink-soft,#475569)]">Eficiência</span> é custo que deixa
+        de existir; <span className="font-medium text-[var(--pf-ink-soft,#475569)]">performance</span> é
         margem nova.
         {parcelas.ganhoCicloAno === null
           ? " O ciclo entra quando o funil estiver preenchido."
@@ -232,136 +184,29 @@ export function CascataValor({ resultado }: { resultado: ResultadoOk }) {
 }
 
 // ---------------------------------------------------------------------------
-// Comparação dos três cenários (aba Scenario Comparison do Excel).
-//
-// O CFO não quer o número do cenário escolhido: quer a faixa. Aqui os três
-// aparecem contra a MESMA linha de investimento — onde a barra cruza a linha,
-// o ano se paga.
+// Comparação dos três cenários (aba Scenario Comparison do Excel), um card
+// completo por cenário — substituiu o gráfico de barras + resumo por pedido
+// do decisor em 20/08/2026: o CFO quer o detalhamento inteiro lado a lado,
+// não só o múltiplo. Cada card repete as cinco alavancas, o valor anual e a
+// mensalidade, na mesma pauta de `LinhaCompacta` usada no resto da tela.
 // ---------------------------------------------------------------------------
-
-const COMP_VB_H = 176;
-const COMP_PAD = { top: 24, right: 16, bottom: 30, left: 64 };
 
 export function ComparacaoCenarios({
   linhas,
-  precoAno,
+  precoMes,
   cenarioAtivo,
   personalizado = false,
 }: {
   linhas: LinhaCenario[];
-  precoAno: number;
+  precoMes: number;
   cenarioAtivo: Cenario;
   // Em "parâmetros personalizados" nenhum preset está ativo: o destaque vai
-  // para a base, tracejada, como nos cards de cenário.
+  // para a base, tracejada, como antes.
   personalizado?: boolean;
 }) {
-  const plotW = VB_W - COMP_PAD.left - COMP_PAD.right;
-  const plotH = COMP_VB_H - COMP_PAD.top - COMP_PAD.bottom;
-  const passo = plotW / linhas.length;
-  const larguraBarra = Math.min(88, passo * 0.5);
-  const yMax = Math.max(precoAno, ...linhas.map((linha) => linha.valorAno)) * 1.12 || 1;
-  const y = (valor: number) => COMP_PAD.top + (1 - valor / yMax) * plotH;
-  const centro = (index: number) => COMP_PAD.left + passo * (index + 0.5);
-
-  const descricao = `Comparação de cenários contra o investimento anual de ${formatBRL(precoAno)}: ${linhas
-    .map(
-      (linha) =>
-        `${CENARIOS[linha.cenario].label} ${formatBRL(linha.valorAno)}, ROI ${formatX(linha.roi)}, payback ${formatMeses(linha.paybackMeses)}`,
-    )
-    .join("; ")}.`;
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="rolagem-esvanecida-x overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${VB_W} ${COMP_VB_H}`}
-          className="w-full min-w-[420px]"
-          role="img"
-          aria-label={descricao}
-        >
-          {Array.from({ length: 4 }, (_, index) => {
-            const valor = (yMax / 3) * index;
-            const py = y(valor);
-            return (
-              <g key={index} aria-hidden>
-                <line
-                  x1={COMP_PAD.left}
-                  x2={VB_W - COMP_PAD.right}
-                  y1={py}
-                  y2={py}
-                  stroke={GRADE}
-                  strokeWidth={1}
-                  strokeDasharray={index === 0 ? undefined : "3 4"}
-                />
-                <text
-                  x={COMP_PAD.left - 8}
-                  y={py + 3.5}
-                  textAnchor="end"
-                  fontSize={12}
-                  fill={SLATE_400}
-                >
-                  {rotuloEixo(valor)}
-                </text>
-              </g>
-            );
-          })}
-
-          {linhas.map((linha, index) => {
-            const ativo = !personalizado && linha.cenario === cenarioAtivo;
-            const topo = y(linha.valorAno);
-            return (
-              <g key={linha.cenario}>
-                <rect
-                  x={centro(index) - larguraBarra / 2}
-                  y={topo}
-                  width={larguraBarra}
-                  height={Math.max(2, y(0) - topo)}
-                  rx={3}
-                  fill={VERDE}
-                  fillOpacity={ativo ? 1 : 0.55}
-                />
-                <text
-                  x={centro(index)}
-                  y={topo - 7}
-                  textAnchor="middle"
-                  fontSize={12}
-                  fontWeight={ativo ? 600 : 400}
-                  fill={ativo ? VERDE : SLATE_500}
-                >
-                  {formatBRLCompacto(linha.valorAno)}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Investimento: a régua contra a qual os três se medem. Slate,
-              porque custo não é "ruim" — é a outra metade da fração. O rótulo
-              vive na legenda HTML abaixo: dentro do SVG ele cruzava a barra
-              do cenário mais alto, que é justamente onde a linha importa. */}
-          <line
-            x1={COMP_PAD.left}
-            x2={VB_W - COMP_PAD.right}
-            y1={y(precoAno)}
-            y2={y(precoAno)}
-            stroke={SLATE_500}
-            strokeWidth={1.5}
-            strokeDasharray="5 4"
-          />
-        </svg>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
-        <span className="flex items-center gap-2">
-          <span className="h-2 w-4 rounded-full bg-trend-positive" aria-hidden />
-          valor projetado no ano
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-4 border-t-2 border-dashed border-slate-500" aria-hidden />
-          investimento no ano · {formatBRL(precoAno)}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {linhas.map((linha) => {
           const ativo = !personalizado && linha.cenario === cenarioAtivo;
           const base = personalizado && linha.cenario === cenarioAtivo;
@@ -369,46 +214,86 @@ export function ComparacaoCenarios({
             <div
               key={linha.cenario}
               className={cn(
-                "flex flex-col gap-1 rounded-sm border px-4 py-3",
-                ativo ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]" : "border-slate-200",
+                "flex flex-col gap-4 rounded-sm border p-6",
+                ativo
+                  ? "border-[var(--pf-brand,#2e63cd)]/50 bg-[var(--pf-brand,#2e63cd)]/[0.04]"
+                  : "border-[var(--pf-line,#e2e8f0)]",
                 base && "border-dashed",
               )}
             >
-              <span className="flex flex-wrap items-baseline gap-2">
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    ativo ? "text-[#2E63CD]" : "text-slate-800",
-                  )}
-                >
-                  {CENARIOS[linha.cenario].label}
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      ativo
+                        ? "text-[var(--pf-brand-ink,#2e63cd)]"
+                        : "text-[var(--pf-ink,#334155)]",
+                    )}
+                  >
+                    {CENARIOS[linha.cenario].label}
+                  </span>
+                  {ativo ? (
+                    <span className="inline-flex w-fit items-center whitespace-nowrap rounded-full border border-[var(--pf-brand,#2e63cd)]/25 bg-[var(--pf-brand,#2e63cd)]/10 px-2 py-0.5 text-xs font-semibold leading-4 text-[var(--pf-brand-ink,#2e63cd)]">
+                      Cenário ativo
+                    </span>
+                  ) : null}
+                </div>
+                <span className="text-3xl font-semibold tabular-nums text-trend-positive">
+                  {formatX(linha.roi)}
                 </span>
-                {ativo ? (
-                  <span className="text-xs font-semibold text-slate-500">
-                    Seu cenário
+                <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
+                  payback em{" "}
+                  <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
+                    {formatMeses(linha.paybackMeses)}
+                  </span>{" "}
+                  · valor/ano {formatBRL(linha.valorAno)}
+                </span>
+                {linha.paybackExcedeContrato ? (
+                  <span className="text-sm leading-6 text-[var(--pf-warn-ink,#973c00)]">
+                    passa do prazo escolhido
                   </span>
                 ) : null}
-              </span>
-              <span className="text-lg font-semibold leading-6 tabular-nums text-trend-positive">
-                {formatX(linha.roi)}
-              </span>
-              <span className="text-sm text-slate-600">
-                payback em{" "}
-                <span className="font-medium tabular-nums text-slate-700">
-                  {formatMeses(linha.paybackMeses)}
-                </span>
-              </span>
-              {linha.paybackExcedeContrato ? (
-                <span className="text-sm leading-6 text-[#973C00]">
-                  passa do prazo escolhido
-                </span>
-              ) : null}
+              </div>
+
+              <dl className="flex flex-col gap-3 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
+                <LinhaCompacta rotulo="Eficiência (igual)" valor={formatBRL(linha.eficienciaAno)} />
+                <LinhaCompacta
+                  rotulo="Ticket médio"
+                  valor={formatBRL(linha.parcelas.margemTicketAno)}
+                  tom="positivo"
+                />
+                <LinhaCompacta
+                  rotulo="Rampa"
+                  valor={formatBRL(linha.parcelas.margemRampaAno)}
+                  tom="positivo"
+                />
+                <LinhaCompacta
+                  rotulo="Conversão"
+                  valor={formatBRL(linha.parcelas.ganhoConversaoAno)}
+                  tom="positivo"
+                />
+                <LinhaCompacta
+                  rotulo="Ciclo de vendas"
+                  valor={
+                    linha.parcelas.ganhoCicloAno === null
+                      ? "—"
+                      : formatBRL(linha.parcelas.ganhoCicloAno)
+                  }
+                  tom={linha.parcelas.ganhoCicloAno === null ? "neutro" : "positivo"}
+                />
+              </dl>
+
+              <dl className="flex flex-col gap-2 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4">
+                <LinhaCompacta rotulo="Valor anual" valor={formatBRL(linha.valorAno)} tom="positivo" />
+                <LinhaCompacta rotulo="Mensalidade" valor={formatBRL(precoMes)} />
+              </dl>
             </div>
           );
         })}
       </div>
 
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
         Mesmos dados nos três: só os deltas mudam. A eficiência é igual em todos — vem
         do caminho declarado, não do cenário.
       </p>
@@ -495,7 +380,7 @@ export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
                   y={barraY + barraH + 15}
                   textAnchor="middle"
                   fontSize={12}
-                  fill={SLATE_400}
+                  className="fill-[var(--pf-ink-faint,#64748b)]"
                 >
                   {formatNumero(faixa.horasNaFaixa, 0)} h
                 </text>
@@ -506,7 +391,7 @@ export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
               y={barraY - 8}
               textAnchor="middle"
               fontSize={12}
-              fill={SLATE_400}
+              className="fill-[var(--pf-ink-faint,#64748b)]"
             >
               {largura > 74 ? `Faixa ${index + 1}` : ""}
             </text>
@@ -514,9 +399,9 @@ export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
         ))}
       </svg>
 
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
         Cada faixa cobra a própria taxa, como imposto de renda:{" "}
-        <span className="font-medium text-slate-700">
+        <span className="font-medium text-[var(--pf-ink-soft,#475569)]">
           {formatBRL(preco.taxaCombinada, 2)}/hora
         </span>{" "}
         na média, {formatBRL(faixas[faixas.length - 1].taxaHora)} na próxima hora.
@@ -530,10 +415,11 @@ export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
 
 // ---------------------------------------------------------------------------
 // Medidor da checagem de realidade: os ganhos de performance contra o limite
-// de 25% da margem anual. Sempre slate — nunca verde (não é parcela que entra
+// de 25% da margem anual. Sempre neutro — nunca verde (não é parcela que entra
 // na conta, é um freio) e nunca âmbar: a régua só situa o número na escala, e
 // quem diz se ele preocupa é a frase acima. Trocar de cor aqui era um segundo
-// alerta para o mesmo fato, no mesmo bloco.
+// alerta para o mesmo fato, no mesmo bloco. O trilho e a régua do limite são
+// cromo e seguem a pele; a barra e o valor ficam no slate literal do custo.
 // ---------------------------------------------------------------------------
 
 // Altura calculada a partir das caixas de texto, não chutada: 13px de fonte
@@ -566,7 +452,7 @@ export function MedidorChecagem({ pct }: { pct: number }) {
       role="img"
       aria-label={`Ganhos de performance em ${formatPct(pct, 1)} da margem anual, contra o limite de ${formatPct(limite, 0)}.`}
     >
-      <rect x={4} y={trilhoY} width={plotW} height={trilhoH} rx={4} fill="#f1f5f9" />
+      <rect x={4} y={trilhoY} width={plotW} height={trilhoH} rx={4} className="fill-[var(--pf-bar,#f1f5f9)]" />
       <rect
         x={4}
         y={trilhoY}
@@ -584,10 +470,10 @@ export function MedidorChecagem({ pct }: { pct: number }) {
         x2={x(limite)}
         y1={trilhoY - 6}
         y2={trilhoY + trilhoH + 6}
-        stroke={SLATE_400}
+        className="stroke-[var(--pf-ink-faint,#64748b)]"
         strokeWidth={1.5}
       />
-      <text x={x(limite) + 6} y={trilhoY + trilhoH + 16} fontSize={13} fill={SLATE_400}>
+      <text x={x(limite) + 6} y={trilhoY + trilhoH + 16} fontSize={13} className="fill-[var(--pf-ink-faint,#64748b)]">
         limite de {formatPct(limite, 0)}
       </text>
       <text
@@ -607,3 +493,118 @@ export function MedidorChecagem({ pct }: { pct: number }) {
 // Cor de apoio exportada para quem precisar casar uma legenda HTML com o
 // traço azul do SVG (a trajetória usa o mesmo).
 export const COR_INVESTIMENTO = AZUL;
+
+// ---------------------------------------------------------------------------
+// Alocação do valor: uma barra 100% empilhada com as parcelas que somam ao ano.
+//
+// Irmã da `DecomposicaoValor` e não substituta dela: aquela responde "como se
+// chega ao total", esta responde "de que o total é feito". É a que abre a capa
+// do relatório, onde a pergunta é a segunda — quem está lendo a capa ainda não
+// pediu a construção da conta.
+//
+// TUDO VERDE, em quatro degraus. O desenho aprovado pintava a eficiência de
+// preto e o ciclo de âmbar; as quatro parcelas SOMAM ao ROI, e a §1 reserva o
+// âmbar para alerta. Quatro tons de uma escala sequencial dizem "quatro fatias
+// da mesma coisa", que é exatamente o caso — a diferença entre elas é de
+// tamanho, não de natureza.
+const VERDES = ["#0B7A22", "#0F9F2E", "#3DBB57", "#7FD293"];
+
+const ALOCACAO_VB_H = 44;
+
+export type FatiaValor = { id: string; rotulo: string; valor: number };
+
+/** As parcelas do ano, da maior para a menor. Zeradas e nulas ficam de fora. */
+export function fatiasDoValor(resultado: ResultadoOk): FatiaValor[] {
+  return (
+    [
+      { id: "ticket", rotulo: "Ticket médio", valor: resultado.parcelas.margemTicketAno },
+      { id: "eficiencia", rotulo: "Eficiência de gestão", valor: resultado.eficienciaAno },
+      { id: "conversao", rotulo: "Conversão", valor: resultado.parcelas.ganhoConversaoAno },
+      { id: "rampa", rotulo: "Rampa", valor: resultado.parcelas.margemRampaAno },
+      {
+        id: "ciclo",
+        rotulo: "Ciclo de venda",
+        valor: resultado.parcelas.ganhoCicloAno ?? 0,
+      },
+    ] satisfies FatiaValor[]
+  )
+    .filter((fatia) => fatia.valor > 0)
+    .sort((a, b) => b.valor - a.valor);
+}
+
+/** Soma as fatias de vários times, para a capa consolidada. */
+export function somarFatias(listas: FatiaValor[][]): FatiaValor[] {
+  const mapa = new Map<string, FatiaValor>();
+  for (const lista of listas) {
+    for (const fatia of lista) {
+      const atual = mapa.get(fatia.id);
+      if (atual) atual.valor += fatia.valor;
+      else mapa.set(fatia.id, { ...fatia });
+    }
+  }
+  return [...mapa.values()].sort((a, b) => b.valor - a.valor);
+}
+
+export function AlocacaoValor({ fatias }: { fatias: FatiaValor[] }) {
+  const total = fatias.reduce((soma, fatia) => soma + fatia.valor, 0);
+  if (total <= 0) return null;
+
+  // Offsets por soma prefixa em vez de acumulador reatribuído: com no máximo
+  // cinco fatias o custo é irrelevante, e o `let` capturado dentro do `map`
+  // é exatamente o padrão que o compilador do React acusa.
+  const larguras = fatias.map((fatia) => (fatia.valor / total) * VB_W);
+  const segmentos = fatias.map((fatia, indice) => ({
+    ...fatia,
+    largura: larguras[indice],
+    x: larguras.slice(0, indice).reduce((soma, largura) => soma + largura, 0),
+    cor: VERDES[indice % VERDES.length],
+  }));
+
+  const legenda = segmentos
+    .map((s) => `${s.rotulo}: ${formatPct((s.valor / total) * 100, 0)}, ${formatBRL(s.valor)}`)
+    .join("; ");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <svg
+        viewBox={`0 0 ${VB_W} ${ALOCACAO_VB_H}`}
+        className="w-full"
+        role="img"
+        aria-label={`Composição de ${formatBRL(total)} por ano. ${legenda}.`}
+      >
+        {segmentos.map((seg, indice) => (
+          <rect
+            key={seg.id}
+            x={seg.x}
+            y={0}
+            width={Math.max(0, seg.largura - (indice === segmentos.length - 1 ? 0 : 2))}
+            height={ALOCACAO_VB_H}
+            rx={4}
+            fill={seg.cor}
+          />
+        ))}
+      </svg>
+      {/* Legenda em HTML, nunca dentro do SVG: com cinco fatias, as menores não
+          têm largura para um rótulo, e texto que some conforme o dado muda é
+          pior que texto que sempre está no mesmo lugar. */}
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+        {segmentos.map((seg) => (
+          <div key={seg.id} className="flex items-center gap-2">
+            <span
+              className="h-2 w-4 shrink-0 rounded-full"
+              style={{ backgroundColor: seg.cor }}
+              aria-hidden
+            />
+            <dt className="text-sm text-[var(--pf-ink-soft,#475569)]">{seg.rotulo}</dt>
+            <dd className="ml-auto text-sm tabular-nums text-[var(--pf-ink,#0f172a)]">
+              {formatPct((seg.valor / total) * 100, 0)} ·{" "}
+              <span className="text-[var(--pf-ink-soft,#475569)]">
+                {formatBRLCompacto(seg.valor)}
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}

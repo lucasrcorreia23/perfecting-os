@@ -7,7 +7,7 @@ import { PERFECTING_WHATSAPP_LABEL, PERFECTING_WHATSAPP_URL } from "@/lib/consta
 // WhatsApp é a única saída para tirar dúvida.
 export function CalculadoraFooter() {
   return (
-    <footer className="mt-8 w-full border-t border-slate-200 bg-linear-to-t from-[#e7eefc] to-white">
+    <footer className="mt-8 w-full border-t border-(--pf-line) bg-linear-to-t from-(--pf-bar) to-(--pf-canvas)">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-6 sm:flex-row sm:justify-between sm:px-6">
         <Image
           src="/logotipo.svg"
@@ -17,7 +17,7 @@ export function CalculadoraFooter() {
           className="h-5 w-auto"
         />
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 sm:text-sm">
+          <span className="text-sm text-(--pf-ink-soft)">
             Dúvida em algum campo? Chame a gente.
           </span>
           <a
@@ -26,7 +26,7 @@ export function CalculadoraFooter() {
             rel="noopener noreferrer"
             aria-label={`Falar no WhatsApp ${PERFECTING_WHATSAPP_LABEL}`}
             title={`WhatsApp ${PERFECTING_WHATSAPP_LABEL}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-[#2E63CD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-(--pf-line) bg-(--pf-surface) text-(--pf-ink-soft) transition-colors hover:border-(--pf-ink-faint)/40 hover:text-(--pf-brand) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35"
           >
             <ChatBubbleLeftRightIcon className="h-5 w-5" aria-hidden />
           </a>

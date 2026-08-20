@@ -1,18 +1,28 @@
 "use client";
 
-import { useRef } from "react";
 import { CAMPO_DEFS, CAMINHO_HELP, CAMINHO_LABEL } from "@/lib/calculadora/campos";
 import { CAMINHOS, MARGEM_NAO_SEI } from "@/lib/calculadora/constants";
-import type {
-  CampoId,
-  Caminho,
-  EntradasTime,
-  EstruturaCompartilhada,
-} from "@/lib/calculadora/types";
+import type { CampoId, Caminho, EntradasTime, PassoId } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/form";
 import { CampoNumero } from "./campo-numero";
-import { Alternador, BlocoEstrutura } from "./estrutura-compartilhada";
+import { GrupoOpcoes } from "./opcao-cards";
+
+// As perguntas 1 a 7 do quiz — as que editam `EntradasTime`. A 8 (plano,
+// cenário, prazo) edita a PROPOSTA e vive em `pergunta-proposta.tsx`.
+//
+// Cada pergunta tem no máximo dois campos numéricos. O que antes era o "passo
+// 1" pedia cinco de uma vez, e a estrutura compartilhada (§4.11) ainda
+// ramificava o formulário no meio deles; ela saiu daqui para a etapa avançada,
+// que é o único lugar onde existe mais de um time.
+
+// A grade de duas colunas do quiz. `grid-rows-[auto_auto_auto_auto]` é
+// requisito do `alinhado` do `Field`: rótulo, input, ajuda e erro dividem as
+// MESMAS faixas em toda a linha — nessa ordem desde 20/08/2026, quando a
+// descrição desceu para baixo do campo. É o subgrid que dá o alinhamento
+// superior: a faixa do rótulo tem a altura do rótulo mais alto da linha, então
+// os campos começam todos na mesma altura mesmo com um rótulo de duas linhas.
+const GRADE = "grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2";
 
 function CampoDef({
   campo,
@@ -20,22 +30,27 @@ function CampoDef({
   onChange,
   autoFocus,
   erro,
+  help,
 }: {
   campo: Exclude<CampoId, "caminho">;
   entradas: EntradasTime;
   onChange: (campo: CampoId, valor: EntradasTime[CampoId]) => void;
   autoFocus?: boolean;
   erro?: string;
+  /** Sobrescreve a ajuda do registro — só onde o CONTEXTO da tela muda o que
+   *  precisa ser dito (o vendedor herdado da etapa 1, por exemplo). */
+  help?: string;
 }) {
   const def = CAMPO_DEFS[campo];
   const id = `campo-${campo}`;
-  // A explicação é linha visível, não ícone: no wizard a pessoa está decidindo
-  // O QUE responder, e esconder a frase que define o campo atrás de um alvo de
+  const ajuda = help ?? def.help;
+  // A explicação é linha visível, não ícone: no quiz a pessoa está decidindo O
+  // QUE responder, e esconder a frase que define o campo atrás de um alvo de
   // 16px cobrava um tab stop por campo para devolver uma linha de texto.
   return (
     <Field
       label={def.label}
-      help={def.help}
+      help={ajuda}
       error={erro}
       htmlFor={id}
       escala="leitura"
@@ -50,7 +65,7 @@ function CampoDef({
         onChange={(valor) => onChange(campo, valor)}
         autoFocus={autoFocus}
         invalido={erro !== undefined}
-        descritoPor={[def.help ? `${id}-ajuda` : null, erro ? `${id}-erro` : null]
+        descritoPor={[ajuda ? `${id}-ajuda` : null, erro ? `${id}-erro` : null]
           .filter(Boolean)
           .join(" ")}
       />
@@ -62,207 +77,127 @@ export function PassoForm({
   passo,
   entradas,
   onChange,
-  multiTime = false,
-  estrutura,
-  onChangeEstrutura,
-  vendedoresDaConta = 0,
+  vendedoresHerdados = false,
   erros = {},
 }: {
-  passo: 1 | 2 | 3 | 4 | 5;
+  passo: PassoId;
   entradas: EntradasTime;
   onChange: (campo: CampoId, valor: EntradasTime[CampoId]) => void;
-  multiTime?: boolean;
-  estrutura?: EstruturaCompartilhada;
-  onChangeEstrutura?: (patch: Partial<EstruturaCompartilhada>) => void;
-  vendedoresDaConta?: number;
+  /** O número de vendedores chegou preenchido da etapa 1. */
+  vendedoresHerdados?: boolean;
   // Erro por campo, preenchido quando a pessoa tenta avançar com pendência.
   erros?: Partial<Record<CampoId, string>>;
 }) {
-  // Refs das opções de caminho, para a seta mover o foco junto da seleção.
-  const opcoesRef = useRef<(HTMLButtonElement | null)[]>([]);
-
-  // Estrutura compartilhada (§4.11): só faz sentido com mais de um time. Ativa,
-  // os campos do gestor e da alternativa saem do formulário por time e passam a
-  // ser declarados uma vez para a conta.
-  const compartilhada = multiTime && estrutura !== undefined && onChangeEstrutura !== undefined;
-  const ativa = compartilhada && estrutura.ativa;
-
-  const bloco = (passoBloco: 1 | 3 | 4) =>
-    ativa ? (
-      <BlocoEstrutura
-        passo={passoBloco}
-        estrutura={estrutura}
-        onChange={onChangeEstrutura}
-        vendedoresDoTime={entradas.numVendedores}
-        vendedoresDaConta={vendedoresDaConta}
-      />
-    ) : null;
-
   if (passo === 1) {
     return (
-      <div className="flex flex-col gap-4">
-        {compartilhada ? (
-          <Alternador
-            ativa={estrutura.ativa}
-            onToggle={(valor) => onChangeEstrutura({ ativa: valor })}
+      <div className="flex flex-col gap-6">
+        <div className={GRADE}>
+          <CampoDef
+            campo="numVendedores"
+            entradas={entradas}
+            onChange={onChange}
+            autoFocus
+            erro={erros.numVendedores}
+            help={
+              vendedoresHerdados
+                ? "Preenchido a partir da etapa 1 — ajuste se precisar."
+                : undefined
+            }
           />
-        ) : null}
-        {bloco(1)}
-        {/* Subgrade: rótulo, ajuda, input e erro dividem as MESMAS faixas em
-            toda a linha. O `items-end` que morava aqui alinhava só os inputs —
-            bastava a ajuda ter três linhas num campo e duas no vizinho para os
-            rótulos saírem em alturas diferentes. */}
-        {ativa ? (
-          <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-            <CampoDef campo="numVendedores" entradas={entradas} onChange={onChange} autoFocus erro={erros.numVendedores} />
-            <CampoDef campo="horasPraticaPorRepHoje" entradas={entradas} onChange={onChange} erro={erros.horasPraticaPorRepHoje} />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-              <CampoDef campo="numVendedores" entradas={entradas} onChange={onChange} autoFocus erro={erros.numVendedores} />
-              <CampoDef campo="numGestoresTreino" entradas={entradas} onChange={onChange} erro={erros.numGestoresTreino} />
-            </div>
-            <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-3">
-              <CampoDef campo="horasTreinoGestorMes" entradas={entradas} onChange={onChange} erro={erros.horasTreinoGestorMes} />
-              <CampoDef campo="vendedoresPorGestorMes" entradas={entradas} onChange={onChange} erro={erros.vendedoresPorGestorMes} />
-              <CampoDef campo="horasPraticaPorRepHoje" entradas={entradas} onChange={onChange} erro={erros.horasPraticaPorRepHoje} />
-            </div>
-          </>
-        )}
+          <CampoDef
+            campo="numGestoresTreino"
+            entradas={entradas}
+            onChange={onChange}
+            erro={erros.numGestoresTreino}
+          />
+        </div>
+        {/* Largura inteira, como no desenho: é uma pergunta de outra natureza
+            (tempo, não headcount) e emparelhá-la com um dos dois acima sugeria
+            que os três se leem juntos. */}
+        <CampoDef
+          campo="horasTreinoGestorMes"
+          entradas={entradas}
+          onChange={onChange}
+          erro={erros.horasTreinoGestorMes}
+        />
       </div>
     );
   }
 
   if (passo === 2) {
     return (
-      <div className="flex flex-col gap-4">
-        <CampoDef campo="receitaMensal" entradas={entradas} onChange={onChange} autoFocus erro={erros.receitaMensal} />
-        <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-          <CampoDef campo="ticketMedio" entradas={entradas} onChange={onChange} erro={erros.ticketMedio} />
-          <CampoDef campo="conversaoPct" entradas={entradas} onChange={onChange} erro={erros.conversaoPct} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <CampoDef campo="margemPct" entradas={entradas} onChange={onChange} erro={erros.margemPct} />
-          {entradas.margemPct === null ? (
-            <button
-              type="button"
-              onClick={() => onChange("margemPct", MARGEM_NAO_SEI)}
-              className={cn(
-                "self-start inline-flex min-h-[44px] cursor-pointer items-center rounded-full border border-slate-200 px-4 text-[13px] font-medium leading-5 text-slate-600 sm:min-h-8",
-                "transition-colors hover:border-slate-300 hover:text-slate-800",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-              )}
-            >
-              Não sei → usar {MARGEM_NAO_SEI}%
-            </button>
-          ) : null}
-        </div>
+      <div className={GRADE}>
+        <CampoDef
+          campo="vendedoresPorGestorMes"
+          entradas={entradas}
+          onChange={onChange}
+          autoFocus
+          erro={erros.vendedoresPorGestorMes}
+        />
+        <CampoDef
+          campo="horasPraticaPorRepHoje"
+          entradas={entradas}
+          onChange={onChange}
+          erro={erros.horasPraticaPorRepHoje}
+        />
       </div>
     );
   }
 
   if (passo === 3) {
+    const caminho = entradas.caminho;
     return (
-      <div className="flex flex-col gap-4">
-        {bloco(3)}
-        <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-          {ativa ? null : (
-            <CampoDef campo="salarioGestor" entradas={entradas} onChange={onChange} autoFocus erro={erros.salarioGestor} />
-          )}
+      <div className="flex flex-col gap-6">
+        <div className={GRADE}>
+          <CampoDef
+            campo="salarioGestor"
+            entradas={entradas}
+            onChange={onChange}
+            autoFocus
+            erro={erros.salarioGestor}
+          />
           <CampoDef
             campo="salarioVendedor"
             entradas={entradas}
             onChange={onChange}
-            autoFocus={ativa} erro={erros.salarioVendedor} />
+            erro={erros.salarioVendedor}
+          />
         </div>
-        <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-          <CampoDef campo="rampaMeses" entradas={entradas} onChange={onChange} erro={erros.rampaMeses} />
-          <CampoDef campo="contratacoesAno" entradas={entradas} onChange={onChange} erro={erros.contratacoesAno} />
-        </div>
-      </div>
-    );
-  }
-
-  if (passo === 4) {
-    const caminho = entradas.caminho;
-    if (ativa) return <div className="flex flex-col gap-4">{bloco(4)}</div>;
-    return (
-      <div className="flex flex-col gap-4">
         <Field
           label={CAMINHO_LABEL}
           help={CAMINHO_HELP}
           error={erros.caminho}
           escala="leitura"
         >
-          {/* Radiogroup de verdade: UM tab stop para o grupo (roving tabindex)
-              e setas para trocar a opção. Quatro botões tabbáveis passavam a
-              semântica mas não o comportamento — quem navega por teclado
-              atravessava quatro paradas para responder uma pergunta. */}
-          <div
-            role="radiogroup"
-            aria-label={CAMINHO_LABEL}
-            aria-invalid={erros.caminho ? true : undefined}
-            className="flex flex-col gap-2"
-            onKeyDown={(event) => {
-              const teclas = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"];
-              if (!teclas.includes(event.key)) return;
-              event.preventDefault();
-              const ids = Object.keys(CAMINHOS) as Caminho[];
-              const atual = caminho === null ? -1 : ids.indexOf(caminho);
-              const passoTecla = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
-              const proximo = ids[(atual + passoTecla + ids.length) % ids.length];
-              onChange("caminho", proximo);
-              opcoesRef.current[ids.indexOf(proximo)]?.focus();
-            }}
-          >
-            {(Object.keys(CAMINHOS) as Caminho[]).map((id, indice) => {
-              const ativo = caminho === id;
-              // Sem nada escolhido o primeiro carrega o tab stop, senão o
-              // grupo inteiro sai da ordem de foco.
-              const focavel = caminho === null ? indice === 0 : ativo;
-              return (
-                <button
-                  key={id}
-                  ref={(node) => {
-                    opcoesRef.current[indice] = node;
-                  }}
-                  type="button"
-                  role="radio"
-                  aria-checked={ativo}
-                  tabIndex={focavel ? 0 : -1}
-                  onClick={() => onChange("caminho", id)}
-                  className={cn(
-                    "flex min-h-[44px] cursor-pointer flex-col gap-1 rounded-sm border px-4 py-3 text-left transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
-                    ativo
-                      ? "border-[#2E63CD]/50 bg-[#2E63CD]/[0.04]"
-                      : "border-slate-200 bg-white hover:border-slate-300",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      ativo ? "text-[#2E63CD]" : "text-slate-800",
-                    )}
-                  >
-                    {CAMINHOS[id].label}
-                  </span>
-                  <span className="text-sm leading-6 text-slate-600">
-                    {CAMINHOS[id].descricao}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <GrupoOpcoes<Caminho>
+            nome={CAMINHO_LABEL}
+            valor={caminho}
+            onChange={(id) => onChange("caminho", id)}
+            invalido={erros.caminho !== undefined}
+            opcoes={(Object.keys(CAMINHOS) as Caminho[]).map((id) => ({
+              id,
+              label: CAMINHOS[id].label,
+              descricao: CAMINHOS[id].descricao,
+            }))}
+          />
         </Field>
         {caminho === "externo" ? (
-          <CampoDef campo="custoExternoAno" entradas={entradas} onChange={onChange} erro={erros.custoExternoAno} />
+          <CampoDef
+            campo="custoExternoAno"
+            entradas={entradas}
+            onChange={onChange}
+            erro={erros.custoExternoAno}
+          />
         ) : null}
         {caminho === "evento" ? (
           <div className="flex flex-col gap-2">
-            <CampoDef campo="custoEventoAno" entradas={entradas} onChange={onChange} erro={erros.custoEventoAno} />
-            <p className="text-sm leading-6 text-slate-600">
+            <CampoDef
+              campo="custoEventoAno"
+              entradas={entradas}
+              onChange={onChange}
+              erro={erros.custoEventoAno}
+            />
+            <p className="text-xs leading-5 text-(--pf-ink-soft)">
               Consideramos 50% desse valor como substituível por prática contínua.
               É uma premissa declarada, visível no resultado.
             </p>
@@ -272,12 +207,99 @@ export function PassoForm({
     );
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 grid-rows-[auto_auto_auto_auto] gap-x-4 gap-y-6 md:grid-cols-2">
-        <CampoDef campo="cicloDias" entradas={entradas} onChange={onChange} erro={erros.cicloDias} />
-        <CampoDef campo="leadsMes" entradas={entradas} onChange={onChange} erro={erros.leadsMes} />
+  if (passo === 4) {
+    return (
+      <div className={GRADE}>
+        <CampoDef
+          campo="receitaMensal"
+          entradas={entradas}
+          onChange={onChange}
+          autoFocus
+          erro={erros.receitaMensal}
+        />
+        <CampoDef
+          campo="ticketMedio"
+          entradas={entradas}
+          onChange={onChange}
+          erro={erros.ticketMedio}
+        />
       </div>
+    );
+  }
+
+  if (passo === 5) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className={GRADE}>
+          <CampoDef
+            campo="conversaoPct"
+            entradas={entradas}
+            onChange={onChange}
+            autoFocus
+            erro={erros.conversaoPct}
+          />
+          <CampoDef
+            campo="margemPct"
+            entradas={entradas}
+            onChange={onChange}
+            erro={erros.margemPct}
+          />
+        </div>
+        {entradas.margemPct === null ? (
+          <button
+            type="button"
+            onClick={() => onChange("margemPct", MARGEM_NAO_SEI)}
+            className={cn(
+              "self-start inline-flex min-h-[44px] cursor-pointer items-center rounded-full border border-(--pf-line) px-4 text-sm font-medium leading-5 text-(--pf-ink-soft) sm:min-h-8",
+              "transition-colors hover:border-(--pf-ink-faint)/40 hover:text-(--pf-ink)",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
+            )}
+          >
+            Não sei → usar {MARGEM_NAO_SEI}%
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (passo === 6) {
+    return (
+      <div className={GRADE}>
+        <CampoDef
+          campo="rampaMeses"
+          entradas={entradas}
+          onChange={onChange}
+          autoFocus
+          erro={erros.rampaMeses}
+        />
+        <CampoDef
+          campo="contratacoesAno"
+          entradas={entradas}
+          onChange={onChange}
+          erro={erros.contratacoesAno}
+        />
+      </div>
+    );
+  }
+
+  // Pergunta 7 — opcional, regra dos dois ou nenhum. O ciclo mora aqui junto
+  // das oportunidades porque é o PAR que liga a alavanca: sozinho, nenhum dos
+  // dois calcula compressão de ciclo.
+  return (
+    <div className={GRADE}>
+      <CampoDef
+        campo="leadsMes"
+        entradas={entradas}
+        onChange={onChange}
+        autoFocus
+        erro={erros.leadsMes}
+      />
+      <CampoDef
+        campo="cicloDias"
+        entradas={entradas}
+        onChange={onChange}
+        erro={erros.cicloDias}
+      />
     </div>
   );
 }

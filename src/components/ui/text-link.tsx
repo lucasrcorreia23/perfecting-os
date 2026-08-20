@@ -22,7 +22,7 @@ export function TextLink({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
         tone === "primary"
           ? "text-primary hover:text-primary-link-hover hover:underline"
-          : "text-[#1e293b] hover:opacity-70 hover:underline",
+          : "text-slate-800 hover:opacity-70 hover:underline",
         className,
       )}
     >
