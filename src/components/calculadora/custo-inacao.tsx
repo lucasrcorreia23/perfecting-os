@@ -70,8 +70,12 @@ export function CustoInacao({
     <section className="flex flex-col gap-6">
       {/* Duas leituras, de propósito distintas: quanto da prática CHEGA ao
           vendedor, e se o gestor sequer TEM as horas. A planilha mistura as
-          duas numa métrica só e se contradiz (E-31). */}
-      <div className="flex flex-col gap-2">
+          duas numa métrica só e se contradiz (E-31).
+
+          gap-3, não gap-2: 8px é o degrau de "ícone ↔ texto", e com leading-7
+          no primeiro parágrafo os dois colavam num bloco só com um soluço no
+          meio. Prosa ao lado de prosa é linha ↔ linha. */}
+      <div className="flex flex-col gap-3">
         <p className="text-base leading-7 text-slate-700">
           {lacunaDePratica ? (
             <>
@@ -116,7 +120,11 @@ export function CustoInacao({
           mesma natureza, e cinco pílulas empurrariam cada rótulo para duas
           linhas para dizer a mesma coisa (a passagem de 18/08 já fixou isso em
           EficienciaCard). */}
-      <div className="flex flex-col gap-3">
+      {/* gap-4 do título para a lista contra gap-3 entre as linhas: o rótulo
+          do grupo tem de pesar mais que o intervalo que separa duas parcelas,
+          senão ele vira a primeira linha da lista. Mesma cadência do
+          EficienciaCard. */}
+      <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-700">Onde o dinheiro vaza</h3>
           <SeloEvidencia selo="premissa" />
@@ -159,12 +167,29 @@ export function CustoInacao({
           escolher um dos dois para o mesmo valor. Somar os números seria contar
           a mesma economia duas vezes — que é o que a nota ① da planilha pede
           (E-34) e nós recusamos. */}
-      <div className="flex flex-col gap-3 border-t border-slate-200 pt-5">
+      <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
+        {/* A resposta do bloco, no posto que ela merece. Era a terceira linha
+            de uma lista de três, em text-sm — o mesmo peso das cinco parcelas
+            acima, e por isso o único bloco da etapa sem foco: o hero tem o
+            número-manchete, Eficiência e Performance têm seus totais em
+            text-lg, "Quanto custa" tem o preço. Aqui o olho não pousava em
+            lugar nenhum.
+
+            Slate, nunca verde: a lacuna não entra na conta, e é a mesma regra
+            que mantém preço e payback em slate. O tom é o do CabecalhoParcela
+            ao lado, um degrau abaixo no rótulo (text-sm, o posto de bloco das
+            diretrizes) porque quem manda na seção continua sendo o título. */}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h3 className="text-sm font-semibold text-slate-700">Lacuna estimada hoje</h3>
+          {/* ml-auto, não só justify-between: em coluna estreita (a sidebar
+              "Seus números" come 264px) o par quebra, e justify-between sozinho
+              joga o valor para a ESQUERDA da segunda linha. Mesma correção que
+              LinhaCompacta já levou. */}
+          <span className="ml-auto text-lg font-semibold tabular-nums text-slate-900">
+            {formatBRL(coi.totalAno)}/ano
+          </span>
+        </div>
         <dl className="flex flex-col gap-3">
-          <LinhaCompacta
-            rotulo="Lacuna estimada hoje"
-            valor={`${formatBRL(coi.totalAno)}/ano`}
-          />
           <LinhaCompacta
             rotulo="Quanto o programa recupera"
             valor={`${formatBRL(coi.recuperadoAno)}/ano`}

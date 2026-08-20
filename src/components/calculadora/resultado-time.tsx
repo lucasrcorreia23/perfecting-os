@@ -384,7 +384,10 @@ function CabecalhoParcela({
         <h3 className="text-base font-semibold text-slate-800">{titulo}</h3>
         <HintTooltip text={ajuda} />
       </span>
-      <span className="text-lg font-semibold tabular-nums text-trend-positive">
+      {/* ml-auto pelo mesmo motivo de LinhaCompacta: "Eficiência: o que deixa
+          de ser gasto" é rótulo longo, e quando ele quebra o justify-between
+          sozinho manda o total para a esquerda da linha de baixo. */}
+      <span className="ml-auto text-lg font-semibold tabular-nums text-trend-positive">
         {valor}
       </span>
     </div>
