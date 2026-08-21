@@ -465,6 +465,20 @@ body:has(.pf-calc) {
   --pf-warn-on-brand: #fcd34d;
 
   /*
+   * O verde do selo de benefício, no mesmo painel — e ele NÃO é o `#0F9F2E` de
+   * "entra na conta": sobre `--pf-brand-deep` o verde da §1 dá 2,38:1, que é o
+   * mesmo número pelo qual a capa do resultado não pode ser azul. `#63dd82`
+   * dá 4,82:1 no mesmo fundo e fica na mesma família de matiz (135° contra
+   * 133°), então lê como o verde do produto sem ser ele.
+   *
+   * Verde aqui não colide com "entra na conta" porque a etapa 01 não tem conta:
+   * é a mesma razão pela qual o painel pode ser azul cheio nesta tela e em
+   * nenhuma outra. Fora daqui, o verde continua reservado às parcelas que somam
+   * ao ROI — e este token não deve seguir a jornada adiante.
+   */
+  --pf-positive-on-brand: #63dd82;
+
+  /*
    * "Tudo que é clicável e editável precisa ser alto contraste com o restante"
    * (decisão do decisor, 20/08/2026). São dois fios, não um:
    *

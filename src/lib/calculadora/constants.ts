@@ -21,22 +21,38 @@ export const PLANOS: Record<PlanoId, { label: string; horasMes: number }> = {
   intensivo: { label: "Intensivo", horasMes: 8 },
 };
 
-// Escada progressiva sobre o total de horas da conta, marginal por faixa
-// (§4.9). As faixas espelham as capacidades dos tiers de voz.
+// Tabela de preços por tier (§4.9). O volume TOTAL de horas da conta escolhe um
+// tier, e TODAS as horas saem pela taxa cheia dele — não é escada marginal.
+// As faixas espelham as capacidades dos tiers de voz.
 //
-// A fronteira do Tier 2 é 656 h — valor da aba "Tabela de Preços por Tier" do
-// Template, que é a tabela que vai ao cliente. Até 19/08/2026 a aba Premissas
-// do MESMO arquivo trazia 573 em C31, e era ela que o staircase da aba Conta
-// lia: as duas se contradiziam dentro do arquivo, e o golden FIESC tinha
-// deixado de ser "o que o Excel devolve" para ser "o que o nosso motor
-// devolve". A planilha foi corrigida (E-24 fechada): Premissas!C31 é 656, os
-// rótulos das faixas acompanham, e a escada da aba Conta volta a reproduzir os
-// dois goldens ao centavo.
-export const ESCADA_PRECO: { ateHoras: number; taxaHora: number }[] = [
-  { ateHoras: 262, taxaHora: 98 },
-  { ateHoras: 656, taxaHora: 82 },
-  { ateHoras: 1243, taxaHora: 70 },
-  { ateHoras: Infinity, taxaHora: 60 },
+// Fonte: a aba "Tabela de Preços por Tier" do Template, que é a tabela que vai
+// ao cliente (≤ 262 · 263–656 · 657–1.243 · > 1.243, a 98/82/70/60).
+//
+// A ABA CONTA DA MESMA PLANILHA CALCULA MARGINAL (`C17:C20`, cada faixa
+// cobrando só as horas dentro dela), e foi assim que o motor nasceu. As duas
+// leituras se contradizem dentro do arquivo, como já se contradiziam em 573 vs
+// 656, e o critério do decisor é o mesmo das duas vezes: vale a tabela
+// comercial. O que decidiu foi a coluna "Economia vs Tier 1" (`=1-D8/D7` →
+// 16,3% / 28,6% / 38,8%): ela só é verdade se a taxa do tier valer para a hora
+// inteira. No marginal, uma conta de 800 h pagava R$ 85,08/h — número que tier
+// nenhum promete, e que a tela mostrava como "taxa efetiva" ao lado de uma
+// tabela dizendo R$ 70.
+//
+// O PREÇO DEIXA DE SER MONOTÔNICO NAS FRONTEIRAS, e isso é decisão tomada com
+// os números à vista (21/08/2026): 263 h custam R$ 4.110 menos que 262 h, 657 h
+// custam R$ 7.802 menos que 656 h, 1.244 h custam R$ 12.370 menos que 1.243 h.
+// É o invariante 9 do V5 ("uma hora a mais nunca reduz a receita") sendo
+// quebrado de propósito — pinado em `preco.test.ts` e declarado em
+// `referencia.ts`, para nunca ser "corrigido" por engano.
+export const TABELA_TIERS: {
+  tier: number;
+  ateHoras: number;
+  taxaHora: number;
+}[] = [
+  { tier: 1, ateHoras: 262, taxaHora: 98 },
+  { tier: 2, ateHoras: 656, taxaHora: 82 },
+  { tier: 3, ateHoras: 1243, taxaHora: 70 },
+  { tier: 4, ateHoras: Infinity, taxaHora: 60 },
 ];
 
 // Piso aplicado DEPOIS do desconto — piso não se desconta (§4.9).

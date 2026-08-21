@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AdjustmentsHorizontalIcon,
   BookOpenIcon,
   CheckCircleIcon,
   QuestionMarkCircleIcon,
@@ -24,7 +25,7 @@ import {
   progresso,
   timeVazio,
 } from "@/lib/calculadora/estado";
-import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
+import { compararCenarios, linhaDoResultado } from "@/lib/calculadora/cenarios-comparacao";
 import { perguntasCfo } from "@/lib/calculadora/faq";
 import { computarModelo } from "@/lib/calculadora/modelo";
 import { reReconciliar } from "@/lib/calculadora/trajetoria";
@@ -33,6 +34,7 @@ import {
   estruturaAtiva,
   estruturaVazia,
 } from "@/lib/calculadora/estrutura";
+import { fundirPremissas, PREMISSAS_PADRAO, serializarPremissas, type PremissasRacional } from "@/lib/calculadora/premissas";
 import type {
   CampoId,
   CenarioSelecionado,
@@ -48,12 +50,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { CapaResultado } from "./capa-resultado";
-import { ConsolidadoView } from "./consolidado-view";
+import { AbasEscopo } from "./abas-escopo";
+import { AbaRacional } from "./aba-racional";
+import { BotaoFormulas } from "./botao-formulas";
 import { CustoInacao } from "./custo-inacao";
-import { Disclaimer } from "./disclaimer";
 import { EtapaAvancada } from "./etapa-avancada";
-import { EtapaExportar } from "./etapa-exportar";
 import { EtapaMensalidade } from "./etapa-mensalidade";
+import { FechoRelatorio } from "./fecho-relatorio";
 import { EtapasNav, etapasLiberadas, type EtapaId } from "./etapas-nav";
 import { CaseSucesso } from "./case-sucesso";
 import { CalculadoraFooter } from "./footer";
@@ -61,11 +64,9 @@ import { FaqPainel } from "./faq-cfo";
 import { Glossario } from "./glossario";
 import {
   ComparacaoCenarios,
-  DecomposicaoValor,
-  descricaoDecomposicao,
-  DESCRICAO_CENARIOS,
-  InvestimentoVsRetorno,
-} from "./graficos-resultado";
+  DESCRICAO_CENARIOS_EDITAVEL,
+} from "./comparacao-cenarios";
+import { InvestimentoVsRetorno } from "./graficos-resultado";
 import { PassoForm } from "./passo-form";
 import { PerguntaCard } from "./pergunta-card";
 import { PerguntaProposta } from "./pergunta-proposta";
@@ -87,14 +88,22 @@ import {
 } from "@/lib/calculadora/validacao-passo";
 import { PaineisTrajetoria } from "./trajetoria-panel";
 import { useAutosave } from "./use-autosave";
+import { PremissasProvider } from "./premissas-context";
 
-// A jornada em quatro etapas (20/08/2026).
+// A jornada em três etapas (21/08/2026; eram quatro desde 20/08).
 //
 // Antes: `intro` → um wizard de cinco passos com stepper de times à esquerda →
 // `resultado`, uma pilha de dez blocos com a sidebar "Dados preenchidos" ao lado
 // editando valores ao vivo. Agora: mensalidade → oito perguntas → relatório
-// (capa e cálculo detalhado) → exportar, com as quatro etapas sempre visíveis e
-// navegáveis no cabeçalho.
+// (capa, cálculo detalhado e o fecho que sai da tela), com as três etapas
+// sempre visíveis e navegáveis no cabeçalho.
+//
+// (f) A ETAPA 04 "EXPORTAR & FAQ" SAIU (21/08/2026, decisão do decisor). O
+//     relatório é o fim da jornada. O que ela carregava e não podia sumir com
+//     ela desceu para o fim da etapa 03 (`FechoRelatorio`): o
+//     `ResumoVerificavel`, que é o único bloco que a impressão enxerga, e a
+//     `EnviarBar`, que é o envio da proposta. O FAQ inline não veio junto — ele
+//     já existe no modal do cabeçalho, de onde é alcançável em qualquer etapa.
 //
 // Três mudanças estruturais que decorrem disso, e que valem registro:
 //
@@ -106,8 +115,8 @@ import { useAutosave } from "./use-autosave";
 //     resultado, e é o único lugar de onde se enxerga o preenchimento de todos
 //     os times de uma vez.
 //
-// (b) O RECÁLCULO AO VIVO SAIU DO RESULTADO. Cenário, plano, assentos e prazo se
-//     escolhem na pergunta 8 (e o ajuste fino de deltas, na etapa avançada). No
+// (b) O RECÁLCULO AO VIVO SAIU DO RESULTADO. Cenário, plano e prazo se escolhem
+//     na pergunta 8; assentos e o ajuste fino de deltas, na etapa avançada. No
 //     relatório, "Quanto custa" é leitura. O número parou de se mexer debaixo de
 //     quem está lendo.
 //
@@ -126,17 +135,16 @@ import { useAutosave } from "./use-autosave";
 //     ao próprio resultado. Agora é `ProcessandoResultado`, que não pede clique
 //     e entrega o relatório sozinha.
 
-type View =
+type ViewVisitante =
   | { modo: "mensalidade" }
   | { modo: "quiz"; timeId: string; pergunta: PassoId }
   | { modo: "avancado" }
   | { modo: "processando"; timeId: string }
-  | { modo: "relatorio" }
-  // `imprimir` só existe no caminho "Exportar / salvar PDF" da capa: a etapa
-  // 04 monta e ABRE o diálogo de impressão sozinha. Ver `EtapaExportar`.
-  | { modo: "exportar"; imprimir?: boolean };
+  | { modo: "relatorio" };
 
-const ETAPA_DA_VIEW: Record<View["modo"], EtapaId> = {
+type View = ViewVisitante | { modo: "racional"; voltar: ViewVisitante };
+
+const ETAPA_DA_VIEW: Record<ViewVisitante["modo"], EtapaId> = {
   mensalidade: "mensalidade",
   quiz: "quiz",
   avancado: "quiz",
@@ -144,8 +152,12 @@ const ETAPA_DA_VIEW: Record<View["modo"], EtapaId> = {
   // está nela terminou o quiz e não pode ver a etapa 03 recuar para "quiz".
   processando: "relatorio",
   relatorio: "relatorio",
-  exportar: "exportar",
 };
+
+function etapaDaView(view: View): EtapaId {
+  if (view.modo === "racional") return ETAPA_DA_VIEW[view.voltar.modo];
+  return ETAPA_DA_VIEW[view.modo];
+}
 
 function primeiraPerguntaIncompleta(estado: EstadoCalculadora): {
   timeId: string;
@@ -169,6 +181,8 @@ export function CalculadoraApp({
   expiresAt,
   submittedAt,
   dataCalculo,
+  internoLogado = false,
+  premissasSalvas = null,
 }: {
   token: string;
   estadoSalvo: EstadoCalculadora;
@@ -178,12 +192,19 @@ export function CalculadoraApp({
   // Carimbada no servidor (rota force-dynamic): `new Date()` aqui divergiria
   // entre SSR e hidratação.
   dataCalculo: string;
+  internoLogado?: boolean;
+  premissasSalvas?: unknown;
 }) {
   const [estado, setEstado] = useState(estadoSalvo);
   const [glossarioAberto, setGlossarioAberto] = useState(false);
   const [faqAberto, setFaqAberto] = useState(false);
   const [timeAtivoId, setTimeAtivoId] = useState(estadoSalvo.times[0].id);
   const [removendoTime, setRemovendoTime] = useState<EstadoTime | null>(null);
+  // De quem fala a CAPA (`AbasEscopo`): a conta inteira ou o time ativo. Só a
+  // capa muda — os capítulos abaixo são sempre do time ativo, e por isso a aba
+  // de um time troca o time ativo junto. Começa no consolidado, que era o que a
+  // capa mostrava antes de existir escolha.
+  const [capaConsolidada, setCapaConsolidada] = useState(true);
 
   // Estado derivado (§4.11): com a estrutura compartilhada ativa, cada time já
   // carrega a fatia que lhe cabe. Serve para LER — gating, progresso.
@@ -202,13 +223,37 @@ export function CalculadoraApp({
   // validar enquanto digita acusaria campo vazio que ela ainda vai preencher.
   const [errosPasso, setErrosPasso] = useState<ErroCampo[]>([]);
 
-  const modelo = useMemo(() => computarModelo(estado), [estado]);
+  const [premissas, setPremissas] = useState<PremissasRacional>(() =>
+    fundirPremissas(premissasSalvas),
+  );
+  const [usarPadrao, setUsarPadrao] = useState(premissasSalvas == null);
+
+  const modelo = useMemo(() => computarModelo(estado, premissas), [estado, premissas]);
   const autosave = useAutosave({
     token,
     estado,
     ativo: true,
     submittedAtInicial: submittedAt,
   });
+
+  const primeiraPremissas = useRef(true);
+  useEffect(() => {
+    if (!internoLogado) return;
+    if (primeiraPremissas.current) {
+      primeiraPremissas.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void fetch(`/api/publico/calculadora/${token}/premissas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          premissas: usarPadrao ? null : serializarPremissas(premissas),
+        }),
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [premissas, usarPadrao, internoLogado, token]);
 
   // O momento em que o número passa a existir. A semente roda no primeiro
   // render: quem volta com o link pronto entra com todos os times já vistos e
@@ -243,6 +288,11 @@ export function CalculadoraApp({
 
   const setCenario = useCallback(
     (timeId: string, sel: CenarioSelecionado) => patchTime(timeId, { cenarioSel: sel }),
+    [patchTime],
+  );
+
+  const setNome = useCallback(
+    (timeId: string, nome: string) => patchTime(timeId, { nome }),
     [patchTime],
   );
 
@@ -345,6 +395,38 @@ export function CalculadoraApp({
     modelo.times.find((time) => time.id === timeAtualId) ?? modelo.times[0];
   const multiTime = estado.times.length > 1;
 
+  // A fita de escopo da etapa 03. Mora AQUI, e não dentro da capa, porque a
+  // capa não é renderizada quando o time ativo está incompleto: presa lá, a
+  // fita sumiria junto e não haveria como voltar ao consolidado.
+  const abasEscopo = multiTime ? (
+    <AbasEscopo
+      times={modelo.times}
+      escopo={capaConsolidada ? "consolidado" : timeAtualId}
+      onEscopo={(escopo) => {
+        if (escopo === "consolidado") {
+          setCapaConsolidada(true);
+          // Voltar ao consolidado com um time pela metade em foco cairia no
+          // `ResultadoIncompleto` de novo, e a aba pareceria não responder —
+          // então o foco vai para o primeiro time que fechou a conta.
+          if (timeModelo.resultado.status !== "ok") {
+            const completo = modelo.times.find(
+              (time) => time.resultado.status === "ok",
+            );
+            if (completo) setTimeAtivoId(completo.id);
+          }
+          return;
+        }
+        setCapaConsolidada(false);
+        setTimeAtivoId(escopo);
+      }}
+      onAddTime={
+        estado.times.length < MAX_TIMES
+          ? () => setView({ modo: "avancado" })
+          : undefined
+      }
+    />
+  ) : null;
+
   // Os três cenários com as MESMAS entradas (aba Scenario Comparison do
   // Excel). Null enquanto o time estiver incompleto — nunca faixa parcial.
   const comparacao = useMemo(
@@ -354,9 +436,20 @@ export function CalculadoraApp({
         timeModelo.proposta,
         timeModelo.precoMes,
         modelo.prazoMeses,
+        premissas,
       ),
-    [timeModelo.entradas, timeModelo.proposta, timeModelo.precoMes, modelo.prazoMeses],
+    [timeModelo.entradas, timeModelo.proposta, timeModelo.precoMes, modelo.prazoMeses, premissas],
   );
+
+  // A coluna do cenário ATIVO quando ele já não é um preset puro. `comparacao`
+  // continua sendo os três presets — é o que o FAQ cita como "no Conservador o
+  // ROI é X", e essa resposta não pode mudar porque alguém ajustou um delta —,
+  // então quem mostra os números em uso é esta linha, calculada de uma vez em
+  // `computarModelo` e só reapresentada aqui.
+  const linhaAtiva =
+    timeModelo.sel.modo === "personalizado" && timeModelo.resultado.status === "ok"
+      ? linhaDoResultado(timeModelo.sel.base, timeModelo.resultado, modelo.prazoMeses)
+      : null;
 
   const perguntas = useMemo(
     () =>
@@ -369,8 +462,9 @@ export function CalculadoraApp({
         comparacao,
         coi: timeModelo.coi,
         multiTime,
+        premissas,
       }),
-    [timeModelo, modelo.preco, modelo.prazoMeses, comparacao, multiTime],
+    [timeModelo, modelo.preco, modelo.prazoMeses, comparacao, multiTime, premissas],
   );
 
   // As metas do case de 90 dias. Derivadas do resultado, nunca de volta para
@@ -382,8 +476,9 @@ export function CalculadoraApp({
         timeModelo.entradas,
         timeModelo.proposta.plano,
         timeModelo.proposta.assentos,
+        premissas,
       ),
-    [timeModelo],
+    [timeModelo, premissas],
   );
 
   const cenarioLabel =
@@ -434,15 +529,14 @@ export function CalculadoraApp({
     // afordância; quem monta a chamada por fora (teclado, código, um futuro
     // atalho) passaria por cima dele. A condição é a MESMA função, não uma
     // cópia — duas versões da regra divergiriam no primeiro ajuste.
-    if (!etapasLiberadas(preenchimento, ETAPA_DA_VIEW[view.modo])[etapa]) return;
+    if (!etapasLiberadas(preenchimento, etapaDaView(view))[etapa]) return;
     setErrosPasso([]);
     if (etapa === "mensalidade") return setView({ modo: "mensalidade" });
     if (etapa === "quiz") {
       const posicao = primeiraPerguntaIncompleta(estadoDerivado);
       return irParaQuiz(posicao.timeId, posicao.pergunta);
     }
-    if (etapa === "relatorio") return irParaRelatorio();
-    return setView({ modo: "exportar" });
+    return irParaRelatorio();
   }
 
   // Foca e rola até o primeiro campo pendente. Sem isso a mensagem existe mas
@@ -547,30 +641,67 @@ export function CalculadoraApp({
           ) : null}
         </span>
       ) : null}
+      {/* Abaixo do `sm:` as três consultas ficam SÓ no ícone, e isso não é
+          gosto: com rótulo, o grupo mede 374px contra os 341px úteis de uma
+          tela de 390px, e a barra empurrava o documento inteiro para uma
+          rolagem horizontal — em toda etapa da jornada, porque o cabeçalho é
+          fixo. As saídas eram três e duas são piores: deixar o grupo quebrar
+          empilha a barra em duas ou três fileiras logo acima do conteúdo, e
+          encolher tipografia e padding não cabe (sobrariam 6px). Só o ícone
+          cabe folgado, mantém o alvo de 44px da §11 e devolve o rótulo a
+          partir de 640px. O nome acessível vem de `aria-label` FIXO, e não do
+          texto visível — senão o botão mudaria de nome conforme a largura,
+          que é o mesmo cuidado que `BotaoFormulas` já tomava. */}
       <Button
         variant="secondary"
         size="sm"
         icon={QuestionMarkCircleIcon}
+        aria-label="Perguntas comuns"
+        title="Perguntas comuns"
         onClick={() => {
           setGlossarioAberto(false);
           setFaqAberto(true);
         }}
       >
         <span className="hidden sm:inline">Perguntas comuns</span>
-        <span className="sm:hidden">Perguntas</span>
       </Button>
       <Button
         variant="secondary"
         size="sm"
         icon={BookOpenIcon}
+        aria-label="Glossário"
+        title="Glossário"
         onClick={() => {
           setFaqAberto(false);
           setGlossarioAberto(true);
         }}
       >
         <span className="hidden sm:inline">Glossário</span>
-        <span className="sm:hidden">Termos</span>
       </Button>
+      {internoLogado ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={AdjustmentsHorizontalIcon}
+          aria-label="Racional"
+          title="Racional deste link"
+          aria-pressed={view.modo === "racional"}
+          onClick={() => {
+            if (view.modo === "racional") {
+              setView(view.voltar);
+              return;
+            }
+            setView({ modo: "racional", voltar: view });
+          }}
+        >
+          <span className="hidden sm:inline">Racional</span>
+        </Button>
+      ) : null}
+      {/* Por último das três consultas: é a mais funda — o glossário explica um
+          termo, as perguntas explicam um argumento, e o PDF abre o motor
+          célula a célula. Fica na barra fixa porque a dúvida que ele responde
+          nasce no meio da leitura, não no fim dela. */}
+      <BotaoFormulas token={token} liberado={formulasLiberadas} />
     </>
   );
 
@@ -580,10 +711,10 @@ export function CalculadoraApp({
     mensalidade: estado.times[0].entradas.numVendedores !== null ? 1 : 0,
     quiz: prog.total > 0 ? prog.preenchidos / prog.total : 0,
     relatorio: tudoCompleto && prog.preenchidos > 0 ? 1 : 0,
-    exportar: autosave.submittedAt ? 1 : 0,
   };
 
   return (
+    <PremissasProvider value={premissas}>
     <main
       className={cn(
         // Sem fundo próprio: a rampa azul da pele é pintada pelo body
@@ -595,13 +726,29 @@ export function CalculadoraApp({
       )}
     >
       <EtapasNav
-        etapaAtual={ETAPA_DA_VIEW[view.modo]}
+        etapaAtual={etapaDaView(view)}
         onIr={irParaEtapa}
         preenchimento={preenchimento}
         acoes={acoesHeader}
       />
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+        {view.modo === "racional" && internoLogado ? (
+          <AbaRacional
+            token={token}
+            premissas={premissas}
+            modelo={modelo}
+            onChange={(proximo) => {
+              setUsarPadrao(false);
+              setPremissas(fundirPremissas(proximo));
+            }}
+            onRestaurar={() => {
+              setUsarPadrao(true);
+              setPremissas(PREMISSAS_PADRAO);
+            }}
+          />
+        ) : null}
+
         {view.modo === "mensalidade" ? (
           <div className="flex flex-1 items-center justify-center">
             <EtapaMensalidade
@@ -632,7 +779,10 @@ export function CalculadoraApp({
           // card mantém o próprio `max-w-2xl` dentro do `1fr` — a medida de
           // leitura não muda porque ganhou vizinho.
           <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[264px_1fr]">
-            <div className="lg:sticky lg:top-8 lg:self-start">
+            {/* `top-20` e não `top-8`: a barra do topo passou a ser fixa
+                (~60px no desktop) e, com `z-header`, cobriria as primeiras
+                bolhas do mapa de times quando ele grudasse a 32px. */}
+            <div className="lg:sticky lg:top-20 lg:self-start">
               <TimesSidebar
                 times={estadoDerivado.times}
                 timeAtual={timeAtualId}
@@ -682,16 +832,8 @@ export function CalculadoraApp({
                     proposta={timeModelo.estadoTime.proposta}
                     prazoMeses={modelo.prazoMeses}
                     sel={timeModelo.sel}
-                    assentosDefault={timeModelo.assentosDefault}
-                    assentosLimitados={timeModelo.assentosLimitados}
-                    numVendedores={timeModelo.entradas.numVendedores}
                     planoHerdado={timeModelo.estadoTime.proposta.assentos === null}
                     onChangePlano={(plano) => setProposta(timeAtualId, { plano })}
-                    onChangeAssentos={(assentos) =>
-                      setProposta(timeAtualId, {
-                        assentos: Math.min(assentos, MAX_ASSENTOS),
-                      })
-                    }
                     onChangePrazo={setPrazo}
                     onChangeCenario={(sel) => setCenario(timeAtualId, sel)}
                   />
@@ -727,6 +869,7 @@ export function CalculadoraApp({
             vendedoresDaConta={vendedoresDaConta}
             onChangeEstrutura={setEstrutura}
             onChangeCampo={setCampo}
+            onChangeNome={setNome}
             onChangePlano={(timeId, plano: PlanoId) => setProposta(timeId, { plano })}
             onChangeAssentos={(timeId, assentos) =>
               setProposta(timeId, {
@@ -767,6 +910,8 @@ export function CalculadoraApp({
                 modelo={modelo}
                 timeAtivo={timeModelo}
                 dataCalculo={dataCalculo}
+                escopo={capaConsolidada ? "consolidado" : "time"}
+                abas={abasEscopo}
                 onVerDetalhado={() =>
                   document
                     .getElementById("ao-longo-de-12-meses")
@@ -777,25 +922,16 @@ export function CalculadoraApp({
                 // botão se chama "Refazer simulação" mas não apaga nada, e é a
                 // própria capa que diz isso abaixo dos botões.
                 onRefazer={() => irParaQuiz(timeAtualId, 1)}
-                // Imprimir DAQUI sairia como uma cópia crua da tela: o CSS de
-                // impressão (`body * { visibility: hidden }` + o recorte de
-                // `#resumo-verificavel`) mora dentro do `ResumoVerificavel`, e
-                // ele só existe na etapa 04. O botão então leva ao artefato e
-                // abre o diálogo lá — o que sai continua sendo só o Resumo,
-                // como o invariante manda. O `window.print()` do botão antigo
-                // tinha esse mesmo defeito, calado por ser secundário.
-                onExportar={() => setView({ modo: "exportar", imprimir: true })}
-              />
-            ) : null}
-
-            {multiTime ? (
-              <ConsolidadoView
-                consolidado={modelo.consolidado}
-                times={modelo.times}
-                timeAtivo={timeAtualId}
-                onSelecionarTime={setTimeAtivoId}
-                onAddTime={() => setView({ modo: "avancado" })}
-                podeAdicionar={estado.times.length < MAX_TIMES}
+                // Imprime daqui mesmo desde 21/08/2026, e é o fecho desta
+                // mesma página que permite: o `ResumoVerificavel` está montado
+                // lá — invisível na tela desde 21/08/2026, mas MONTADO —, e o
+                // CSS de impressão que mora dentro dele
+                // (`body * { visibility: hidden }` + o recorte de
+                // `#resumo-verificavel`) recorta a folha sozinho. Enquanto ele
+                // vivia noutra etapa, imprimir daqui saía como cópia crua da
+                // tela — com régua e botões —, e por isso o botão levava para
+                // lá antes de abrir o diálogo.
+                onExportar={() => window.print()}
               />
             ) : null}
 
@@ -836,10 +972,18 @@ export function CalculadoraApp({
                   </SecaoResultado>
                 </GrupoRelatorio>
 
-                {/* Quatro CARDS irmãos, não quatro sub-blocos dentro de um
-                    painel. Cada um tinha um `h3` na mesma classe do `h2` da
-                    seção que os continha — quatro títulos empatados, e nenhuma
-                    moldura dizendo onde um assunto acabava. */}
+                {/* CARDS irmãos, não sub-blocos dentro de um painel. Cada um
+                    tinha um `h3` na mesma classe do `h2` da seção que os
+                    continha — títulos empatados, e nenhuma moldura dizendo onde
+                    um assunto acabava.
+
+                    Eram quatro até 21/08/2026, quando a "Decomposição do valor
+                    — as alavancas" saiu (decisão do decisor). A pergunta que ela
+                    respondia — de que o total é feito — já é respondida na
+                    CAPA, pela `AlocacaoValor`, e o par Eficiência/Performance
+                    logo acima abre as mesmas parcelas com o racional de cada
+                    uma. O gráfico continua existindo para `link-detail`, que é
+                    a tela interna e não tem capa. */}
                 <GrupoRelatorio
                   id="de-onde-vem"
                   titulo={
@@ -894,21 +1038,16 @@ export function CalculadoraApp({
                     </SecaoResultado>
                   </div>
 
-                  <SecaoResultado
-                    titulo="Decomposição do valor — as alavancas"
-                    descricao={descricaoDecomposicao(timeModelo.resultado)}
-                  >
-                    <DecomposicaoValor resultado={timeModelo.resultado} />
-                  </SecaoResultado>
-
-                  {/* Os sliders saíram daqui: a projeção se escolhe na pergunta
-                      8 e se afina na etapa avançada. A faixa dos três cenários
-                      fica — ela é LEITURA, e é o que permite decidir sobre a
-                      faixa em vez de sobre um ponto. */}
+                  {/* A faixa dos três cenários é onde a decisão se toma sobre um
+                      INTERVALO em vez de um ponto — e desde 21/08/2026 é também
+                      onde ela se muda: escolher outra coluna e ajustar os deltas
+                      da coluna ativa acontecem aqui, no único bloco cujo assunto
+                      já era a diferença entre um cenário e outro. A pergunta 8 e
+                      a etapa avançada continuam escrevendo o mesmo estado. */}
                   {comparacao ? (
                     <SecaoResultado
                       titulo="Comparação de cenários"
-                      descricao={DESCRICAO_CENARIOS}
+                      descricao={DESCRICAO_CENARIOS_EDITAVEL}
                     >
                       <ComparacaoCenarios
                         linhas={comparacao}
@@ -919,28 +1058,44 @@ export function CalculadoraApp({
                             : timeModelo.sel.base
                         }
                         personalizado={timeModelo.sel.modo === "personalizado"}
+                        edicao={{
+                          entradas: timeModelo.entradas,
+                          sel: timeModelo.sel,
+                          linhaAtiva,
+                          onChange: (sel) => setCenario(timeAtualId, sel),
+                        }}
                       />
                     </SecaoResultado>
                   ) : null}
                 </GrupoRelatorio>
               </>
             ) : (
-              <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
-                <ResultadoIncompleto
-                  faltando={timeModelo.resultado.faltando}
-                  onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
-                />
+              // Sem capa, a fita de escopo vem aqui: é o único caminho de volta
+              // ao consolidado depois de abrir um time que não fechou a conta.
+              <div className="flex flex-col gap-4">
+                {abasEscopo ? (
+                  <div className="px-1 sm:px-2">{abasEscopo}</div>
+                ) : null}
+                <div className="rounded-md border border-(--pf-line) bg-(--pf-surface) p-6 sm:p-8">
+                  <ResultadoIncompleto
+                    faltando={timeModelo.resultado.faltando}
+                    onIrParaPasso={(passo) => irParaQuiz(timeAtualId, passo)}
+                  />
+                </div>
               </div>
             )}
 
             {timeModelo.coi ? (
               <GrupoRelatorio
-                id="o-que-esta-em-jogo"
+                // O id acompanha o título: âncora que não diz o nome do
+                // capítulo é a que ninguém encontra depois. Nada linkava para
+                // a antiga (`o-que-esta-em-jogo`) — a checagem foi feita.
+                id="quanto-custa-nao-agir"
                 titulo={
                   <>
-                    O que está{" "}
+                    Quanto custa{" "}
                     <em className="not-italic text-(--pf-brand-ink)">
-                      em jogo hoje
+                      não agir
                     </em>
                   </>
                 }
@@ -949,6 +1104,7 @@ export function CalculadoraApp({
                 <SecaoResultado>
                   <CustoInacao
                     coi={timeModelo.coi}
+                    entradas={timeModelo.entradas}
                     precoAno={
                       timeModelo.resultado.status === "ok"
                         ? timeModelo.resultado.precoAno
@@ -966,8 +1122,8 @@ export function CalculadoraApp({
               id="quanto-custa"
               titulo={
                 <>
-                  Quanto{" "}
-                  <em className="not-italic text-(--pf-brand-ink)">custa</em>
+                
+                  <em className="not-italic text-(--pf-brand-ink)">Investimento</em>
                 </>
               }
               descricao="A proposta que você montou na etapa 02."
@@ -1007,28 +1163,27 @@ export function CalculadoraApp({
               />
             ) : null}
 
-            {modelo.consolidado.status !== "ok" ? (
-              <div className="px-6 pt-2">
-                <Disclaimer />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+            {/* O fecho: resumo imprimível e envio. A referência de fórmulas
+                saiu daqui em 20/08/2026 e subiu para a barra fixa do topo.
+                Era a etapa 04 até 21/08/2026 — ver o cabeçalho do arquivo. Fica
+                DEPOIS do case de sucesso porque é o pacote que sai da tela, não
+                mais leitura da conta; e fora do `status === "ok"` acima porque
+                a `EnviarBar` sabe se virar com a conta incompleta (é ela quem
+                diz o que falta), enquanto o Resumo simplesmente não aparece.
+                O `Disclaimer` da tela vive lá dentro desde 21/08/2026, junto
+                com a `EnviarBar` — antes era condicional aqui E lá, e a conta
+                incompleta rendia dois. */}
+            <FechoRelatorio
+              modelo={modelo}
+              dataCalculo={dataCalculo}
+              autosaveStatus={autosave.status}
+              salvoEm={autosave.salvoEm}
+              submittedAt={autosave.submittedAt}
+              completo={tudoCompleto}
+              onEnviar={autosave.enviar}
+            />
 
-        {view.modo === "exportar" ? (
-          <EtapaExportar
-            modelo={modelo}
-            dataCalculo={dataCalculo}
-            token={token}
-            formulasLiberadas={formulasLiberadas}
-            imprimirAoAbrir={view.imprimir === true}
-            perguntas={perguntas}
-            autosaveStatus={autosave.status}
-            salvoEm={autosave.salvoEm}
-            submittedAt={autosave.submittedAt}
-            completo={tudoCompleto}
-            onEnviar={autosave.enviar}
-          />
+          </div>
         ) : null}
       </div>
 
@@ -1054,5 +1209,6 @@ export function CalculadoraApp({
         }}
       />
     </main>
+    </PremissasProvider>
   );
 }

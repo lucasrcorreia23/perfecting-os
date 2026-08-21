@@ -19,18 +19,7 @@
 // respondida, só não é ilustrada. Nunca número parcial (P6).
 
 import type { LinhaCenario } from "./cenarios-comparacao";
-import {
-  CENARIOS,
-  CHECAGEM_ALERTA,
-  COI_HORAS_COACHING_MIN,
-  ENCARGOS,
-  HAIRCUT,
-  MAX_TIMES,
-  PLANOS,
-  REDUCAO_CICLO_MAX,
-  SUPERVISAO,
-  TAXA_MINIMA,
-} from "./constants";
+import { CENARIOS, MAX_TIMES, PLANOS } from "./constants";
 import {
   formatBRL,
   formatMeses,
@@ -38,6 +27,7 @@ import {
   formatPct,
   formatX,
 } from "./format";
+import { horasDoPlano, PREMISSAS_PADRAO, type PremissasRacional } from "./premissas";
 import type {
   Cenario,
   EntradasTime,
@@ -60,6 +50,7 @@ export type FaqContexto = {
   // a resposta existe sem número, como todas as outras.
   coi: ResultadoCoi | null;
   multiTime: boolean;
+  premissas?: PremissasRacional;
 };
 
 // Três frentes por onde o número é atacado. Doze perguntas numa lista plana
@@ -88,8 +79,6 @@ export type PerguntaCfo = {
   paragrafos: string[];
 };
 
-const PCT_HAIRCUT = Math.round((1 - HAIRCUT) * 100); // 30%
-
 function linhaCenario(
   comparacao: LinhaCenario[] | null,
   cenario: Cenario,
@@ -101,6 +90,8 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
   const r = ctx.resultado;
   const e = ctx.entradas;
   const { preco, prazoMeses, comparacao } = ctx;
+  const p = ctx.premissas ?? PREMISSAS_PADRAO;
+  const pctHaircut = Math.round((1 - p.haircut) * 100);
 
   const cons = linhaCenario(comparacao, "conservador");
   const real = linhaCenario(comparacao, "realista");
@@ -108,8 +99,10 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
 
   const exposicaoTotal = preco.mensal > 0 ? preco.mensal * prazoMeses : null;
   const custoGestorAno =
-    e?.salarioGestor != null ? e.salarioGestor * ENCARGOS * 12 : null;
-  const horasPorVendedorMes = ctx.proposta ? PLANOS[ctx.proposta.plano].horasMes : null;
+    e?.salarioGestor != null ? e.salarioGestor * p.encargos * 12 : null;
+  const horasPorVendedorMes = ctx.proposta
+    ? horasDoPlano(ctx.proposta.plano, p)
+    : null;
   const ancoragem = r?.linhasNaoSomadas.find((l) => l.id === "ancoragem_hora_roleplay");
   const timeEmRampa = r?.linhasNaoSomadas.find((l) => l.id === "custo_time_em_rampa");
 
@@ -122,14 +115,14 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     pergunta: "Como o modelo evita ser otimista demais?",
     paragrafos: [
       `O cenário que abre a tela é o Conservador, não o Otimista: ${CENARIOS.conservador.descricao}. Ele é o default justamente porque é o número com que se decide.`,
-      `Três das quatro alavancas de performance — rampa, conversão e ciclo — entram com desconto de ${PCT_HAIRCUT}% antes de somar. Só o ticket passa inteiro, porque é a única mudança que o CRM mede direto no valor do negócio fechado. A eficiência não leva desconto porque já tem dois freios próprios: nunca supera o valor da prática que o plano entrega (o teto) e desconta ${formatPct(SUPERVISAO * 100, 0)} de supervisão que continua sendo necessária.`,
+      `Três das quatro alavancas de performance — rampa, conversão e ciclo — entram com desconto de ${pctHaircut}% antes de somar. Só o ticket passa inteiro, porque é a única mudança que o CRM mede direto no valor do negócio fechado. A eficiência não leva desconto porque já tem dois freios próprios: nunca supera o valor da prática que o plano entrega (o teto) e desconta ${formatPct(p.supervisao * 100, 0)} de supervisão que continua sendo necessária.`,
       r
-        ? `Nesta simulação, a checagem de realidade fica em ${formatPct(r.checagemRealidadePct, 1)}: é o quanto os ganhos de performance representam da margem anual do time hoje. O limite que usamos é ${formatPct(CHECAGEM_ALERTA * 100, 0)} — ${
+        ? `Nesta simulação, a checagem de realidade fica em ${formatPct(r.checagemRealidadePct, 1)}: é o quanto os ganhos de performance representam da margem anual do time hoje. O limite que usamos é ${formatPct(p.checagemAlerta * 100, 0)} — ${
             r.checagemAlerta
               ? "acima dele, como aqui, a projeção pede ceticismo e vale reduzir o cenário antes de decidir."
               : "abaixo dele, a projeção cabe dentro da estrutura de margem que a operação já tem."
           }`
-        : `Existe ainda uma checagem de realidade: os ganhos de performance não podem representar mais que ${formatPct(CHECAGEM_ALERTA * 100, 0)} da margem anual do time — acima disso o próprio modelo avisa que a conta pede ceticismo.`,
+        : `Existe ainda uma checagem de realidade: os ganhos de performance não podem representar mais que ${formatPct(p.checagemAlerta * 100, 0)} da margem anual do time — acima disso o próprio modelo avisa que a conta pede ceticismo.`,
     ],
   });
 
@@ -163,7 +156,7 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
         ? `A diferença primeira é volume. O plano ${PLANOS[ctx.proposta!.plano].label} entrega ${formatNumero(horasPorVendedorMes, 0)} h de prática por vendedor por mês; hoje, pelos seus próprios números, cada vendedor coberto recebe ${formatNumero(e.horasPraticaPorRepHoje, 1)} h. Repetição muda comportamento; palestra não.`
         : "A diferença primeira é volume: prática medida em horas por vendedor por mês, contra as poucas horas por trimestre que um treinamento em sala entrega. Repetição muda comportamento; palestra não.",
       "A segunda é registro. Cada sessão de roleplay é gravada e pontuada, então adoção e evolução de habilidade aparecem antes de chegarem ao CRM — você audita o mecanismo funcionando sem esperar o resultado financeiro.",
-      "A terceira é custo marginal. Coaching escala com o número de gestores; aqui a hora adicional entra pela escada de preço, que fica mais barata conforme o volume cresce, sem abrir linha nova de orçamento.",
+      "A terceira é custo marginal. Coaching escala com o número de gestores; aqui a hora adicional entra pela tabela de preços por tier, e volume maior derruba a taxa de TODAS as horas, sem abrir linha nova de orçamento.",
     ],
   });
 
@@ -209,7 +202,7 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
       timeEmRampa?.valorAno != null
         ? `Há também o custo que já está na folha: ${formatBRL(timeEmRampa.valorAno)}/ano em salário de vendedores que ainda não rendem o que consomem. Encurtar a rampa não economiza esse salário — faz a mesma folha render antes.`
         : "Há também o custo que já está na folha e ninguém contabiliza: o salário de vendedores em rampa, que são pagos enquanto ainda não rendem o que consomem.",
-      `A escada de preço começa na cobrança mínima de ${formatBRL(TAXA_MINIMA)}/mês, então dá para entrar pelo menor escopo defensável e crescer com evidência — sem overage e sem linha surpresa.`,
+      `A tabela de preços começa na cobrança mínima de ${formatBRL(p.taxaMinima)}/mês, então dá para entrar pelo menor escopo defensável e crescer com evidência — sem overage e sem linha surpresa.`,
     ],
   });
 
@@ -233,8 +226,8 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     grupo: "programa",
     pergunta: "Como isso se compara a coaching interno ou a um LMS?",
     paragrafos: [
-      ancoragem?.detalhe?.custoHoraGestor != null
-        ? `A comparação que importa é com onde o orçamento já vai hoje. Uma hora de prática conduzida pelos seus gestores custa ${formatBRL(ancoragem.detalhe.custoHoraGestor, 2)} — salário com encargos, multiplicado pelo tempo de preparação e feedback que cada hora de prática consome na sua operação. A mesma hora pela Perfecting sai a ${formatBRL(ancoragem.detalhe.custoHoraPerfecting ?? null, 2)}.`
+      ancoragem?.detalhe?.custoHoraPraticaGestor != null
+        ? `A comparação que importa é com onde o orçamento já vai hoje. Uma hora de prática conduzida pelos seus gestores custa ${formatBRL(ancoragem.detalhe.custoHoraPraticaGestor, 2)} — salário com encargos, multiplicado pelo tempo de preparação e feedback que cada hora de prática consome na sua operação. A mesma hora pela Perfecting sai a ${formatBRL(ancoragem.detalhe.custoHoraPerfecting ?? null, 2)}.`
         : "A comparação que importa é com onde o orçamento já vai hoje: a hora de prática conduzida por gestores custa salário com encargos multiplicado pelo tempo de preparação e feedback que ela consome.",
       "Essa comparação por hora é ancoragem, e não entra no ROI: somar a economia do caminho declarado e a diferença de preço por hora seria contar o mesmo benefício duas vezes. A tela marca essa linha como não somada exatamente por isso.",
       "Contra um LMS, a diferença não é o catálogo: é que a prática é conversacional e pontuada, então existe evidência de mudança de comportamento, não só de conclusão de módulo. Contra não fazer nada, o custo de oportunidade é o que a tela projeta.",
@@ -263,7 +256,7 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     paragrafos: [
       "Todo número desta tela vem de um campo que você preencheu ou de uma premissa declarada — e as duas coisas são editáveis aqui mesmo. Mude qualquer valor em “Seus números” e o resultado inteiro recalcula na hora, incluindo a comparação de cenários.",
       "Cada linha do resultado declara a origem: dado seu, premissa nossa, projeção, ou “não somado ao ROI”. As linhas com esse último selo aparecem de propósito e ficam fora da conta — é onde outras calculadoras costumam inflar o número.",
-      "O extrato do preço abre faixa a faixa; o Resumo no fim da página imprime em uma folha, com as travas do modelo listadas; e o Glossário, no topo, define cada termo. Se algum número não se explicar por esse caminho, é falha nossa e queremos saber.",
+      "O extrato do preço mostra o tier em que a conta caiu e a conta inteira; o Resumo no fim da página imprime em uma folha, com as travas do modelo listadas; e o Glossário, no topo, define cada termo. Se algum número não se explicar por esse caminho, é falha nossa e queremos saber.",
     ],
   });
 
@@ -273,13 +266,13 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     grupo: "numero",
     pergunta: "O custo de não agir não está inflado?",
     paragrafos: [
-      `Ele é medido com os seus números, não com médias de mercado: a lacuna sai da diferença entre a prática que hoje chega ao time e o mínimo de ${COI_HORAS_COACHING_MIN} h por vendedor ao mês. Onde a prática já cobre esse mínimo, a linha correspondente é zero — não existe crédito por cobrir mais do que o necessário.`,
+      `Ele é medido com os seus números, não com médias de mercado: a lacuna sai da diferença entre a prática que hoje chega ao time e o mínimo de ${p.coi.horasCoachingMin} h por vendedor ao mês. Onde a prática já cobre esse mínimo, a linha correspondente é zero — não existe crédito por cobrir mais do que o necessário.`,
       `Cada uma das cinco linhas carrega exatamente um desconto de conservadorismo declarado, e nenhuma delas usa receita: tudo é convertido à sua margem de contribuição antes de aparecer. A reposição de quem sai ainda é travada pelo número de contratações que você declarou — ninguém perde mais gente do que repõe.`,
       ctx.coi
         ? `Nesta simulação a lacuna soma ${formatBRL(ctx.coi.totalAno)} por ano, ${formatPct(ctx.coi.checagemPct, 1)} da margem anual do time. ${
             ctx.coi.checagemAlerta
-              ? `Acima dos ${formatPct(CHECAGEM_ALERTA * 100, 0)} que usamos como limite, vale conferir os dados de estrutura antes de levar o número adiante.`
-              : `Fica abaixo dos ${formatPct(CHECAGEM_ALERTA * 100, 0)} que usamos como limite de plausibilidade.`
+              ? `Acima dos ${formatPct(p.checagemAlerta * 100, 0)} que usamos como limite, vale conferir os dados de estrutura antes de levar o número adiante.`
+              : `Fica abaixo dos ${formatPct(p.checagemAlerta * 100, 0)} que usamos como limite de plausibilidade.`
           } Nada disso entra no retorno: o valor do programa aparece descontado dessa lacuna, nunca somado a ela — seria contar a mesma economia duas vezes.`
         : "Nada disso entra no retorno: quando o resultado aparecer, o valor do programa será mostrado descontado dessa lacuna, nunca somado a ela — seria contar a mesma economia duas vezes.",
     ],
@@ -307,8 +300,8 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
     paragrafos: [
       `A calculadora aceita de um a ${MAX_TIMES} times, cada um com números próprios, e consolida a conta ponderando por valor e investimento — nunca pela média dos retornos individuais.`,
       preco.horasMes > 0
-        ? `O preço acompanha o volume pela escada progressiva: suas ${formatNumero(preco.horasMes, 0)} h/mês saem a ${formatBRL(preco.taxaCombinada, 2)}/hora na média, e a taxa cai conforme o volume sobe. Operação pequena entra pela cobrança mínima; operação grande dilui.`
-        : "O preço acompanha o volume pela escada progressiva: operação pequena entra pela cobrança mínima, operação grande dilui a taxa por hora conforme o volume sobe.",
+        ? `O preço acompanha o volume pela tabela de tiers: suas ${formatNumero(preco.horasMes, 0)} h/mês caem no Tier ${preco.tier.tier} e saem a ${formatBRL(preco.taxaCombinada, 2)}/hora — a taxa vale para a hora inteira, e volume maior desce o tier de todas elas. Operação pequena entra pela cobrança mínima.`
+        : "O preço acompanha o volume pela tabela de tiers: operação pequena entra pela cobrança mínima, e volume maior desce a taxa por hora de toda a conta, não só das horas adicionais.",
       "Se times diferentes têm realidades diferentes, simule cada um separadamente — e, quando os mesmos gestores atendem vários, declare a estrutura uma vez só: o rateio evita contar a mesma economia duas vezes.",
     ],
   });
@@ -318,4 +311,9 @@ export function perguntasCfo(ctx: FaqContexto): PerguntaCfo[] {
 
 // Nota de rodapé da seção, com o teto de ciclo citado por extenso — é a trava
 // que mais gera pergunta e não cabe numa objeção só.
-export const FAQ_NOTA = `Todas as respostas usam os números desta simulação. As travas do modelo (desconto de ${PCT_HAIRCUT}% em rampa, conversão e ciclo; teto de ${formatPct(REDUCAO_CICLO_MAX * 100, 0)} na redução do ciclo; teto de funil; cobertura por assentos) estão aplicadas nos valores da tela, não só descritas aqui.`;
+export function faqNota(p: PremissasRacional = PREMISSAS_PADRAO): string {
+  const pctHaircut = Math.round((1 - p.haircut) * 100);
+  return `Todas as respostas usam os números desta simulação. As travas do modelo (desconto de ${pctHaircut}% em rampa, conversão e ciclo; teto de ${formatPct(p.reducaoCicloMax * 100, 0)} na redução do ciclo; teto de funil; cobertura por assentos) estão aplicadas nos valores da tela, não só descritas aqui.`;
+}
+
+export const FAQ_NOTA = faqNota();

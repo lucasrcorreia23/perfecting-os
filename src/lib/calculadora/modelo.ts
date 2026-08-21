@@ -9,6 +9,7 @@ import { consolidar, type TimeParaConsolidar } from "./consolidado";
 import { progresso } from "./estado";
 import { aplicarEstrutura } from "./estrutura";
 import { precoConta, rateioPorTime, type TimePreco } from "./preco";
+import { fundirPremissas, PREMISSAS_PADRAO, type PremissasRacional } from "./premissas";
 import type {
   CenarioSelecionado,
   EstadoCalculadora,
@@ -55,9 +56,14 @@ export type ModeloCalculadora = {
   prazoMeses: number;
   times: TimeModelo[];
   consolidado: ResultadoConsolidado;
+  premissas: PremissasRacional;
 };
 
-export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculadora {
+export function computarModelo(
+  estadoBruto: EstadoCalculadora,
+  premissasBruto: unknown = PREMISSAS_PADRAO,
+): ModeloCalculadora {
+  const p = fundirPremissas(premissasBruto);
   // Rateio da estrutura compartilhada (§4.11) antes de qualquer aritmética —
   // daqui para baixo cada time já carrega a fatia que lhe cabe.
   const estado = aplicarEstrutura(estadoBruto);
@@ -69,8 +75,8 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
   }));
 
   // Base do preço (Excel Account!C13 = SUM(Engine!C20:L20)): só times completos
-  // entram na escada e no rateio. Sem isso, um time preenchido pela metade ao
-  // lado barateava a taxa combinada e mexia no ROI do time que já fechou.
+  // entram no volume que escolhe o tier e no rateio. Sem isso, um irmão
+  // preenchido pela metade barateava a taxa e mexia no ROI de quem já fechou.
   // Enquanto NENHUM time fechou não existe resultado na tela, então a conta cai
   // para todos os times com assentos — ali o preço é prévia da proposta em
   // construção, nunca denominador de um ROI.
@@ -83,8 +89,8 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
     plano: item.time.proposta.plano,
     assentos: item.assentos!,
   }));
-  const preco = precoConta(paraPreco, estado.prazoMeses);
-  const rateio = rateioPorTime(paraPreco);
+  const preco = precoConta(paraPreco, estado.prazoMeses, p);
+  const rateio = rateioPorTime(paraPreco, p);
 
   const times: TimeModelo[] = efetivos.map(({ time, assentos }, index) => {
     const precoMes = assentos !== null ? (rateio.get(time.id) ?? 0) : 0;
@@ -96,6 +102,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
             precoMes,
             time.cenarioSel,
             estado.prazoMeses,
+            p,
           )
         : // Sem vendedores nem assentos escolhidos: gating normal resolve
           // (numVendedores está na lista de faltantes de todo jeito).
@@ -113,7 +120,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
         time.proposta.assentos !== null &&
         assentos !== null &&
         assentos < time.proposta.assentos,
-      coi: resultado.status === "ok" ? calcCoi(time.entradas, resultado) : null,
+      coi: resultado.status === "ok" ? calcCoi(time.entradas, resultado, p) : null,
       // O time CRU, como está persistido — é o que os formulários editam. As
       // entradas rateadas ficam em `entradas`, para exibir o resultado.
       estadoTime: estadoBruto.times[index],
@@ -125,6 +132,7 @@ export function computarModelo(estadoBruto: EstadoCalculadora): ModeloCalculador
     prazoMeses: estado.prazoMeses,
     times,
     consolidado: consolidar(times, estado.prazoMeses),
+    premissas: p,
   };
 }
 
@@ -158,8 +166,11 @@ function labelCenario(sel: CenarioSelecionado): string {
   return sel.modo === "preset" ? sel.cenario : "personalizado";
 }
 
-export function resumo(estado: EstadoCalculadora): ResumoLink {
-  const modelo = computarModelo(estado);
+export function resumo(
+  estado: EstadoCalculadora,
+  premissasBruto: unknown = PREMISSAS_PADRAO,
+): ResumoLink {
+  const modelo = computarModelo(estado, premissasBruto);
   const prog = progresso(estado);
   return {
     v: 2,

@@ -12,6 +12,7 @@ import {
   PaperAirplaneIcon,
   PencilSquareIcon,
   UserPlusIcon,
+  AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
 import { getCalculatorLinkUrl } from "@/lib/actions/calculator-links";
 import { CAMPO_DEFS, CAMINHO_LABEL } from "@/lib/calculadora/campos";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/calculadora/format";
 import { linkStatus } from "@/lib/calculadora/link-status";
 import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
+import { fundirPremissas } from "@/lib/calculadora/premissas";
 import { computarModelo } from "@/lib/calculadora/modelo";
 import type { CampoId, EntradasTime } from "@/lib/calculadora/types";
 import type { Tables } from "@/lib/database.types";
@@ -37,7 +39,8 @@ import { Button } from "@/components/ui/button";
 import { CalculatorStatusChip } from "@/components/ui/calculator-status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Disclaimer } from "./disclaimer";
-import { ComparacaoCenarios, DecomposicaoValor } from "./graficos-resultado";
+import { ComparacaoCenarios } from "./comparacao-cenarios";
+import { DecomposicaoValor } from "./graficos-resultado";
 import { QuantoCusta } from "./quanto-custa";
 import {
   AvisosCoerencia,
@@ -50,6 +53,7 @@ import {
 import { PaineisTrajetoria } from "./trajetoria-panel";
 import { SeloEvidencia } from "./selo-evidencia";
 import { VincularClienteModal, type ClienteOption } from "./vincular-modal";
+import { PremissasProvider } from "./premissas-context";
 
 type LinkRow = Tables<"calculator_links">;
 type EventRow = Tables<"calculator_link_events">;
@@ -63,7 +67,7 @@ const EVENTO_META: Record<string, { icon: HeroIcon; label: string }> = {
   revogado: { icon: NoSymbolIcon, label: "Link revogado" },
   prorrogado: { icon: CalendarDaysIcon, label: "Validade prorrogada" },
   link_rotacionado: { icon: ArrowPathIcon, label: "Nova URL gerada" },
-  vinculado_a_cliente: { icon: UserPlusIcon, label: "Vinculado a um cliente" },
+  premissas_alteradas: { icon: AdjustmentsHorizontalIcon, label: "Alterou o racional" },
 };
 
 function descricaoEvento(event: EventRow): string | null {
@@ -142,8 +146,8 @@ export function LinkDetail({
   const [pending, startTransition] = useTransition();
 
   const estado = useMemo(() => parseEstado(link.state), [link.state]);
-  // O detalhe recomputa do state — o result_summary é só cache da listagem.
-  const modelo = useMemo(() => computarModelo(estado), [estado]);
+  const premissas = useMemo(() => fundirPremissas(link.premissas), [link.premissas]);
+  const modelo = useMemo(() => computarModelo(estado, premissas), [estado, premissas]);
 
   const status = linkStatus({
     revokedAt: link.revoked_at,
@@ -181,6 +185,7 @@ export function LinkDetail({
   });
 
   return (
+    <PremissasProvider value={premissas}>
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
@@ -337,6 +342,7 @@ export function LinkDetail({
                           time.proposta,
                           time.precoMes,
                           modelo.prazoMeses,
+                          premissas,
                         );
                         return linhas ? (
                           <div className="flex flex-col gap-4">
@@ -480,5 +486,6 @@ export function LinkDetail({
         irParaClienteAoConcluir
       />
     </div>
+    </PremissasProvider>
   );
 }

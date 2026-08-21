@@ -1,8 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import {
   CENARIOS,
-  MAX_ASSENTOS,
   PLANOS,
   PRAZO_COPY,
   PRAZOS_MESES,
@@ -15,15 +15,22 @@ import type {
   PropostaTime,
 } from "@/lib/calculadora/types";
 import { Field } from "@/components/ui/form";
-import { CampoNumero } from "./campo-numero";
 import { GrupoOpcoes, GrupoPlanos } from "./opcao-cards";
+import { usePremissas } from "./premissas-context";
+import type { PremissasRacional } from "@/lib/calculadora/premissas";
 
 // A pergunta 8: como contratar, e quão otimista projetar.
 //
 // É a única pergunta do quiz que NÃO edita `EntradasTime` — ela escreve na
-// proposta (plano, assentos), no prazo da conta e no cenário. Por isso mora
-// fora do `passo-form`, e por isso não tem entrada em `camposFaltando`: não há
-// o que "faltar" num campo que já nasce com default.
+// proposta (plano), no prazo da conta e no cenário. Por isso mora fora do
+// `passo-form`, e por isso não tem entrada em `camposFaltando`: não há o que
+// "faltar" num campo que já nasce com default.
+//
+// Assentos NÃO se escolhem aqui (20/08/2026): vazio já significa "o time
+// inteiro", que é a resposta certa para quase todo mundo, e pedir o número
+// no quiz cobrava uma decisão de escopo antes de a pessoa ter visto o
+// resultado. Quem precisa de um grupo menor ajusta na etapa avançada, onde o
+// campo continua — junto dos outros ajustes por time.
 //
 // Desde 20/08/2026 é AQUI que a proposta se monta. No resultado, "Quanto
 // custa" virou leitura — os controles que recalculavam o número ao vivo
@@ -32,8 +39,8 @@ import { GrupoOpcoes, GrupoPlanos } from "./opcao-cards";
 const ORDEM: Cenario[] = ["conservador", "realista", "otimista"];
 
 /** Os quatro deltas de um preset, na frase que o card mostra. */
-function deltasDoCenario(cenario: Cenario): string {
-  const c = CENARIOS[cenario];
+function deltasDoCenario(cenario: Cenario, p: PremissasRacional): string {
+  const c = p.cenarios[cenario];
   return [
     `ticket +${Math.round(c.ticketPct * 100)}%`,
     `rampa +${Math.round(c.rampaPct * 100)}%`,
@@ -46,24 +53,16 @@ export function PerguntaProposta({
   proposta,
   prazoMeses,
   sel,
-  assentosDefault,
-  assentosLimitados,
-  numVendedores,
   planoHerdado,
   onChangePlano,
-  onChangeAssentos,
   onChangePrazo,
   onChangeCenario,
 }: {
   proposta: PropostaTime;
   prazoMeses: number;
   sel: CenarioSelecionado;
-  assentosDefault: boolean;
-  assentosLimitados: boolean;
-  numVendedores: number | null;
   planoHerdado: boolean;
   onChangePlano: (plano: PlanoId) => void;
-  onChangeAssentos: (assentos: number) => void;
   onChangePrazo: (prazo: number) => void;
   onChangeCenario: (sel: CenarioSelecionado) => void;
 }) {
@@ -71,35 +70,15 @@ export function PerguntaProposta({
   // ali o modo vira "personalizado" e o preset sobrevive como `base`.
   const cenarioAtivo = sel.modo === "preset" ? sel.cenario : sel.base;
 
-  // O campo mostra o valor CRU, e vazio é uma escolha válida ("o time inteiro").
-  // Dizer "pré-preenchido" enquanto a caixa está vazia seria a tela desmentindo
-  // a si mesma — é a mesma copy que "Quanto custa" já usava.
-  const ajudaAssentos = assentosLimitados
-    ? `Travado no tamanho do time (${numVendedores}): a cobertura satura em 1, e assento acima disso não gera retorno.`
-    : assentosDefault && numVendedores !== null
-      ? `Vazio = o time inteiro (${numVendedores}). Você pode começar com um grupo menor e expandir.`
-      : "Quantos vendedores terão acesso à prática.";
+  // "Herdado da etapa 1" para de valer no instante em que a pessoa troca o
+  // plano aqui — senão a linha apresentaria como herança uma escolha feita
+  // nesta tela. O sinal que vem do caller é `assentos === null`, e com o campo
+  // de assentos fora do quiz nada mais aqui dentro derrubaria a frase.
+  const [planoTrocadoAqui, setPlanoTrocadoAqui] = useState(false);
+  const p = usePremissas();
 
   return (
     <div className="flex flex-col gap-8">
-      <Field
-        label="Assentos Perfecting"
-        help={ajudaAssentos}
-        htmlFor="campo-assentos"
-        escala="leitura"
-      >
-        <CampoNumero
-          id="campo-assentos"
-          valor={proposta.assentos}
-          formato="numero"
-          inteiro
-          placeholder="Ex.: 30"
-          onChange={(valor) => onChangeAssentos(Math.min(valor ?? 0, MAX_ASSENTOS))}
-          autoFocus
-          descritoPor="campo-assentos-ajuda"
-        />
-      </Field>
-
       <Field
         label="Cenário de projeção"
         help="O Conservador é o piso — é com ele que se decide. Os outros dois mostram a faixa."
@@ -112,7 +91,7 @@ export function PerguntaProposta({
           opcoes={ORDEM.map((id) => ({
             id,
             label: CENARIOS[id].label,
-            descricao: deltasDoCenario(id),
+            descricao: deltasDoCenario(id, p),
             selo: id === "conservador" ? "Recomendado" : undefined,
           }))}
         />
@@ -138,7 +117,7 @@ export function PerguntaProposta({
       <Field
         label="Plano (cadência de treino)"
         help={
-          planoHerdado
+          planoHerdado && !planoTrocadoAqui
             ? `Herdado da etapa 1: ${PLANOS[proposta.plano].label}. Pode trocar aqui.`
             : "Horas de prática por assento, por mês."
         }
@@ -146,7 +125,10 @@ export function PerguntaProposta({
       >
         <GrupoPlanos
           valor={proposta.plano}
-          onChange={onChangePlano}
+          onChange={(plano) => {
+            setPlanoTrocadoAqui(true);
+            onChangePlano(plano);
+          }}
           unidade="por assento / mês"
         />
       </Field>

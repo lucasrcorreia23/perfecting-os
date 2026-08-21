@@ -8,10 +8,14 @@ import {
   fatorEscopoDeclarado,
   type PropostaEfetiva,
 } from "@/lib/calculadora/calc";
+import { horasGestorDevolvidas } from "@/lib/calculadora/business-case";
 import {
   CENARIOS,
+  ENCARGOS,
   FINE_TUNE_RAMPA_MAX,
   FINE_TUNE_TICKET_MAX,
+  JORNADA_MENSAL_H,
+  SUPERVISAO,
 } from "@/lib/calculadora/constants";
 import { entradasVazias } from "@/lib/calculadora/estado";
 import { precoConta, rateioPorTime } from "@/lib/calculadora/preco";
@@ -112,8 +116,44 @@ describe("caso de referência §14 (golden)", () => {
     const r = resultadoGolden();
     const ancoragem = r.linhasNaoSomadas.find((l) => l.id === "ancoragem_hora_roleplay")!;
     expect(ancoragem.valorAno).toBeNull(); // tabela comparativa, nunca somada
-    expect(ancoragem.detalhe?.custoHoraGestor).toBeCloseTo(105 * (60 / 27), 2); // 233,33
+    expect(ancoragem.detalhe?.custoHoraPraticaGestor).toBeCloseTo(105 * (60 / 27), 2); // 233,33
     expect(ancoragem.detalhe?.custoHoraPerfecting).toBeCloseTo(13_000 / 120, 2); // 108,33
+  });
+
+  // A armadilha que a capa caiu em 21/08/2026: a taxa de ancoragem é o preço de
+  // uma hora de PRÁTICA (folha × fator de escopo), não o custo/hora de folha.
+  // Multiplicá-la pelas horas de AGENDA que o gestor recupera infla a economia
+  // pelo fator inteiro — 2,22× no golden. Quem precifica essas horas é a
+  // eficiência, e é ela que a tela mostra.
+  it("a taxa de ancoragem não precifica hora de agenda — quem faz isso é a eficiência", () => {
+    const r = resultadoGolden();
+    const entradas = entradasGolden();
+    const ancoragem = r.linhasNaoSomadas.find((l) => l.id === "ancoragem_hora_roleplay")!;
+    const taxaAncoragem = ancoragem.detalhe!.custoHoraPraticaGestor!;
+    const folhaHora = (entradas.salarioGestor! * ENCARGOS) / JORNADA_MENSAL_H;
+
+    // As duas taxas são a MESMA coisa vezes o fator de escopo. Enquanto o fator
+    // não for 1 — e no golden ele é 2,22 —, trocar uma pela outra é erro de
+    // unidade, não arredondamento.
+    expect(taxaAncoragem).toBeCloseTo(folhaHora * r.fatorEscopo.valor, 9);
+    expect(r.fatorEscopo.valor).not.toBeCloseTo(1, 2);
+
+    // As horas devolvidas travam na agenda de hoje (3 × 20 h).
+    const devolvidas = horasGestorDevolvidas(
+      entradas,
+      "pratica",
+      30,
+      r.fatorEscopo.valor,
+    ).horas;
+    expect(devolvidas).toBe(60);
+
+    // A eficiência é essas horas a preço de FOLHA, com a supervisão de 25% que
+    // continua sendo do gestor. É o número que o card mostra por mês.
+    expect(r.eficienciaAno).toBeCloseTo(devolvidas * folhaHora * (1 - SUPERVISAO) * 12, 6);
+    expect(r.eficienciaAno / 12).toBeCloseTo(4_725, 6);
+
+    // E a conta errada, para o teste falhar se alguém a refizer: 2,96× a certa.
+    expect(devolvidas * taxaAncoragem).toBeCloseTo(14_000, 0);
   });
 
   it("linhas dependentes do salário do vendedor viram travessão sem o campo", () => {
@@ -562,19 +602,22 @@ function resultadoFiesc() {
 }
 
 describe("caso de referência FIESC (Excel v4.1)", () => {
-  it("escada sem piso: 800 h/mês → R$ 68.064/mês", () => {
+  it("tier 3 sem piso: 800 h/mês → R$ 56.000/mês", () => {
     const preco = precoConta(TIMES_FIESC);
     expect(preco.horasMes).toBe(800);
-    // 262 × 98 + 394 × 82 + 144 × 70 = 25.676 + 32.308 + 10.080
+    // 800 h caem em 657–1.243 → Tier 3 → 800 × 70.
     //
-    // Era 67.068 (262×98 + 311×82 + 227×70) enquanto o Tier 2 ia até 573 h.
-    // Com a fronteira em 656 (Template, 18/08/2026) 83 horas voltam de R$ 70
-    // para R$ 82. Desde 19/08/2026 a aba Premissas também traz 656 (E-24
-    // fechada), então este número volta a sair da planilha. Ver ESCADA_PRECO.
-    expect(preco.bruto).toBeCloseTo(68_064, 4);
+    // A história deste número em três atos: 67.068 enquanto o Tier 2 ia até
+    // 573 h (262×98 + 311×82 + 227×70); 68.064 quando a fronteira foi para 656
+    // (262×98 + 394×82 + 144×70, Template de 18/08/2026); e 56.000 desde
+    // 21/08/2026, quando o preço deixou de ser escada marginal e passou a ser
+    // a taxa cheia do tier — a leitura da aba comercial. Ver TABELA_TIERS.
+    expect(preco.bruto).toBeCloseTo(56_000, 4);
     expect(preco.pisoAplicado).toBe(false);
-    expect(preco.mensal).toBeCloseTo(68_064, 4);
-    expect(preco.taxaCombinada).toBeCloseTo(85.08, 6);
+    expect(preco.mensal).toBeCloseTo(56_000, 4);
+    // Sem piso, a taxa efetiva É a taxa do tier — o que a tabela promete.
+    expect(preco.taxaCombinada).toBeCloseTo(70, 6);
+    expect(preco.tier.tier).toBe(3);
   });
 
   it("fator de escopo declarado = 120 ÷ 204 = 0,588 (treino em grupo)", () => {
@@ -600,13 +643,13 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
 
   it("fecha ROI, payback e checagem de realidade do Account", () => {
     const r = resultadoFiesc();
-    expect(r.roi).toBeCloseTo(0.43206239328929, 10);
+    expect(r.roi).toBeCloseTo(0.52514097744360866, 10);
     // Engine!C64 = 20 oportunidades ociosas, C65 = 3 vendas, C66 = 0,789 →
     // C69 FALSO: quem definiu a parcela foi a capacidade, não o funil.
     expect(r.tetoFunil).toMatchObject({ limitou: false, oportunidadesOciosasMes: 20 });
     expect(r.tetoFunil!.tetoVendasMes).toBeCloseTo(3, 10);
     expect(r.tetoFunil!.ganhoCapacidadeVendasMes).toBeCloseTo(0.789473684210525, 10);
-    expect(r.paybackMeses).toBeCloseTo(27.77376644295304, 10);
+    expect(r.paybackMeses).toBeCloseTo(22.851006711409415, 10);
     expect(r.checagemRealidadePct).toBeCloseTo(11.4842105263158, 6);
     expect(r.checagemAlerta).toBe(false);
   });
@@ -617,7 +660,7 @@ describe("caso de referência FIESC (Excel v4.1)", () => {
     expect(aviso).toBeDefined();
     if (aviso?.tipo === "payback_excede_contrato") {
       expect(aviso.prazoMeses).toBe(3);
-      expect(aviso.paybackMeses).toBeCloseTo(27.77376644295304, 6);
+      expect(aviso.paybackMeses).toBeCloseTo(22.851006711409415, 6);
     }
   });
 

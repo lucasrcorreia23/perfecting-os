@@ -1,50 +1,71 @@
-// Preço da conta (§4.9–4.10): escada progressiva marginal por faixa sobre o
-// total de horas, piso aplicado depois do desconto (desconto = 0 — prazo não
-// altera preço) e rateio por horas entre times. Opera sobre os times EFETIVOS
-// (plano + assentos resolvidos) que o visitante montou.
+// Preço da conta (§4.9–4.10): tabela de preços por tier sobre o total de horas
+// — o volume escolhe o tier e todas as horas saem pela taxa cheia dele —, piso
+// aplicado depois do desconto (desconto = 0 — prazo não altera preço) e rateio
+// por horas entre times. Opera sobre os times EFETIVOS (plano + assentos
+// resolvidos) que o visitante montou.
 
 import {
   DESCONTO_PRAZO,
-  ESCADA_PRECO,
   NIVEIS_SERVICO,
-  PLANOS,
   PRAZO_DEFAULT,
   PRAZO_DEGRAU_SERVICO,
-  TAXA_MINIMA,
 } from "./constants";
-import type { FaixaExtrato, NivelServico, PlanoId, PrecoConta } from "./types";
+import {
+  horasDoPlano,
+  PREMISSAS_PADRAO,
+  type PremissasRacional,
+} from "./premissas";
+import type { NivelServico, PlanoId, PrecoConta, TierPreco } from "./types";
 
 // Time com a proposta resolvida (assentos default já aplicado).
 export type TimePreco = { id: string; plano: PlanoId; assentos: number };
 
-export function horasDoTime(time: { plano: PlanoId; assentos: number }): number {
-  return time.assentos * PLANOS[time.plano].horasMes;
+export function horasDoTime(
+  time: { plano: PlanoId; assentos: number },
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): number {
+  return time.assentos * horasDoPlano(time.plano, p);
 }
 
-export function horasDaConta(times: TimePreco[]): number {
-  return times.reduce((total, time) => total + horasDoTime(time), 0);
+export function horasDaConta(
+  times: TimePreco[],
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): number {
+  return times.reduce((total, time) => total + horasDoTime(time, p), 0);
 }
 
-// Escada marginal: cada faixa cobra sua taxa apenas pelas horas dentro dela.
-export function precoEscada(horasConta: number): { bruto: number; extrato: FaixaExtrato[] } {
-  const extrato: FaixaExtrato[] = [];
-  let restante = Math.max(0, horasConta);
-  let pisoFaixa = 0;
-  for (const faixa of ESCADA_PRECO) {
-    if (restante <= 0) break;
-    const capacidade = faixa.ateHoras - pisoFaixa;
-    const horasNaFaixa = Math.min(restante, capacidade);
-    extrato.push({
-      ateHoras: faixa.ateHoras,
-      horasNaFaixa,
-      taxaHora: faixa.taxaHora,
-      subtotal: horasNaFaixa * faixa.taxaHora,
-    });
-    restante -= horasNaFaixa;
-    pisoFaixa = faixa.ateHoras;
-  }
-  const bruto = extrato.reduce((total, faixa) => total + faixa.subtotal, 0);
-  return { bruto, extrato };
+/**
+ * O tier em que o volume total da conta cai. Conta vazia fica no Tier 1: é a
+ * faixa da primeira hora, e é o que o piso vai cobrir de qualquer jeito.
+ */
+export function tierPorHoras(
+  horasConta: number,
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): TierPreco {
+  const horas = Math.max(0, horasConta);
+  const tabela = p.tabelaTiers;
+  const indice = tabela.findIndex((faixa) => horas <= faixa.ateHoras);
+  const posicao = indice === -1 ? tabela.length - 1 : indice;
+  const faixa = tabela[posicao];
+  return {
+    tier: faixa.tier,
+    deHoras: posicao === 0 ? 0 : tabela[posicao - 1].ateHoras + 1,
+    ateHoras: faixa.ateHoras,
+    taxaHora: faixa.taxaHora,
+    economiaVsTier1: 1 - faixa.taxaHora / tabela[0].taxaHora,
+  };
+}
+
+// Taxa cheia do tier sobre TODAS as horas — não é escada marginal. As horas
+// abaixo da fronteira não guardam a taxa da faixa anterior; entrar no tier
+// seguinte reprecifica a conta inteira, degrau incluído (ver TABELA_TIERS).
+export function precoPorTier(
+  horasConta: number,
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): { bruto: number; tier: TierPreco } {
+  const horas = Math.max(0, horasConta);
+  const tier = tierPorHoras(horas, p);
+  return { bruto: horas * tier.taxaHora, tier };
 }
 
 export function nivelServicoPorAssentos(assentosConta: number): NivelServico {
@@ -65,12 +86,16 @@ export function nivelServico(assentosConta: number, prazoMeses: number): NivelSe
   return acima ?? base;
 }
 
-export function precoConta(times: TimePreco[], prazoMeses = PRAZO_DEFAULT): PrecoConta {
-  const horasMes = horasDaConta(times);
-  const { bruto, extrato } = precoEscada(horasMes);
+export function precoConta(
+  times: TimePreco[],
+  prazoMeses = PRAZO_DEFAULT,
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): PrecoConta {
+  const horasMes = horasDaConta(times, p);
+  const { bruto, tier } = precoPorTier(horasMes, p);
   // Piso depois do desconto: piso não se desconta (§4.9).
   const comDesconto = bruto * (1 - DESCONTO_PRAZO);
-  const mensal = Math.max(comDesconto, TAXA_MINIMA);
+  const mensal = Math.max(comDesconto, p.taxaMinima);
   const assentosConta = times.reduce((total, time) => total + time.assentos, 0);
   const base = nivelServicoPorAssentos(assentosConta);
   const efetivo = nivelServico(assentosConta, prazoMeses);
@@ -79,8 +104,10 @@ export function precoConta(times: TimePreco[], prazoMeses = PRAZO_DEFAULT): Prec
     bruto,
     mensal,
     anual: mensal * 12,
-    pisoAplicado: comDesconto < TAXA_MINIMA,
-    extrato,
+    pisoAplicado: comDesconto < p.taxaMinima,
+    tier,
+    // Sem piso, é a própria taxa do tier — o que a tabela comercial promete.
+    // Só diverge dela quando o piso morde.
     taxaCombinada: horasMes > 0 ? mensal / horasMes : 0,
     nivelServico: efetivo,
     nivelPorPrazo: efetivo !== base,
@@ -89,8 +116,11 @@ export function precoConta(times: TimePreco[], prazoMeses = PRAZO_DEFAULT): Prec
 
 // Rateio do preço por HORAS, não por assentos (§4.11), com ajuste de centavos
 // no último time para fechar a soma exata — taxa combinada uniforme.
-export function rateioPorTime(times: TimePreco[]): Map<string, number> {
-  const preco = precoConta(times);
+export function rateioPorTime(
+  times: TimePreco[],
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): Map<string, number> {
+  const preco = precoConta(times, PRAZO_DEFAULT, p);
   const horasTotal = preco.horasMes;
   const rateio = new Map<string, number>();
   if (times.length === 0) return rateio;
@@ -100,7 +130,7 @@ export function rateioPorTime(times: TimePreco[]): Map<string, number> {
       rateio.set(time.id, Math.round((preco.mensal - acumulado) * 100) / 100);
       return;
     }
-    const fracao = horasTotal > 0 ? horasDoTime(time) / horasTotal : 1 / times.length;
+    const fracao = horasTotal > 0 ? horasDoTime(time, p) / horasTotal : 1 / times.length;
     const parte = Math.round(preco.mensal * fracao * 100) / 100;
     rateio.set(time.id, parte);
     acumulado += parte;

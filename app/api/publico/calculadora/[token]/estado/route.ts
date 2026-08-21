@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, context: Context) {
       });
     }
 
-    const novoResumo = resumo(estadoNovo);
+    const novoResumo = resumo(estadoNovo, link.premissas);
     const salvo = await saveEstado({
       linkId: link.id,
       state: estadoNovo as unknown as Json,

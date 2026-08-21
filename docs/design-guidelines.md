@@ -889,6 +889,17 @@ decisor, 20/08/2026). Disso saem dois fios, não um:
   Sem a segunda intensidade, controle e moldura dividiam a mesma borda e nada
   dizia onde se podia clicar.
 
+**O ESTADO SELECIONADO segue a mesma escala** (mesma decisão, aplicada às abas e
+à régua de etapas no fim do dia). Sobre o canvas azul quase branco, marcar a
+escolha com uma borda de marca mais `--pf-brand-tint` deixou de funcionar: o que
+fazia o chip escolhido saltar era o contraste de **temperatura** contra um fundo
+creme, e num fundo frio ele se reduz a uma diferença de claridade quase nula. A
+aba ativa de `AbasEscopo` é **chapada na primária** (`--pf-on-brand` por cima,
+5,2:1), e as não escolhidas ficam no fio de controle. A régua de etapas fez o
+mesmo movimento por outro caminho: os três estados passaram a se separar por
+tinta **e** por espessura, e quem decide qual é o ativo é `ativo` — nunca o
+preenchimento, que numa etapa em curso quase sempre já está em 100%.
+
 O campo editável é o ponto mais alto dessa escala e ganhou a forma que o §5.1 do
 DESIGN_SYSTEM descreve: amarelo `--pf-input`, borda de **1,5px**, sombra
 **interna** (`--pf-input-inset`) e valor em mono **700 de 16px**. É o inset que
@@ -1018,11 +1029,18 @@ de sempre e **não** leva a sombra interna (`--pf-input-inset`) nem a borda de
 identifica "aqui você digita", e o card herda só o primeiro termo. O número fica
 em `--pf-ink`, nunca em verde: `#0f9f2e` sobre `#fdf1ae` dá 2,4:1.
 
-**Os dois primeiros KPIs da capa ficam na mesma régua — o ano.** O material de
-referência põe a mensalidade ao lado do valor anual, e quem confere dividindo
-acha doze vezes o ROI. O card do investimento mostra o valor ANUAL (o
-`consolidado.precoAno`, o mesmo denominador do motor) e leva o mensal na nota.
-Na tela, card 2 ÷ card 1 = card 3.
+**O card 1 da capa mostra a MENSALIDADE, com a conta do ano escrita por
+extenso** (decisão do decisor). É a inversão do que valeu até aqui: o card
+mostrava o investimento ANUAL na manchete e o mensal em 12px de nota. A razão
+da versão antiga não se perdeu — é `consolidado.precoAno` o denominador de
+`consolidado.roi`, e com a mensalidade ao lado do valor anual quem confere
+dividindo acha DOZE vezes o ROI real. A mitigação é escrever a multiplicação
+inteira dentro do card: `R$ 13.000` **× 12 meses** na linha do número,
+`R$ 156.000 no ano` na nota. O denominador do card 3 continua na tela, uma
+linha abaixo, em vez de ter de ser deduzido — e a pergunta que a pessoa
+trouxe ("quanto pago por mês") deixa de ser rodapé. O `× 12 meses` é o ano e
+nunca o contrato: com prazo de 24 meses o total desembolsado é outro e não é
+denominador de ROI nenhum; quem carrega o prazo é o card do payback.
 
 **O painel do preço é `--pf-invert`, não o `--pf-brand-deep` da etapa 01**,
 apesar de os dois mostrarem a mesma mensalidade. O motivo é contraste: o painel

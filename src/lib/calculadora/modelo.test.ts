@@ -190,7 +190,7 @@ describe("preço só sobre times completos (Excel Account!C13 = SUM(Engine!C20:L
     proposta: { plano: "pratica" as const, assentos: null },
   });
 
-  it("irmão incompleto não entra na escada nem no rateio", () => {
+  it("irmão incompleto não entra no volume do tier nem no rateio", () => {
     const solo = computarModelo(soloIntensivo());
     const comIrmao = computarModelo(
       estadoGolden({

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeftIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PencilSquareIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { CAMPO_DEFS, CAMINHO_LABEL, TIMES_HELP } from "@/lib/calculadora/campos";
 import { CAMINHOS, MAX_TIMES, PLANOS } from "@/lib/calculadora/constants";
+import { NOME_MAX } from "@/lib/calculadora/estado";
 import type { ModeloCalculadora, TimeModelo } from "@/lib/calculadora/modelo";
 import type {
   CampoId,
@@ -22,6 +23,7 @@ import { CampoNumero } from "./campo-numero";
 import { CenarioSliders } from "./cenario-sliders";
 import { BlocoRecolhivel } from "./secao-resultado";
 import { Alternador, BlocoEstrutura } from "./estrutura-compartilhada";
+import { usePremissas } from "./premissas-context";
 
 // Etapa 02b — ajustes avançados. Opcional, e alcançada só pela pergunta 8.
 //
@@ -56,20 +58,82 @@ const CAMPOS_GRADE: Exclude<CampoId, "caminho">[] = [
   "cicloDias",
 ];
 
-const PLANO_OPCOES = (Object.keys(PLANOS) as PlanoId[]).map((id) => ({
-  value: id,
-  label: `${PLANOS[id].label} · ${PLANOS[id].horasMes}h`,
-}));
-
 const CAMINHO_OPCOES = (Object.keys(CAMINHOS) as Caminho[]).map((id) => ({
   value: id,
   label: CAMINHOS[id].label,
 }));
 
+// Nome do time, editável inline no lugar do antigo `<h3>` estático. Segue o
+// padrão "adjust state during render" do `CampoNumero`: o texto local só é
+// atropelado por fora quando o campo não está focado, então o autosave (que
+// pode devolver o mesmo nome já sanitizado) nunca briga com quem está
+// digitando. Comita no blur/Enter — renomear é uma ação discreta, não um
+// campo que precisa de autosave a cada tecla — e cancela (volta ao nome
+// atual) no Escape ou se o campo ficar vazio: a sanitização de verdade
+// (`sanitizarNomeTime`) já roda no boundary do autosave server-side.
+function CampoNomeTime({
+  id,
+  nome,
+  onChange,
+}: {
+  id: string;
+  nome: string;
+  onChange: (nome: string) => void;
+}) {
+  const [texto, setTexto] = useState(nome);
+  const [focado, setFocado] = useState(false);
+  const [nomeAnterior, setNomeAnterior] = useState(nome);
+  if (nome !== nomeAnterior) {
+    setNomeAnterior(nome);
+    if (!focado) setTexto(nome);
+  }
+
+  const confirmar = (valor: string) => {
+    const limpo = valor.trim();
+    if (limpo === "" || limpo === nome) {
+      setTexto(nome);
+      return;
+    }
+    setTexto(limpo);
+    onChange(limpo);
+  };
+
+  return (
+    <input
+      id={id}
+      type="text"
+      value={texto}
+      maxLength={NOME_MAX}
+      aria-label="Nome do time"
+      autoComplete="off"
+      onFocus={() => setFocado(true)}
+      onChange={(event) => setTexto(event.target.value)}
+      onBlur={() => {
+        setFocado(false);
+        confirmar(texto);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        } else if (event.key === "Escape") {
+          setTexto(nome);
+          event.currentTarget.blur();
+        }
+      }}
+      className={cn(
+        "pf-title w-56 max-w-full min-w-0 truncate rounded-sm border border-transparent bg-transparent px-1 -mx-1 text-(--pf-ink) outline-none transition-colors",
+        "hover:border-(--pf-line-strong)",
+        "focus-visible:border-(--pf-brand) focus-visible:ring-2 focus-visible:ring-(--pf-brand)/35",
+      )}
+    />
+  );
+}
+
 function CardTime({
   time,
   estruturaAtiva,
   onChangeCampo,
+  onChangeNome,
   onChangePlano,
   onChangeAssentos,
   onChangeCenario,
@@ -78,6 +142,7 @@ function CardTime({
   time: TimeModelo;
   estruturaAtiva: boolean;
   onChangeCampo: (campo: CampoId, valor: EntradasTime[CampoId]) => void;
+  onChangeNome: (nome: string) => void;
   onChangePlano: (plano: PlanoId) => void;
   onChangeAssentos: (assentos: number | null) => void;
   onChangeCenario: (sel: CenarioSelecionado) => void;
@@ -87,6 +152,11 @@ function CardTime({
   // ser declarados uma vez para a conta, e mostrá-los aqui convidaria a editar
   // um valor que o rateio ia sobrescrever.
   const [deltasAbertos, setDeltasAbertos] = useState(false);
+  const p = usePremissas();
+  const planoOpcoes = (Object.keys(PLANOS) as PlanoId[]).map((id) => ({
+    value: id,
+    label: `${PLANOS[id].label} · ${p.horasPlanos[id]}h`,
+  }));
   const compartilhados: CampoId[] = estruturaAtiva
     ? ["numGestoresTreino", "horasTreinoGestorMes", "vendedoresPorGestorMes", "salarioGestor"]
     : [];
@@ -97,7 +167,13 @@ function CardTime({
   return (
     <section className="flex flex-col gap-5 rounded-md border border-(--pf-line) bg-(--pf-surface) p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="pf-title text-(--pf-ink)">{time.nome}</h3>
+        <div className="group flex min-w-0 items-center gap-1.5">
+          <CampoNomeTime id={`av-nome-${time.id}`} nome={time.nome} onChange={onChangeNome} />
+          <PencilSquareIcon
+            aria-hidden
+            className="h-4 w-4 shrink-0 text-(--pf-ink-faint) opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          />
+        </div>
         {onRemover ? (
           <Button variant="tertiary" size="sm" icon={TrashIcon} onClick={onRemover}>
             Remover
@@ -114,7 +190,7 @@ function CardTime({
         >
           <SelectMenu
             id={`av-plano-${time.id}`}
-            options={PLANO_OPCOES}
+            options={planoOpcoes}
             value={time.proposta.plano}
             onChange={(valor) => onChangePlano(valor as PlanoId)}
             ariaLabel={`Plano de ${time.nome}`}
@@ -236,6 +312,7 @@ export function EtapaAvancada({
   estrutura,
   onChangeEstrutura,
   onChangeCampo,
+  onChangeNome,
   onChangePlano,
   onChangeAssentos,
   onChangeCenario,
@@ -249,6 +326,7 @@ export function EtapaAvancada({
   estrutura: EstruturaCompartilhada;
   onChangeEstrutura: (patch: Partial<EstruturaCompartilhada>) => void;
   onChangeCampo: (timeId: string, campo: CampoId, valor: EntradasTime[CampoId]) => void;
+  onChangeNome: (timeId: string, nome: string) => void;
   onChangePlano: (timeId: string, plano: PlanoId) => void;
   onChangeAssentos: (timeId: string, assentos: number | null) => void;
   onChangeCenario: (timeId: string, sel: CenarioSelecionado) => void;
@@ -310,6 +388,7 @@ export function EtapaAvancada({
             time={time}
             estruturaAtiva={ativa}
             onChangeCampo={(campo, valor) => onChangeCampo(time.id, campo, valor)}
+            onChangeNome={(nome) => onChangeNome(time.id, nome)}
             onChangePlano={(plano) => onChangePlano(time.id, plano)}
             onChangeAssentos={(assentos) => onChangeAssentos(time.id, assentos)}
             onChangeCenario={(sel) => onChangeCenario(time.id, sel)}

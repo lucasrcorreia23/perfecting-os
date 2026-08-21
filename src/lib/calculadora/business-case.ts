@@ -16,10 +16,8 @@ import {
   CASE_CSAT_MIN,
   CASE_JANELA_DIAS,
   CASE_JANELA_MESES,
-  HAIRCUT,
-  PLANOS,
-  SUPERVISAO,
 } from "./constants";
+import { horasDoPlano, PREMISSAS_PADRAO, type PremissasRacional } from "./premissas";
 import type { EntradasTime, PlanoId, ResultadoTime } from "./types";
 
 export type MetasCase = {
@@ -54,9 +52,11 @@ export function horasGestorDevolvidas(
   plano: PlanoId,
   assentos: number,
   fatorEscopo: number,
+  p: PremissasRacional = PREMISSAS_PADRAO,
 ): { horas: number; limitadoPeloPlano: boolean } {
   const hoje = entradas.horasTreinoGestorMes! * entradas.numGestoresTreino!;
-  const tetoDoPlano = assentos * PLANOS[plano].horasMes * fatorEscopo * (1 - SUPERVISAO);
+  const tetoDoPlano =
+    assentos * horasDoPlano(plano, p) * fatorEscopo * (1 - p.supervisao);
   return {
     horas: Math.max(0, Math.min(hoje, tetoDoPlano)),
     limitadoPeloPlano: tetoDoPlano < hoje,
@@ -69,6 +69,7 @@ export function metasCase(
   entradas: EntradasTime,
   plano: PlanoId,
   assentos: number,
+  p: PremissasRacional = PREMISSAS_PADRAO,
 ): MetasCase | null {
   if (resultado.status !== "ok") return null;
 
@@ -77,6 +78,7 @@ export function metasCase(
     plano,
     assentos,
     resultado.fatorEscopo.valor,
+    p,
   );
 
   return {
@@ -88,7 +90,7 @@ export function metasCase(
     // (`margemRampaAno`, §4.4). Se a meta usasse o delta cru, ela prometeria
     // uma rampa mais curta do que a que o próprio ROI ao lado pagou — o case
     // viraria uma promessa acima da conta que o justifica.
-    rampaParaMeses: entradas.rampaMeses! * (1 - resultado.deltas.rampaPct * HAIRCUT),
+    rampaParaMeses: entradas.rampaMeses! * (1 - resultado.deltas.rampaPct * p.haircut),
     horasGestorDevolvidasMes: gestor.horas,
     gestorLimitadoPeloPlano: gestor.limitadoPeloPlano,
     assentos,

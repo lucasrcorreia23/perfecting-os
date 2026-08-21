@@ -2,12 +2,7 @@
 
 import { ArrowUturnLeftIcon } from "@heroicons/react/24/outline";
 import { CICLO_DIAS_MINIMO, deltaConvMax, deltasEfetivos } from "@/lib/calculadora/calc";
-import {
-  CENARIOS,
-  FINE_TUNE_RAMPA_MAX,
-  FINE_TUNE_TICKET_MAX,
-  REDUCAO_CICLO_MAX,
-} from "@/lib/calculadora/constants";
+import { CENARIOS } from "@/lib/calculadora/constants";
 import { formatNumero, formatPct } from "@/lib/calculadora/format";
 import type {
   Cenario,
@@ -18,6 +13,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
 import { SeloEvidencia } from "./selo-evidencia";
+import { usePremissas } from "./premissas-context";
 
 // "De onde vem": presets de cenário (§4.8) + sliders de modelagem por
 // alavanca. Mover um slider entra em "parâmetros personalizados"; os valores
@@ -89,14 +85,15 @@ export function CenarioSliders({
   entradas: EntradasTime;
   onChange: (sel: CenarioSelecionado) => void;
 }) {
-  const deltas = deltasEfetivos(sel, entradas);
+  const p = usePremissas();
+  const deltas = deltasEfetivos(sel, entradas, p);
   const conv = entradas.conversaoPct;
   const convMax = conv !== null && conv > 0 ? deltaConvMax(conv) : 0;
   const temCiclo = entradas.cicloDias !== null && entradas.cicloDias > 0;
   // Abaixo de 7 dias o ciclo opera no percentual do cenário (Excel
   // Engine!C53) — o slider de dias só existe no ramo de dias inteiros.
   const cicloEmDias = temCiclo && entradas.cicloDias! >= CICLO_DIAS_MINIMO;
-  const cicloMax = cicloEmDias ? Math.round(entradas.cicloDias! * REDUCAO_CICLO_MAX) : 0;
+  const cicloMax = cicloEmDias ? Math.round(entradas.cicloDias! * p.reducaoCicloMax) : 0;
 
   function aplicarDelta(patch: Partial<Deltas>) {
     // Persiste só o shape de Deltas — cicloPct é derivado, não estado.
@@ -216,10 +213,10 @@ export function CenarioSliders({
             label="Quanto o ticket pode subir"
             leitura={`+${formatNumero(deltas.ticketPct * 100, 0)}%`}
             min={0}
-            max={FINE_TUNE_TICKET_MAX * 100}
+            max={p.fineTuneTicketMax * 100}
             step={1}
             valor={Math.round(deltas.ticketPct * 100)}
-            faixaTexto={`0% a ${FINE_TUNE_TICKET_MAX * 100}% · teto do modelo`}
+            faixaTexto={`0% a ${p.fineTuneTicketMax * 100}% · teto do modelo`}
             onChange={(valor) => aplicarDelta({ ticketPct: valor / 100 })}
           />
           <Slider
@@ -227,10 +224,10 @@ export function CenarioSliders({
             label="Quanto a rampa pode encurtar"
             leitura={`−${formatNumero(deltas.rampaPct * 100, 0)}%`}
             min={0}
-            max={FINE_TUNE_RAMPA_MAX * 100}
+            max={p.fineTuneRampaMax * 100}
             step={5}
             valor={Math.round(deltas.rampaPct * 100)}
-            faixaTexto={`0% a ${FINE_TUNE_RAMPA_MAX * 100}% · teto do modelo`}
+            faixaTexto={`0% a ${p.fineTuneRampaMax * 100}% · teto do modelo`}
             onChange={(valor) => aplicarDelta({ rampaPct: valor / 100 })}
           />
         </div>
@@ -249,7 +246,7 @@ export function CenarioSliders({
         ) : temCiclo ? (
           <p className="text-xs leading-5 text-(--pf-ink-soft)">
             Com ciclo abaixo de {CICLO_DIAS_MINIMO} dias, a redução usa o percentual do
-            cenário (até {REDUCAO_CICLO_MAX * 100}%) — dias inteiros seriam grossos demais.
+            cenário (até {p.reducaoCicloMax * 100}%) — dias inteiros seriam grossos demais.
           </p>
         ) : (
           <p className="text-xs leading-5 text-(--pf-ink-soft)">

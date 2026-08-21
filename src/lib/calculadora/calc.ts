@@ -2,27 +2,12 @@
 // rodam no browser (recálculo instantâneo) e no servidor (resumo do link).
 // O gating roda ANTES de qualquer aritmética — nunca resultado parcial.
 
+import { PRAZO_DEFAULT } from "./constants";
 import {
-  CENARIOS,
-  DIAS_UTEIS_ANO,
-  DIAS_UTEIS_MES,
-  ENCARGOS,
-  FATOR_ESCOPO_MAX,
-  FATOR_ESCOPO_MIN,
-  FATOR_ESCOPO_PREMISSA,
-  FINE_TUNE_RAMPA_MAX,
-  FINE_TUNE_TICKET_MAX,
-  HAIRCUT,
-  JORNADA_MENSAL_H,
-  PCT_EVENTO_SUBSTITUIVEL,
-  PLANOS,
-  PRAZO_DEFAULT,
-  RECEITA_POR_VENDEDOR_MAX,
-  RECEITA_POR_VENDEDOR_MIN,
-  REDUCAO_CICLO_MAX,
-  SUPERVISAO,
-  CHECAGEM_ALERTA,
-} from "./constants";
+  horasDoPlano,
+  PREMISSAS_PADRAO,
+  type PremissasRacional,
+} from "./premissas";
 import type {
   AvisoCoerencia,
   CampoId,
@@ -95,7 +80,10 @@ export function camposFaltando(entradas: EntradasTime): CampoId[] {
 
 // Fator de escopo declarado (§4.2): aritmética da operação do cliente, com
 // faixa de validade 0,25–6 e fallback à premissa 2,1 [H] exibindo a origem.
-export function fatorEscopoDeclarado(entradas: EntradasTime): ResultadoFatorEscopo {
+export function fatorEscopoDeclarado(
+  entradas: EntradasTime,
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): ResultadoFatorEscopo {
   const camposOk =
     valido(entradas.horasTreinoGestorMes) &&
     valido(entradas.numGestoresTreino) &&
@@ -110,10 +98,10 @@ export function fatorEscopoDeclarado(entradas: EntradasTime): ResultadoFatorEsco
       horasPraticaEntreguesMes > 0 ? horasGestorMes / horasPraticaEntreguesMes : null;
   }
   const dentroDaFaixa =
-    declarado !== null && declarado >= FATOR_ESCOPO_MIN && declarado <= FATOR_ESCOPO_MAX;
+    declarado !== null && declarado >= p.fatorEscopoMin && declarado <= p.fatorEscopoMax;
   if (!dentroDaFaixa) {
     return {
-      valor: FATOR_ESCOPO_PREMISSA,
+      valor: p.fatorEscopoPremissa,
       origem: "premissa",
       declarado,
       foraDaFaixa: declarado !== null,
@@ -155,8 +143,9 @@ export const CICLO_DIAS_MINIMO = 7;
 export function deltasEfetivos(
   sel: CenarioSelecionado,
   entradas: EntradasTime,
+  p: PremissasRacional = PREMISSAS_PADRAO,
 ): DeltasEfetivos {
-  const preset = CENARIOS[sel.modo === "preset" ? sel.cenario : sel.base];
+  const preset = p.cenarios[sel.modo === "preset" ? sel.cenario : sel.base];
   const cicloDias = positivo(entradas.cicloDias) ? entradas.cicloDias : null;
   const brutos =
     sel.modo === "preset"
@@ -166,20 +155,20 @@ export function deltasEfetivos(
   let cicloDiasMenos = 0;
   let cicloPct = 0;
   if (cicloDias !== null && cicloDias >= CICLO_DIAS_MINIMO) {
-    const cicloDiasMax = Math.round(cicloDias * REDUCAO_CICLO_MAX);
+    const cicloDiasMax = Math.round(cicloDias * p.reducaoCicloMax);
     cicloDiasMenos =
       sel.modo === "preset"
         ? clamp(Math.max(1, Math.round(cicloDias * preset.cicloPct)), 0, cicloDiasMax)
         : clamp(Math.round(sel.deltas.cicloDiasMenos), 0, cicloDiasMax);
     cicloPct = cicloDiasMenos / cicloDias;
   } else if (cicloDias !== null) {
-    cicloPct = clamp(preset.cicloPct, 0, REDUCAO_CICLO_MAX);
+    cicloPct = clamp(preset.cicloPct, 0, p.reducaoCicloMax);
   }
 
   const convMax = positivo(entradas.conversaoPct) ? deltaConvMax(entradas.conversaoPct) : 0;
   return {
-    ticketPct: clamp(brutos.ticketPct, 0, FINE_TUNE_TICKET_MAX),
-    rampaPct: clamp(brutos.rampaPct, 0, FINE_TUNE_RAMPA_MAX),
+    ticketPct: clamp(brutos.ticketPct, 0, p.fineTuneTicketMax),
+    rampaPct: clamp(brutos.rampaPct, 0, p.fineTuneRampaMax),
     cicloDiasMenos,
     cicloPct,
     convPp: clamp(brutos.convPp, 0, convMax),
@@ -204,36 +193,37 @@ export function calcResultadoTime(
   precoMes: number,
   sel: CenarioSelecionado,
   prazoMeses: number = PRAZO_DEFAULT,
+  p: PremissasRacional = PREMISSAS_PADRAO,
 ): ResultadoTime {
   const faltando = camposFaltando(entradas);
   if (faltando.length > 0) return { status: "incompleto", faltando };
 
   const margem = resolverMargem(entradas)!;
-  const fatorEscopo = fatorEscopoDeclarado(entradas);
-  const custoHoraGestor = (entradas.salarioGestor! * ENCARGOS) / JORNADA_MENSAL_H;
-  const horasPraticaMes = proposta.assentos * PLANOS[proposta.plano].horasMes;
+  const fatorEscopo = fatorEscopoDeclarado(entradas, p);
+  const custoHoraGestor = (entradas.salarioGestor! * p.encargos) / p.jornadaMensalH;
+  const horasPraticaMes = proposta.assentos * horasDoPlano(proposta.plano, p);
 
   // Eficiência (§4.3): o custo do caminho declarado, limitado pelo teto.
   const tetoEficienciaAno =
-    horasPraticaMes * fatorEscopo.valor * custoHoraGestor * (1 - SUPERVISAO) * 12;
+    horasPraticaMes * fatorEscopo.valor * custoHoraGestor * (1 - p.supervisao) * 12;
   let caminhoAno = 0;
   if (entradas.caminho === "gestores") {
     caminhoAno =
       entradas.horasTreinoGestorMes! *
       entradas.numGestoresTreino! *
       custoHoraGestor *
-      (1 - SUPERVISAO) *
+      (1 - p.supervisao) *
       12;
   } else if (entradas.caminho === "externo") {
-    caminhoAno = entradas.custoExternoAno! * (1 - SUPERVISAO);
+    caminhoAno = entradas.custoExternoAno! * (1 - p.supervisao);
   } else if (entradas.caminho === "evento") {
-    caminhoAno = entradas.custoEventoAno! * PCT_EVENTO_SUBSTITUIVEL;
+    caminhoAno = entradas.custoEventoAno! * p.pctEventoSubstituivel;
   }
   const eficienciaAno = Math.min(caminhoAno, tetoEficienciaAno);
 
   // Performance (§4.4): quatro alavancas, haircuts e cobertura.
   const fatorCobertura = cobertura(proposta.assentos, entradas.numVendedores!);
-  const deltas = deltasEfetivos(sel, entradas);
+  const deltas = deltasEfetivos(sel, entradas, p);
   const margemTicketAno =
     entradas.receitaMensal! * deltas.ticketPct * 12 * margem * fatorCobertura;
   const receitaRepPleno = entradas.receitaMensal! / entradas.numVendedores!;
@@ -243,7 +233,7 @@ export function calcResultadoTime(
     receitaRepPleno *
     entradas.contratacoesAno! *
     margem *
-    HAIRCUT *
+    p.haircut *
     fatorCobertura;
   const vendasMes = entradas.receitaMensal! / entradas.ticketMedio!;
   const conversao = entradas.conversaoPct! / 100;
@@ -254,7 +244,7 @@ export function calcResultadoTime(
     entradas.ticketMedio! *
     margem *
     12 *
-    HAIRCUT *
+    p.haircut *
     fatorCobertura;
 
   // Ciclo (§4.4): só com o funil preenchido; teto de funil — ciclo menor só
@@ -271,7 +261,7 @@ export function calcResultadoTime(
       entradas.ticketMedio! *
       margem *
       12 *
-      HAIRCUT *
+      p.haircut *
       fatorCobertura;
     // Excel Engine!C69 = OR(C67<C66, C64=0): o teto foi quem definiu a parcela.
     // Sem isso a trava era invisível — a tela mostrava um ciclo menor que o
@@ -298,8 +288,8 @@ export function calcResultadoTime(
   const avisos: AvisoCoerencia[] = [];
   const receitaPorVendedor = entradas.receitaMensal! / entradas.numVendedores!;
   if (
-    receitaPorVendedor < RECEITA_POR_VENDEDOR_MIN ||
-    receitaPorVendedor > RECEITA_POR_VENDEDOR_MAX
+    receitaPorVendedor < p.receitaPorVendedorMin ||
+    receitaPorVendedor > p.receitaPorVendedorMax
   ) {
     avisos.push({ tipo: "receita_por_vendedor", valor: receitaPorVendedor });
   }
@@ -333,7 +323,7 @@ export function calcResultadoTime(
     entradas.vendedoresPorGestorMes! > 0
       ? entradas.numVendedores! / entradas.vendedoresPorGestorMes!
       : null;
-  const gestoresComPerfecting = gestoresHoje === null ? null : gestoresHoje * SUPERVISAO;
+  const gestoresComPerfecting = gestoresHoje === null ? null : gestoresHoje * p.supervisao;
   const gestoresEvitados =
     gestoresHoje === null ? null : Math.max(0, gestoresHoje - gestoresComPerfecting!);
   const linhasNaoSomadas: LinhaNaoSomada[] = [
@@ -343,16 +333,16 @@ export function calcResultadoTime(
         ? entradas.rampaMeses! *
           deltas.rampaPct *
           entradas.salarioVendedor! *
-          ENCARGOS *
+          p.encargos *
           entradas.contratacoesAno! *
-          HAIRCUT
+          p.haircut
         : null,
     },
     {
       id: "custo_time_em_rampa",
       valorAno: temSalarioVendedor
         ? entradas.salarioVendedor! *
-          ENCARGOS *
+          p.encargos *
           entradas.rampaMeses! *
           entradas.contratacoesAno!
         : null,
@@ -362,7 +352,7 @@ export function calcResultadoTime(
       valorAno:
         gestoresEvitados === null
           ? null
-          : gestoresEvitados * entradas.salarioGestor! * ENCARGOS * 12,
+          : gestoresEvitados * entradas.salarioGestor! * p.encargos * 12,
       detalhe:
         gestoresEvitados === null
           ? undefined
@@ -376,7 +366,7 @@ export function calcResultadoTime(
       id: "ancoragem_hora_roleplay",
       valorAno: null,
       detalhe: {
-        custoHoraGestor: custoHoraGestor * fatorEscopo.valor,
+        custoHoraPraticaGestor: custoHoraGestor * fatorEscopo.valor,
         custoHoraPerfecting: precoMes / horasPraticaMes,
       },
     },
@@ -384,13 +374,13 @@ export function calcResultadoTime(
   ];
 
   // Granularidade (§4.10). Invariante 12: retorno_dia ÷ custo_dia === roi —
-  // vale por construção porque DIAS_UTEIS_ANO = DIAS_UTEIS_MES × 12.
+  // vale por construção porque diasUteisAno = diasUteisMes × 12.
   const precoPorAssento = precoMes / proposta.assentos;
   const granularidade = {
     precoPorAssento,
-    custoDiaPorVendedor: precoPorAssento / DIAS_UTEIS_MES,
+    custoDiaPorVendedor: precoPorAssento / p.diasUteisMes,
     custoHoraRoleplayPerfecting: precoMes / horasPraticaMes,
-    retornoDiaPorAssento: valorAno / proposta.assentos / DIAS_UTEIS_ANO,
+    retornoDiaPorAssento: valorAno / proposta.assentos / p.diasUteisAno,
   };
 
   return {
@@ -409,7 +399,7 @@ export function calcResultadoTime(
     roi,
     paybackMeses,
     checagemRealidadePct,
-    checagemAlerta: checagemRealidadePct > CHECAGEM_ALERTA * 100,
+    checagemAlerta: checagemRealidadePct > p.checagemAlerta * 100,
     margemMensalAtual,
     avisos,
     linhasNaoSomadas,

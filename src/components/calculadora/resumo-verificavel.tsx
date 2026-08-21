@@ -1,9 +1,7 @@
 "use client";
 
-import { PrinterIcon } from "@heroicons/react/24/outline";
 import {
   CENARIOS,
-  DIAS_UTEIS_MES,
   NIVEL_COPY,
   PLANOS,
   PRAZO_COPY,
@@ -17,26 +15,29 @@ import {
 import type { TimeModelo } from "@/lib/calculadora/modelo";
 import type { PrecoConta, ResultadoConsolidado } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Disclaimer } from "./disclaimer";
 import { SecaoResultado } from "./secao-resultado";
 import { SeloEvidencia } from "./selo-evidencia";
+import { usePremissas } from "./premissas-context";
 
-// Resumo verificável e imprimível: o parágrafo-síntese, os três números, o
-// bloco "verificável nesta tela" (cada trava com o valor que a prova) e a
-// tabela da conta que o visitante montou. É o artefato que sobrevive à reunião.
+// Resumo verificável e imprimível: o parágrafo-síntese, os três números, a
+// régua diária contra o gestor e a tabela da conta que o visitante montou. É o
+// artefato que sobrevive à reunião.
 //
-// Por isso ele repete em prosa o que a página já mostrou: é o único bloco lido
-// FORA da tela, sem o hero acima nem os cards de detalhe ao lado. E é o único
-// que imprime — o disclaimer mora aqui dentro, senão a folha sai sem ele
-// (invariante 10).
+// SÓ EXISTE NO PAPEL desde 21/08/2026: o `FechoRelatorio` o monta dentro de um
+// `hidden print:block`. Na tela ele era a terceira aparição dos mesmos três
+// números; fora dela, é o único bloco lido SEM o hero acima nem os cards de
+// detalhe ao lado, e é por isso que repete em prosa o que a página mostrou.
+//
+// O disclaimer mora aqui dentro, senão a folha sai sem ele (invariante 10). O
+// gêmeo dele, o da TELA, vive no `FechoRelatorio` — os dois nunca coexistem,
+// porque tudo que está fora de `#resumo-verificavel` sai invisível no papel.
 
 const PRINT_CSS = `
 @media print {
   body * { visibility: hidden; }
   #resumo-verificavel, #resumo-verificavel * { visibility: visible; }
   #resumo-verificavel { position: absolute; inset: 0; margin: 0; border: none; }
-  #resumo-verificavel [data-no-print] { display: none; }
   /* O navegador descarta fundos na impressão por padrão; sem isto a zebra da
      oferta sai branca justamente no papel, que é onde a tabela é lida. */
   #resumo-verificavel [data-zebra] tr {
@@ -59,6 +60,7 @@ export function ResumoVerificavel({
   consolidado: ResultadoConsolidado;
   dataCalculo: string;
 }) {
+  const p = usePremissas();
   if (consolidado.status !== "ok") return null;
   const multiTime = times.length > 1;
   const totalAssentos = consolidado.totalAssentos;
@@ -77,7 +79,7 @@ export function ResumoVerificavel({
       : "com os parâmetros que você ajustou";
   const sintese =
     !multiTime && vendedores !== null
-      ? `Com ${formatNumero(vendedores, 0)} vendedores praticando ${PLANOS[primeiro.proposta.plano].horasMes} h por mês, a projeção ${cenarioFrase} indica ${formatBRL(consolidado.valorAno)} por ano em margem e economia, sobre um investimento de ${formatBRL(preco.mensal)} por mês. O retorno projetado é de ${formatX(consolidado.roi)}, com payback em ${formatMeses(consolidado.paybackMeses)}.`
+      ? `Com ${formatNumero(vendedores, 0)} vendedores praticando ${p.horasPlanos[primeiro.proposta.plano]} h por mês, a projeção ${cenarioFrase} indica ${formatBRL(consolidado.valorAno)} por ano em margem e economia, sobre um investimento de ${formatBRL(preco.mensal)} por mês. O retorno projetado é de ${formatX(consolidado.roi)}, com payback em ${formatMeses(consolidado.paybackMeses)}.`
       : `Com ${totalAssentos} assentos em ${times.length} times, a projeção indica ${formatBRL(consolidado.valorAno)} por ano em margem e economia, sobre um investimento de ${formatBRL(preco.mensal)} por mês. O retorno projetado é de ${formatX(consolidado.roi)}, ponderado pelo investimento de cada time, com payback em ${formatMeses(consolidado.paybackMeses)}.`;
 
   // Régua diária (§4.10) contra a mesma prática conduzida por um gestor. Os
@@ -85,10 +87,10 @@ export function ResumoVerificavel({
   const ancoragem = ok?.linhasNaoSomadas.find(
     (linha) => linha.id === "ancoragem_hora_roleplay",
   );
-  const custoHoraGestor = ancoragem?.detalhe?.custoHoraGestor ?? null;
+  const custoHoraGestor = ancoragem?.detalhe?.custoHoraPraticaGestor ?? null;
   const custoDiaGestor =
     !multiTime && custoHoraGestor !== null
-      ? (custoHoraGestor * PLANOS[primeiro.proposta.plano].horasMes) / DIAS_UTEIS_MES
+      ? (custoHoraGestor * p.horasPlanos[primeiro.proposta.plano]) / p.diasUteisMes
       : null;
   const custoDiaPerfecting = !multiTime ? (ok?.granularidade.custoDiaPorVendedor ?? null) : null;
 
@@ -107,7 +109,7 @@ export function ResumoVerificavel({
       valor: times
         .map(
           (time) =>
-            `${PLANOS[time.proposta.plano].label} ${PLANOS[time.proposta.plano].horasMes} h/vendedor/mês`,
+            `${PLANOS[time.proposta.plano].label} ${p.horasPlanos[time.proposta.plano]} h/vendedor/mês`,
         )
         .filter((valor, index, lista) => lista.indexOf(valor) === index)
         .join(" · "),
@@ -141,18 +143,6 @@ export function ResumoVerificavel({
         id="resumo-verificavel"
         titulo="Resumo"
         descricao={subtitulo}
-        acao={
-          <span data-no-print>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={PrinterIcon}
-              onClick={() => window.print()}
-            >
-              Imprimir
-            </Button>
-          </span>
-        }
       >
         <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">

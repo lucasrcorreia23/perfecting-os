@@ -170,12 +170,14 @@ describe("FAQ de CFO", () => {
   it("usa o payback real dos três cenários, não o do cenário ativo", () => {
     const ctx = contextoFiesc();
     const texto = textoDe(perguntasCfo(ctx), "payback");
-    // O Conservador batia com o Excel enquanto o Tier 2 ia até 573 h; com a
-    // fronteira em 656 (Template, 18/08/2026) o preço subiu e o payback com
-    // ele. Realista e otimista já divergiam da planilha de propósito, porque
-    // lá o ganho de ciclo não era recalculado por cenário (o quirk `=C19`).
-    // Os números vêm da comparação, não do texto.
-    expect(texto).toContain("27,8 meses");
+    // O payback do Conservador seguiu o preço em cada mudança da tabela: 27,4
+    // meses com o Tier 2 até 573 h, 27,8 com a fronteira em 656 (Template,
+    // 18/08/2026) e 22,9 desde que o preço virou taxa cheia do tier
+    // (21/08/2026), quando as 800 h passaram a sair a R$ 70. Realista e
+    // otimista já divergiam da planilha de propósito, porque lá o ganho de
+    // ciclo não era recalculado por cenário (o quirk `=C19`). Os números vêm
+    // da comparação, não do texto.
+    expect(texto).toContain("22,9 meses");
     for (const linha of ctx.comparacao!) {
       expect(texto).toContain(formatMeses(linha.paybackMeses));
     }
@@ -184,12 +186,14 @@ describe("FAQ de CFO", () => {
   });
 
   it("avisa quando o payback passa do prazo, e cala quando não passa", () => {
-    // FIESC leva 27,4 meses para se pagar: passa de qualquer prazo ofertado.
+    // FIESC leva 22,9 meses para se pagar: passa dos prazos curtos e, desde a
+    // troca para taxa cheia por tier (21/08/2026), CABE no de 24 meses — com o
+    // preço marginal eram 27,8 meses e nenhum prazo ofertado bastava.
     expect(textoDe(perguntasCfo(contextoFiesc(3)), "payback")).toContain(
       "termina antes de a conta se pagar",
     );
     expect(textoDe(perguntasCfo(contextoFiesc(24)), "payback")).toContain(
-      "termina antes de a conta se pagar",
+      "cabe dentro do contrato",
     );
     // Já o caso §14 se paga em 6,15 meses: com prazo de 12, nada a alertar.
     const texto = textoDe(perguntasCfo(contextoGolden(12)), "payback");
@@ -225,11 +229,11 @@ describe("FAQ de CFO", () => {
   });
 
   it("calcula a exposição total do contrato pelo prazo escolhido", () => {
-    // 68.064 × 3 = 204.192
-    expect(textoDe(perguntasCfo(contextoFiesc(3)), "contrato")).toContain("R$ 204.192");
-    // 68.064 × 24 = 1.633.536
+    // 56.000 × 3 = 168.000
+    expect(textoDe(perguntasCfo(contextoFiesc(3)), "contrato")).toContain("R$ 168.000");
+    // 56.000 × 24 = 1.344.000
     expect(textoDe(perguntasCfo(contextoFiesc(24)), "contrato")).toContain(
-      "R$ 1.633.536",
+      "R$ 1.344.000",
     );
   });
 

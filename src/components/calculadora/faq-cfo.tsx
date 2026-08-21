@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import {
-  FAQ_NOTA,
+  faqNota,
   GRUPOS,
   type GrupoPergunta,
   type PerguntaCfo,
 } from "@/lib/calculadora/faq";
 import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
+import { usePremissas } from "./premissas-context";
 
 // As perguntas comuns sobre o número.
 //
@@ -40,6 +41,7 @@ const ORDEM: GrupoPergunta[] = ["numero", "decisao", "programa"];
 // e trava de scroll fazem o trabalho de fazer a pessoa parar; a gaveta, que
 // deixa a página viva ao lado, convidava a passar o olho e voltar a mexer.
 export function FaqLista({ perguntas }: { perguntas: PerguntaCfo[] }) {
+  const nota = faqNota(usePremissas());
   const [abertas, setAbertas] = useState<Set<string>>(() => new Set());
 
   function alternar(id: string) {
@@ -121,7 +123,7 @@ export function FaqLista({ perguntas }: { perguntas: PerguntaCfo[] }) {
             </section>
           );
         })}
-      <p className="text-sm leading-6 text-(--pf-ink-faint)">{FAQ_NOTA}</p>
+      <p className="text-sm leading-6 text-(--pf-ink-faint)">{nota}</p>
     </div>
   );
 }

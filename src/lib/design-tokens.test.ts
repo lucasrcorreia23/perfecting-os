@@ -90,6 +90,10 @@ describe("pele .pf-calc — a fronteira com o app interno", () => {
       ["--pf-on-brand", "#f4f7fc"],
       ["--pf-on-brand-soft", "#b9c9e9"],
       ["--pf-on-brand-line", "#ffffff33"],
+      // O verde do selo de benefício do mesmo painel. Pinado porque o valor É
+      // um contraste: o `#0F9F2E` de "entra na conta" dá 2,38:1 sobre o azul
+      // (o mesmo número que barrou a capa azul) e este dá 4,82:1.
+      ["--pf-positive-on-brand", "#63dd82"],
       // O fio de CONTROLE, separado do fio estrutural: é o que faz um card de
       // opção não escolhido ler como clicável em vez de como moldura. O frio
       // mantém a claridade do sépia que substituiu (2,09:1 contra 2,08:1 sobre

@@ -115,6 +115,23 @@ export async function saveEstado(params: {
   return { submittedAt: data.submitted_at };
 }
 
+export async function savePremissas(params: {
+  linkId: string;
+  premissas: Json | null;
+  resultSummary: Json;
+}): Promise<boolean> {
+  const supabase = createServiceSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("calculator_links")
+    .update({
+      premissas: params.premissas,
+      result_summary: params.resultSummary,
+    })
+    .eq("id", params.linkId);
+  return !error;
+}
+
 // Throttle no banco: atravessa lambdas, diferente do Map em memória.
 export async function countRecentEventsByIp(
   ipHash: string,

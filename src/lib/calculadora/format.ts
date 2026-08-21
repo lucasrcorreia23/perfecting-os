@@ -69,6 +69,20 @@ export function formatDias(valor: number | null): string {
   return `${texto} ${valor! === 1 ? "dia" : "dias"}`;
 }
 
+// "≤ 262 h/mês", "263 – 656 h/mês", "> 1.243 h/mês" — a coluna "Limite
+// Superior" da aba comercial, na mesma forma em que ela vai ao cliente. Num
+// lugar só porque a tela, a explicação e a página de referência a escrevem, e
+// três cópias divergiriam no primeiro ajuste de fronteira.
+export function formatFaixaTier(
+  faixa: { deHoras: number; ateHoras: number },
+  unidade = "h/mês",
+): string {
+  const infinita = !Number.isFinite(faixa.ateHoras);
+  if (faixa.deHoras <= 0) return `≤ ${formatNumero(faixa.ateHoras, 0)} ${unidade}`;
+  if (infinita) return `> ${formatNumero(faixa.deHoras - 1, 0)} ${unidade}`;
+  return `${formatNumero(faixa.deHoras, 0)} – ${formatNumero(faixa.ateHoras, 0)} ${unidade}`;
+}
+
 // "+1,0 p.p."
 export function formatPp(valor: number | null): string {
   if (invalido(valor)) return TRAVESSAO;

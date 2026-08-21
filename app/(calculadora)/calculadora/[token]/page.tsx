@@ -6,6 +6,7 @@ import { fetchLinkByTokenHash, registerAccess } from "@/lib/api/calculator-queri
 import { isTokenShaped, tokenHash } from "@/lib/api/calculator-token";
 import { parseEstado } from "@/lib/calculadora/estado";
 import { linkAceitaAcesso, linkStatus } from "@/lib/calculadora/link-status";
+import { getSessionProfile } from "@/lib/auth";
 import { isCalculatorConfigured } from "@/lib/env";
 import { CalculadoraApp } from "@/components/calculadora/calculadora-app";
 import { LinkExpirado } from "@/components/calculadora/link-expirado";
@@ -57,6 +58,8 @@ export default async function CalculadoraPublicaPage({
   );
 
   const estado = parseEstado(link.state);
+  const session = await getSessionProfile();
+  const internoLogado = session?.profile?.role === "interno";
 
   // Data do cálculo, carimbada no servidor: a rota é `force-dynamic`, então o
   // valor é o mesmo no SSR e na hidratação — `new Date()` dentro do componente
@@ -77,6 +80,8 @@ export default async function CalculadoraPublicaPage({
       expiresAt={link.expires_at}
       submittedAt={link.submitted_at}
       dataCalculo={dataCalculo}
+      internoLogado={internoLogado}
+      premissasSalvas={link.premissas}
     />
   );
 }

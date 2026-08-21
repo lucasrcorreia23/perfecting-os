@@ -16,7 +16,6 @@ import {
   COI_RETENCAO_SEM,
   COI_SEMANAS_ESPERA,
   ENCARGOS,
-  ESCADA_PRECO,
   FATOR_ESCOPO_PREMISSA,
   FINE_TUNE_RAMPA_MAX,
   FINE_TUNE_TICKET_MAX,
@@ -25,6 +24,7 @@ import {
   PCT_EVENTO_SUBSTITUIVEL,
   PLANOS,
   SUPERVISAO,
+  TABELA_TIERS,
   TAXA_MINIMA,
 } from "./constants";
 import { CICLO_DIAS_MINIMO } from "./calc";
@@ -129,13 +129,13 @@ describe("referência de fórmulas — números vêm das constantes", () => {
     expect(tudo).toContain(String(CICLO_DIAS_MINIMO));
   });
 
-  it("reproduz a escada inteira, faixa a faixa", () => {
-    const escada = REFERENCIA.find((e) => e.id === "escada");
-    expect(escada).toBeDefined();
-    for (const faixa of ESCADA_PRECO) {
-      expect(escada!.formula).toContain(String(faixa.taxaHora));
+  it("reproduz a tabela de tiers inteira, tier a tier", () => {
+    const tiers = REFERENCIA.find((e) => e.id === "tiers");
+    expect(tiers).toBeDefined();
+    for (const faixa of TABELA_TIERS) {
+      expect(tiers!.formula).toContain(String(faixa.taxaHora));
       if (Number.isFinite(faixa.ateHoras)) {
-        expect(escada!.formula).toContain(faixa.ateHoras.toLocaleString("pt-BR"));
+        expect(tiers!.formula).toContain(faixa.ateHoras.toLocaleString("pt-BR"));
       }
     }
   });
@@ -191,14 +191,18 @@ describe("referência de fórmulas — números vêm das constantes", () => {
 });
 
 describe("referência de fórmulas — divergências declaradas", () => {
-  it("as duas divergências do motor estão registradas", () => {
+  it("as divergências do motor e do preço estão registradas", () => {
     const comDivergencia = REFERENCIA.filter((e) => e.divergencia);
     const ids = comDivergencia.map((e) => e.id);
     // Gating aceita zero + custo do evento exigido; quirk do ciclo no
-    // Conservador. A fronteira do Tier 2 SAIU desta lista em 19/08/2026: a
-    // planilha foi corrigida para 656 e as duas fontes voltaram a concordar.
+    // Conservador; e, desde 21/08/2026, o preço por taxa cheia do tier contra
+    // o marginal da aba Conta. A FRONTEIRA do Tier 2 não está mais aqui e não
+    // deve voltar: ela foi corrigida para 656 na planilha em 19/08/2026 (E-24)
+    // e as duas abas concordam — o que diverge é a forma de cobrar, não o
+    // limite.
     expect(ids).toContain("gate-completude");
     expect(ids).toContain("comparacao-cenarios");
+    expect(ids).toContain("tiers");
   });
 
   it("as cinco divergências do custo da inação estão registradas", () => {
@@ -233,13 +237,18 @@ describe("referência de fórmulas — divergências declaradas", () => {
     }
   });
 
-  // E-24 fechada em 19/08/2026. Enquanto Premissas!C31 trazia 573, a escada
-  // era divergência declarada e nenhuma planilha a reproduzia. Se este teste
-  // falhar, alguém reabriu a contradição — no código ou na planilha.
-  it("a escada não é mais divergência: as duas fontes concordam em 656", () => {
-    const escada = REFERENCIA.find((e) => e.id === "escada")!;
-    expect(escada.divergencia).toBeUndefined();
-    expect(escada.formula).toContain(String(ESCADA_PRECO[1].ateHoras));
+  // A fronteira do Tier 2 deixou de ser divergência em 19/08/2026 (E-24), com
+  // as duas abas concordando em 656 — e continua assim. O que virou
+  // divergência em 21/08/2026 foi a FORMA de cobrar: a aba comercial vale, e
+  // ela cobra a taxa cheia do tier, enquanto a aba Conta soma faixa a faixa.
+  // O teste guarda as duas pontas: a fronteira sem contradição, e o preço
+  // marginal declarado como divergência em vez de reaparecer em silêncio.
+  it("a tabela de tiers declara a divergência contra o marginal da aba Conta", () => {
+    const tiers = REFERENCIA.find((e) => e.id === "tiers")!;
+    expect(tiers.formula).toContain(String(TABELA_TIERS[1].ateHoras));
+    expect(tiers.divergencia).toBeDefined();
+    expect(tiers.divergencia).toMatch(/C17:C20/);
+    expect(tiers.divergencia).toMatch(/invariante 9/i);
   });
 });
 

@@ -27,23 +27,7 @@
 //     no grupo de risco.
 
 import { resolverMargem } from "./calc";
-import {
-  CHECAGEM_ALERTA,
-  COI_CUSTO_SUBSTITUICAO,
-  COI_DELTA_ATTAINMENT,
-  COI_FRACAO_COACHAVEL,
-  COI_HAIRCUT,
-  COI_HORAS_COACHING_MIN,
-  COI_HORAS_PERDIDAS_SEMANA,
-  COI_NO_DECISION,
-  COI_RAMPA_EXTENSAO_MESES,
-  COI_RAMPA_PRODUTIVIDADE,
-  COI_RETENCAO_COM,
-  COI_RETENCAO_SEM,
-  COI_SEMANAS_ESPERA,
-  ENCARGOS,
-  JORNADA_MENSAL_H,
-} from "./constants";
+import { PREMISSAS_PADRAO, type PremissasRacional } from "./premissas";
 import type {
   DimensaoCoi,
   EntradasTime,
@@ -58,13 +42,18 @@ type ResultadoOk = Extract<ResultadoTime, { status: "ok" }>;
 // negativo, que na tela lê como ganho.
 const naoNegativo = (valor: number) => (Number.isFinite(valor) ? Math.max(0, valor) : 0);
 
-export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): ResultadoCoi {
+export function calcCoi(
+  entradas: EntradasTime,
+  resultado: ResultadoOk,
+  p: PremissasRacional = PREMISSAS_PADRAO,
+): ResultadoCoi {
   // O gating de `camposFaltando` já passou (o chamador só tem `ResultadoOk`),
   // então todo campo obrigatório é número. `salarioVendedor` é o único opcional
   // que este módulo lê.
   const numVendedores = entradas.numVendedores!;
   const margem = resolverMargem(entradas)!;
   const receitaPorVendedor = entradas.receitaMensal! / numVendedores;
+  const coi = p.coi;
 
   // Cobertura: horas de prática que de fato chegam ao vendedor (Motor!C25)
   // contra o mínimo de 2 h/mês por vendedor (Premissas!C73).
@@ -72,7 +61,7 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
     entradas.vendedoresPorGestorMes! *
     entradas.numGestoresTreino! *
     entradas.horasPraticaPorRepHoje!;
-  const horasNecessariasMes = numVendedores * COI_HORAS_COACHING_MIN;
+  const horasNecessariasMes = numVendedores * coi.horasCoachingMin;
   const pctAtendida =
     horasNecessariasMes > 0 ? Math.min(1, horasEntreguesMes / horasNecessariasMes) : 1;
   const vendedoresNaoAtendidos = numVendedores * (1 - pctAtendida);
@@ -88,10 +77,10 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
     Number.isFinite(entradas.salarioVendedor) &&
     entradas.salarioVendedor > 0;
   const custoHoraVendedor = temSalarioVendedor
-    ? (entradas.salarioVendedor! * ENCARGOS) / JORNADA_MENSAL_H
+    ? (entradas.salarioVendedor! * p.encargos) / p.jornadaMensalH
     : null;
   const custoSubstituicao = temSalarioVendedor
-    ? entradas.salarioVendedor! * ENCARGOS * COI_CUSTO_SUBSTITUICAO * 12
+    ? entradas.salarioVendedor! * p.encargos * coi.custoSubstituicao * 12
     : null;
 
   // Quantas saídas a mais são atribuíveis à falta de coaching. Trava dupla: só
@@ -99,7 +88,7 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
   // ano (`contratacoesAno`).
   const saidasExtras = Math.min(
     entradas.contratacoesAno!,
-    vendedoresNaoAtendidos * (COI_RETENCAO_COM - COI_RETENCAO_SEM) * COI_HAIRCUT,
+    vendedoresNaoAtendidos * (coi.retencaoCom - coi.retencaoSem) * coi.haircut,
   );
 
   const dimensoes: DimensaoCoi[] = [
@@ -108,7 +97,7 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
       id: "subperformance",
       valorAno: naoNegativo(
         receitaPorVendedor *
-          (COI_DELTA_ATTAINMENT * COI_HAIRCUT) *
+          (coi.deltaAttainment * coi.haircut) *
           vendedoresNaoAtendidos *
           12 *
           margem,
@@ -119,10 +108,10 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
       // ano. Vendedor em rampa rende metade.
       id: "rampa_estendida",
       valorAno: naoNegativo(
-        COI_RAMPA_EXTENSAO_MESES *
-          COI_HAIRCUT *
+        coi.rampaExtensaoMeses *
+          coi.haircut *
           entradas.contratacoesAno! *
-          (receitaPorVendedor * COI_RAMPA_PRODUTIVIDADE) *
+          (receitaPorVendedor * coi.rampaProdutividade) *
           margem,
       ),
     },
@@ -139,8 +128,8 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
       id: "no_decision",
       valorAno: naoNegativo(
         (entradas.receitaMensal! / entradas.ticketMedio!) *
-          COI_NO_DECISION *
-          COI_FRACAO_COACHAVEL *
+          coi.noDecision *
+          coi.fracaoCoachavel *
           entradas.ticketMedio! *
           12 *
           margem,
@@ -154,11 +143,11 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
           ? null
           : naoNegativo(
               vendedoresNaoAtendidos *
-                COI_SEMANAS_ESPERA *
-                COI_HORAS_PERDIDAS_SEMANA *
+                coi.semanasEspera *
+                coi.horasPerdidasSemana *
                 custoHoraVendedor *
                 12 *
-                COI_HAIRCUT,
+                coi.haircut,
             ),
     },
   ];
@@ -195,6 +184,6 @@ export function calcCoi(entradas: EntradasTime, resultado: ResultadoOk): Resulta
     residualAno,
     pctRecuperado,
     checagemPct,
-    checagemAlerta: checagemPct > CHECAGEM_ALERTA * 100,
+    checagemAlerta: checagemPct > p.checagemAlerta * 100,
   };
 }

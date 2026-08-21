@@ -119,7 +119,14 @@ export type LinhaNaoSomada = {
     gestores?: number;
     gestoresHoje?: number;
     gestoresComPerfecting?: number;
-    custoHoraGestor?: number;
+    /**
+     * Custo de UMA HORA DE PRÁTICA entregue pelo gestor: folha × fator de
+     * escopo. NÃO é o custo/hora de folha — o fator de escopo diz quanto tempo
+     * de gestor cada hora de prática consome, e nesta operação ele passa de 1
+     * com frequência. Multiplicar horas de AGENDA por esta taxa infla a conta
+     * pelo fator inteiro; foi o que a capa fazia até 21/08/2026.
+     */
+    custoHoraPraticaGestor?: number;
     custoHoraPerfecting?: number;
   };
 };
@@ -222,11 +229,14 @@ export type ResultadoTime =
 
 export type NivelServico = "essencial" | "avancado" | "enterprise";
 
-export type FaixaExtrato = {
-  ateHoras: number; // limite superior da faixa (Infinity na última)
-  horasNaFaixa: number;
+// O tier em que o volume da conta caiu. Todas as horas saem por `taxaHora` —
+// ver o comentário de TABELA_TIERS.
+export type TierPreco = {
+  tier: number; // 1..4
+  deHoras: number; // primeira hora da faixa (0, 263, 657, 1.244)
+  ateHoras: number; // limite superior (Infinity no Tier 4)
   taxaHora: number;
-  subtotal: number;
+  economiaVsTier1: number; // 1 − taxa ÷ taxa do Tier 1 (coluna E da aba)
 };
 
 export type PrecoConta = {
@@ -235,7 +245,7 @@ export type PrecoConta = {
   mensal: number; // max(bruto × (1 − desconto), TAXA_MINIMA); desconto = 0
   anual: number;
   pisoAplicado: boolean;
-  extrato: FaixaExtrato[];
+  tier: TierPreco;
   taxaCombinada: number;
   nivelServico: NivelServico;
   nivelPorPrazo: boolean; // true quando o degrau veio do prazo de 24 meses

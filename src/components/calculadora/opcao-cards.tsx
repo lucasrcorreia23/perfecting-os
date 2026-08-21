@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { PLANOS } from "@/lib/calculadora/constants";
+import { PLANOS, DIAS_UTEIS_MES } from "@/lib/calculadora/constants";
+import { formatNumero } from "@/lib/calculadora/format";
 import type { PlanoId } from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
+import { usePremissas } from "./premissas-context";
 
 // Os dois formatos de escolha do quiz, num lugar só.
 //
@@ -113,6 +115,21 @@ export function GrupoOpcoes<T extends string | number>({
 
 const PLANOS_IDS = Object.keys(PLANOS) as PlanoId[];
 
+const DIAS_UTEIS_SEMANA = 5;
+
+/** Nh/mês → minutos por dia útil e horas por semana útil. */
+export function praticaDiariaSemanal(horasMes: number): {
+  minutosDia: number;
+  horasSemana: number;
+} {
+  if (horasMes <= 0) return { minutosDia: 0, horasSemana: 0 };
+  const horasDia = horasMes / DIAS_UTEIS_MES;
+  return {
+    minutosDia: Math.round(horasDia * 60),
+    horasSemana: horasDia * DIAS_UTEIS_SEMANA,
+  };
+}
+
 /**
  * A cadência de treino, em três cards lado a lado. Formato próprio porque o
  * que decide aqui é o NÚMERO de horas, que precisa ser o maior elemento do
@@ -127,6 +144,7 @@ export function GrupoPlanos({
   onChange: (plano: PlanoId) => void;
   unidade?: string;
 }) {
+  const p = usePremissas();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   return (
@@ -147,6 +165,7 @@ export function GrupoPlanos({
     >
       {PLANOS_IDS.map((id, indice) => {
         const ativo = valor === id;
+        const { minutosDia, horasSemana } = praticaDiariaSemanal(p.horasPlanos[id]);
         return (
           <button
             key={id}
@@ -175,9 +194,19 @@ export function GrupoPlanos({
               {PLANOS[id].label}
             </span>
             <span className="pf-num-kpi text-(--pf-ink)">
-              {PLANOS[id].horasMes}h
+              {p.horasPlanos[id]}h
             </span>
             <span className="pf-hint text-(--pf-ink-soft)">{unidade}</span>
+            {/* "8 h/mês" é a unidade do contrato, não a da agenda de ninguém:
+                ninguém pratica em blocos mensais, e a pergunta que o card
+                precisa responder é "isso cabe no meu dia?". As duas linhas são
+                a MESMA hora noutra régua — não é conta de preço, é tradução de
+                unidade, e é por isso que elas ficam mesmo com a mecânica de
+                precificação fora da tela. */}
+            <span className="pf-hint text-(--pf-ink-faint)">≈ {minutosDia} min/dia</span>
+            <span className="pf-hint text-(--pf-ink-faint)">
+              ≈ {formatNumero(horasSemana)}h/semana
+            </span>
           </button>
         );
       })}

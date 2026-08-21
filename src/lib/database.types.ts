@@ -167,6 +167,7 @@ export type Database = {
           label: string | null;
           last_access_at: string | null;
           last_saved_at: string | null;
+          premissas: Json | null;
           result_summary: Json | null;
           revoked_at: string | null;
           revoked_by: string | null;
@@ -187,6 +188,7 @@ export type Database = {
           label?: string | null;
           last_access_at?: string | null;
           last_saved_at?: string | null;
+          premissas?: Json | null;
           result_summary?: Json | null;
           revoked_at?: string | null;
           revoked_by?: string | null;
@@ -207,6 +209,7 @@ export type Database = {
           label?: string | null;
           last_access_at?: string | null;
           last_saved_at?: string | null;
+          premissas?: Json | null;
           result_summary?: Json | null;
           revoked_at?: string | null;
           revoked_by?: string | null;

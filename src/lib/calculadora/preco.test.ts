@@ -5,8 +5,9 @@ import {
   nivelServico,
   nivelServicoPorAssentos,
   precoConta,
-  precoEscada,
+  precoPorTier,
   rateioPorTime,
+  tierPorHoras,
   type TimePreco,
 } from "@/lib/calculadora/preco";
 
@@ -16,42 +17,68 @@ function times(
   return lista;
 }
 
-describe("escada progressiva (§4.9)", () => {
-  it("é marginal por faixa, com as fronteiras 262/656/1.243", () => {
-    expect(precoEscada(120).bruto).toBe(120 * 98);
-    expect(precoEscada(262).bruto).toBe(262 * 98);
-    expect(precoEscada(263).bruto).toBe(262 * 98 + 82);
-    expect(precoEscada(656).bruto).toBe(262 * 98 + 394 * 82);
-    expect(precoEscada(657).bruto).toBe(262 * 98 + 394 * 82 + 70);
-    expect(precoEscada(1243).bruto).toBe(262 * 98 + 394 * 82 + 587 * 70);
-    expect(precoEscada(1244).bruto).toBe(262 * 98 + 394 * 82 + 587 * 70 + 60);
+describe("tabela de preços por tier (§4.9)", () => {
+  it("cobra a taxa CHEIA do tier em todas as horas, nas fronteiras 262/656/1.243", () => {
+    expect(precoPorTier(120).bruto).toBe(120 * 98);
+    expect(precoPorTier(262).bruto).toBe(262 * 98);
+    expect(precoPorTier(263).bruto).toBe(263 * 82);
+    expect(precoPorTier(656).bruto).toBe(656 * 82);
+    expect(precoPorTier(657).bruto).toBe(657 * 70);
+    expect(precoPorTier(1243).bruto).toBe(1243 * 70);
+    expect(precoPorTier(1244).bruto).toBe(1244 * 60);
   });
 
-  // A faixa que a mudança de 573 para 656 move (18/08/2026). Abaixo de 574 h
-  // nada muda; de 656 em diante a diferença trava em +R$ 996/mês, porque são
-  // 83 horas que saem de R$ 70 e voltam para R$ 82.
-  it("cobra as horas de 574 a 656 no Tier 2, não no Tier 3", () => {
-    expect(precoEscada(573).bruto).toBe(262 * 98 + 311 * 82);
-    expect(precoEscada(574).bruto - (262 * 98 + 311 * 82)).toBe(82);
-    expect(precoEscada(656).bruto - (262 * 98 + 311 * 82 + 83 * 70)).toBe(83 * 12);
-    expect(precoEscada(657).bruto - precoEscada(656).bruto).toBe(70);
+  // A conta de 800 h não paga 262 h a 98 mais 394 a 82 mais 144 a 70: paga
+  // 800 × 70. É a diferença entre a aba comercial e a aba Conta da planilha, e
+  // o teste existe para que voltar ao marginal seja uma decisão, não um
+  // deslize.
+  it("nenhuma hora guarda a taxa da faixa anterior", () => {
+    expect(precoPorTier(800).bruto).toBe(800 * 70);
+    expect(precoPorTier(800).bruto).not.toBe(262 * 98 + 394 * 82 + 144 * 70);
   });
 
-  it("o extrato soma exatamente o bruto", () => {
-    for (const horas of [50, 262, 300, 573, 656, 800, 1243, 2000]) {
-      const { bruto, extrato } = precoEscada(horas);
-      const soma = extrato.reduce((total, faixa) => total + faixa.subtotal, 0);
-      expect(soma).toBeCloseTo(bruto, 9);
-      const horasExtrato = extrato.reduce((total, faixa) => total + faixa.horasNaFaixa, 0);
-      expect(horasExtrato).toBe(horas);
-    }
+  it("o tier declarado traz faixa, taxa e a economia da coluna comercial", () => {
+    const tier = tierPorHoras(800);
+    expect(tier.tier).toBe(3);
+    expect(tier.deHoras).toBe(657);
+    expect(tier.ateHoras).toBe(1243);
+    expect(tier.taxaHora).toBe(70);
+    expect(tier.economiaVsTier1).toBeCloseTo(1 - 70 / 98, 6); // 28,6%
+
+    const tier1 = tierPorHoras(100);
+    expect(tier1.tier).toBe(1);
+    expect(tier1.deHoras).toBe(0);
+    expect(tier1.economiaVsTier1).toBe(0);
+
+    const tier4 = tierPorHoras(5_000);
+    expect(tier4.tier).toBe(4);
+    expect(tier4.deHoras).toBe(1244);
+    expect(tier4.ateHoras).toBe(Infinity);
   });
 
-  it("invariante 9: uma hora a mais nunca reduz a receita (1..2000 h)", () => {
+  it("conta vazia fica no Tier 1 e não gera NaN", () => {
+    expect(precoPorTier(0).bruto).toBe(0);
+    expect(tierPorHoras(0).tier).toBe(1);
+    expect(precoPorTier(-10).bruto).toBe(0);
+  });
+
+  // O INVARIANTE 9 DO V5 ("uma hora a mais nunca reduz a receita") É QUEBRADO
+  // DE PROPÓSITO, e estes são os três pontos onde. Decisão do decisor em
+  // 21/08/2026, tomada com os três números à vista: a tabela comercial vale, e
+  // taxa cheia por tier implica degrau. Se um destes valores mudar, foi o
+  // modelo de preço que mudou — não é um bug a consertar aqui.
+  it("os três degraus em que uma hora a mais cobra MENOS", () => {
+    expect(precoPorTier(263).bruto - precoPorTier(262).bruto).toBe(-4_110);
+    expect(precoPorTier(657).bruto - precoPorTier(656).bruto).toBe(-7_802);
+    expect(precoPorTier(1244).bruto - precoPorTier(1243).bruto).toBe(-12_370);
+  });
+
+  it("fora das três fronteiras, uma hora a mais nunca reduz a receita", () => {
+    const DEGRAUS = new Set([263, 657, 1244]);
     let anterior = 0;
     for (let horas = 1; horas <= 2000; horas += 1) {
-      const mensal = Math.max(precoEscada(horas).bruto, 13_000);
-      expect(mensal).toBeGreaterThanOrEqual(anterior);
+      const mensal = Math.max(precoPorTier(horas).bruto, 13_000);
+      if (!DEGRAUS.has(horas)) expect(mensal).toBeGreaterThanOrEqual(anterior);
       anterior = mensal;
     }
   });
@@ -59,7 +86,7 @@ describe("escada progressiva (§4.9)", () => {
 
 describe("piso da conta (§4.9)", () => {
   it("R$ 13.000 aplicado depois do desconto, travando até 132 h/mês", () => {
-    // 132 h × 98 = 12.936 → piso; 134 h × 98 = 13.132 → escada.
+    // 132 h × 98 = 12.936 → piso; 134 h × 98 = 13.132 → Tier 1.
     const p132 = precoConta(times([{ id: "t", plano: "essencial", assentos: 66 }]));
     expect(p132.horasMes).toBe(132);
     expect(p132.mensal).toBe(13_000);

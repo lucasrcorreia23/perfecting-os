@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import type { ExplicacaoValor } from "@/lib/calculadora/explicacoes";
 import { cn } from "@/lib/utils";
+import { ExplicacaoInfo } from "./explicacao-info";
 
 // A linha de barra INLINE — rótulo, barra e valor na mesma faixa.
 //
@@ -46,6 +48,7 @@ export function LinhaBarra({
   nota,
   valor,
   pct,
+  explicacao,
   tom = "positivo",
 }: {
   rotulo: string;
@@ -53,13 +56,21 @@ export function LinhaBarra({
   valor: string;
   /** 0–100, proporcional à maior parcela da lista. */
   pct: number;
+  /**
+   * "De onde saiu este número", ao lado do RÓTULO — nunca do valor: a coluna
+   * da direita existe para ser lida de cima a baixo, e um ícone no meio dela
+   * desfaz a coluna. Quem passa a explicação decide QUANDO ela existe: no
+   * custo da inação, só nas linhas que têm valor.
+   */
+  explicacao?: ExplicacaoValor;
   tom?: Tom;
 }) {
   return (
     <li className="grid grid-cols-1 items-center gap-x-5 gap-y-2 border-t border-dashed border-[var(--pf-line,#e2e8f0)] py-3 first:border-t-0 first:pt-0 last:pb-0 sm:grid-cols-[minmax(9rem,1.1fr)_minmax(0,2fr)_auto]">
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-[var(--pf-ink,#0f172a)]">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--pf-ink,#0f172a)]">
           {rotulo}
+          {explicacao ? <ExplicacaoInfo explicacao={explicacao} /> : null}
         </span>
         {nota ? (
           <span className="text-xs leading-5 text-[var(--pf-ink-faint,#64748b)]">

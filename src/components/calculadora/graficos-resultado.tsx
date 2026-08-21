@@ -1,29 +1,31 @@
 "use client";
 
-import { CENARIOS, CHECAGEM_ALERTA, TAXA_MINIMA } from "@/lib/calculadora/constants";
 import {
   formatBRL,
   formatBRLCompacto,
-  formatMeses,
+  formatFaixaTier,
   formatNumero,
   formatPct,
-  formatX,
 } from "@/lib/calculadora/format";
-import type { LinhaCenario } from "@/lib/calculadora/cenarios-comparacao";
-import type { Cenario, PrecoConta, ResultadoTime } from "@/lib/calculadora/types";
-import { cn } from "@/lib/utils";
+import type {
+  PrecoConta,
+  ResultadoTime,
+} from "@/lib/calculadora/types";
 import { LinhaBarra, ListaBarras } from "./linha-barra";
-import { LinhaCompacta } from "./linha-compacta";
+import { usePremissas } from "./premissas-context";
 
 // Gráficos do resultado — a maioria em SVG próprio (zero dependências, mesmas
 // convenções dos painéis de trajetória, §8 das diretrizes: viewBox de 640 de
 // largura escalando por `w-full`, grade tracejada em `--pf-line`, legendas em
-// HTML fora do SVG). Três blocos (`InvestimentoVsRetorno`, `DecomposicaoValor`,
-// `ComparacaoCenarios`) viraram HTML puro em 20/08/2026: são listas de barras
-// e cards com rótulo/valor — texto real, sem nada que um `aria-label` precise
-// recitar de novo. Rótulos em 12–13px e cinzas um degrau mais escuros que a
-// convenção original: quem lê esta tela costuma ter mais de 45 anos, e 10px em
-// `#94a3b8` não sobrevive a isso.
+// HTML fora do SVG). Dois blocos (`InvestimentoVsRetorno` e
+// `DecomposicaoValor`) viraram HTML puro em 20/08/2026: são listas de barras com
+// rótulo/valor — texto real, sem nada que um `aria-label` precise recitar de
+// novo. Rótulos em 12–13px e cinzas um degrau mais escuros que a convenção
+// original: quem lê esta tela costuma ter mais de 45 anos, e 10px em `#94a3b8`
+// não sobrevive a isso.
+//
+// A comparação de cenários mudou de arquivo no mesmo dia: virou controle
+// (escolher o cenário, ajustar os deltas) e mora em `comparacao-cenarios.tsx`.
 //
 // Nenhum destes componentes é dono da própria superfície: todos renderizam
 // `flex flex-col gap-*` e quem dá moldura é a `SecaoResultado` em volta. É o
@@ -66,6 +68,10 @@ export function InvestimentoVsRetorno({
 }) {
   const maior = Math.max(precoAno, valorAno, 1);
   return (
+    // Sem ícone de "de onde saiu" em nenhuma das duas: os mesmos dois números
+    // estão na capa, quatro cards acima e com balão. Aqui eles são a IMAGEM da
+    // comparação — repetir a afordância no desenho que a ilustra seria uma
+    // segunda porta para a mesma pergunta.
     <ListaBarras>
       {/* O investimento fica SLATE, e não vermelho como no material de
           referência: "custo e preço não são verdes nem vermelhos" (§1) — custo
@@ -146,232 +152,97 @@ export function DecomposicaoValor({ resultado }: { resultado: ResultadoOk }) {
   );
 }
 
-/**
- * A prosa que enquadra a decomposição, para a `SecaoResultado` a usar como
- * descrição. Ela era o parágrafo de FECHO do bloco e subiu para o cabeçalho na
- * passagem de 20/08/2026: no topo ela prepara a leitura das cinco barras; em
- * baixo, resumia o que a pessoa acabara de ler. É a mesma frase — o leitor de
- * tela continua recebendo o contraste eficiência↔performance antes da lista.
- */
-export function descricaoDecomposicao(resultado: ResultadoOk): string {
-  const semCiclo = resultado.parcelas.ganhoCicloAno === null;
-  return (
-    "Sem dupla contagem: cada alavanca tem teto próprio, e as de performance " +
-    "carregam o desconto anti-otimismo — exceto o ticket, que é medido direto " +
-    "no CRM. Eficiência é custo que deixa de existir; performance é margem nova." +
-    (semCiclo ? " O ciclo entra quando o funil estiver preenchido." : "")
-  );
-}
-
 // ---------------------------------------------------------------------------
-// Comparação dos três cenários (aba Scenario Comparison do Excel), um card
-// completo por cenário — substituiu o gráfico de barras + resumo por pedido
-// do decisor em 20/08/2026: o CFO quer o detalhamento inteiro lado a lado,
-// não só o múltiplo. Cada card repete as cinco alavancas, o valor anual e a
-// mensalidade, na mesma pauta de `LinhaCompacta` usada no resto da tela.
-// ---------------------------------------------------------------------------
-
-export function ComparacaoCenarios({
-  linhas,
-  precoMes,
-  cenarioAtivo,
-  personalizado = false,
-}: {
-  linhas: LinhaCenario[];
-  precoMes: number;
-  cenarioAtivo: Cenario;
-  // Em "parâmetros personalizados" nenhum preset está ativo: o destaque vai
-  // para a base, tracejada, como antes.
-  personalizado?: boolean;
-}) {
-  return (
-    // pt-3: o selo do cenário ativo monta 10px acima da borda do card, e sem
-    // esse ar ele seria cortado pelo bloco em volta.
-    <div className="grid grid-cols-1 gap-4 pt-3 sm:grid-cols-3">
-      {linhas.map((linha) => {
-          const ativo = !personalizado && linha.cenario === cenarioAtivo;
-          const base = personalizado && linha.cenario === cenarioAtivo;
-          return (
-          <div
-            key={linha.cenario}
-            className={cn(
-              // `relative` porque o selo do ativo é SOBREPOSTO à borda: ele sai
-              // do fluxo e monta na moldura em vez de empurrar o nome do
-              // cenário para o lado. Dentro do fluxo, o par nome+pílula ocupava
-              // a primeira linha inteira e a coluna ativa ficava um degrau mais
-              // baixa que as outras duas.
-              "relative flex flex-col gap-4 rounded-sm border p-6",
-              ativo
-                ? "border-[var(--pf-brand,#2e63cd)] bg-[var(--pf-surface-alt,#ffffff)]"
-                : "border-[var(--pf-line,#e2e8f0)]",
-              base && "border-dashed",
-            )}
-          >
-            {ativo ? (
-              <span className="pf-label absolute -top-2.5 left-6 inline-flex w-fit items-center whitespace-nowrap rounded-full bg-[var(--pf-brand,#2e63cd)] px-3 py-1 text-[var(--pf-on-brand,#ffffff)]">
-                Cenário ativo
-              </span>
-            ) : null}
-            <div className="flex flex-col gap-2">
-              <span
-                className={cn(
-                  "pf-card-title",
-                  ativo
-                    ? "text-[var(--pf-brand-ink,#2e63cd)]"
-                    : "text-[var(--pf-ink,#334155)]",
-                )}
-              >
-                {CENARIOS[linha.cenario].label}
-              </span>
-              <span className="pf-num-hero text-trend-positive">
-                {formatX(linha.roi)}
-              </span>
-              <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
-                payback em{" "}
-                <span className="font-medium tabular-nums text-[var(--pf-ink-soft,#475569)]">
-                  {formatMeses(linha.paybackMeses)}
-                </span>{" "}
-                · valor/ano {formatBRL(linha.valorAno)}
-              </span>
-              {linha.paybackExcedeContrato ? (
-                <span className="text-sm leading-6 text-[var(--pf-warn-ink,#973c00)]">
-                  passa do prazo escolhido
-                </span>
-              ) : null}
-            </div>
-
-            {/* Tracejado entre as parcelas, sólido acima do subtotal: a mesma
-                distinção da `LinhaBarra` — régua de lista contra fio que fecha
-                conta. Sem ela, sete linhas de mesma natureza empatavam com as
-                duas que somam. */}
-            <dl className="flex flex-col divide-y divide-dashed divide-[var(--pf-line,#e2e8f0)] border-t border-[var(--pf-line-soft,#f1f5f9)] pt-2 [&>*]:py-2">
-              <LinhaCompacta
-                rotulo="Eficiência (igual)"
-                valor={formatBRL(linha.eficienciaAno)}
-              />
-              <LinhaCompacta
-                rotulo="Ticket médio"
-                valor={formatBRL(linha.parcelas.margemTicketAno)}
-                tom="positivo"
-              />
-              <LinhaCompacta
-                rotulo="Rampa"
-                valor={formatBRL(linha.parcelas.margemRampaAno)}
-                tom="positivo"
-              />
-              <LinhaCompacta
-                rotulo="Conversão"
-                valor={formatBRL(linha.parcelas.ganhoConversaoAno)}
-                tom="positivo"
-              />
-              <LinhaCompacta
-                rotulo="Ciclo de vendas"
-                valor={
-                  linha.parcelas.ganhoCicloAno === null
-                    ? "—"
-                    : formatBRL(linha.parcelas.ganhoCicloAno)
-                }
-                tom={linha.parcelas.ganhoCicloAno === null ? "neutro" : "positivo"}
-              />
-            </dl>
-
-            <dl className="flex flex-col gap-2 border-t border-[var(--pf-line-strong,#cbd5e1)] pt-4">
-              <LinhaCompacta
-                rotulo="Valor anual"
-                valor={formatBRL(linha.valorAno)}
-                tom="positivo"
-              />
-              <LinhaCompacta rotulo="Mensalidade" valor={formatBRL(precoMes)} />
-            </dl>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * A ressalva dos três cenários, para a `SecaoResultado` a usar como descrição.
- * Era o parágrafo de FECHO do bloco e subiu para o cabeçalho junto com a da
- * decomposição (20/08/2026): a pessoa precisa saber que a eficiência é
- * invariante ANTES de comparar as três colunas — lida depois, "igual nos três"
- * já foi interpretada como erro de cálculo.
- */
-export const DESCRICAO_CENARIOS =
-  "Mesmos dados da sua operação nos três; só os deltas de melhoria mudam. " +
-  "A eficiência é igual em todos — ela vem do caminho declarado, não do cenário.";
-
-// ---------------------------------------------------------------------------
-// Escada de preço: onde as horas da conta caem em cada faixa.
+// Tabela de preços por tier: os quatro tiers ao longo do eixo de horas, e onde
+// o volume da conta caiu.
+//
+// Substituiu a escada marginal em 21/08/2026, quando o preço passou a ser taxa
+// cheia do tier (ver TABELA_TIERS). O desenho antigo mostrava as horas
+// FATIADAS em faixas, que é exatamente o que deixou de acontecer: hoje a conta
+// inteira mora num tier só, e o que a pessoa precisa ver é qual é ele e o que
+// há de cada lado. Por isso o eixo é o volume — não a distribuição das horas —
+// e o marcador é o único elemento que fala da conta desta pessoa.
 //
 // Tudo slate de propósito — é a coluna do custo. Verde aqui leria como ganho.
 // ---------------------------------------------------------------------------
 
-const ESCADA_VB_H = 84;
-const ESCADA_PAD = { left: 4, right: 4 };
+const TIERS_VB_H = 92;
+const TIERS_PAD = { left: 4, right: 4 };
 
-export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
-  const faixas = preco.extrato.filter((faixa) => faixa.horasNaFaixa > 0);
-  if (faixas.length === 0 || preco.horasMes <= 0) return null;
+export function TabelaTiersGrafico({ preco }: { preco: PrecoConta }) {
+  const p = usePremissas();
+  const tabela = p.tabelaTiers;
+  if (preco.horasMes <= 0) return null;
 
-  const plotW = VB_W - ESCADA_PAD.left - ESCADA_PAD.right;
-  const barraY = 26;
+  const plotW = VB_W - TIERS_PAD.left - TIERS_PAD.right;
+  const barraY = 34;
   const barraH = 26;
-  // Tons de slate por faixa: a primeira é a mais escura (mais cara por hora),
-  // e a escada clareia conforme a taxa cai — a cor conta a mesma história.
-  const TONS = ["#475569", "#64748b", "#94a3b8", "#cbd5e1"];
 
-  // Offset acumulado por soma das faixas anteriores, não por variável mutada
-  // durante o map: o React Compiler proíbe reatribuição no corpo do render, e
-  // com no máximo quatro faixas o custo do slice é irrelevante.
-  const segmentos = faixas.map((faixa, index) => {
-    const horasAntes = faixas
-      .slice(0, index)
-      .reduce((total, anterior) => total + anterior.horasNaFaixa, 0);
+  // O eixo precisa de um fim, e o Tier 4 não tem. Ele ganha uma sobra do
+  // tamanho do Tier 3, e o domínio só cresce além disso para caber uma conta
+  // maior que a última fronteira — senão o marcador sairia do desenho.
+  const ultimaFronteira = tabela[tabela.length - 2].ateHoras;
+  const sobra = ultimaFronteira - tabela[tabela.length - 3].ateHoras;
+  const dominio = Math.max(ultimaFronteira + sobra, preco.horasMes * 1.08);
+  const x = (horas: number) => TIERS_PAD.left + (horas / dominio) * plotW;
+
+  const segmentos = tabela.map((faixa, index) => {
+    const de = index === 0 ? 0 : tabela[index - 1].ateHoras;
+    const ate = Number.isFinite(faixa.ateHoras) ? faixa.ateHoras : dominio;
     return {
       faixa,
-      x: ESCADA_PAD.left + (horasAntes / preco.horasMes) * plotW,
-      largura: (faixa.horasNaFaixa / preco.horasMes) * plotW,
-      tom: TONS[index] ?? TONS[TONS.length - 1],
+      de: index === 0 ? 0 : de + 1,
+      x: x(de),
+      largura: x(ate) - x(de),
+      ativo: faixa.tier === preco.tier.tier,
     };
   });
 
-  const descricao = `${formatNumero(preco.horasMes, 0)} horas por mês distribuídas na escada: ${faixas
-    .map(
-      (faixa) =>
-        `${formatNumero(faixa.horasNaFaixa, 0)} horas a ${formatBRL(faixa.taxaHora)} por hora`,
-    )
-    .join(", ")}.`;
+  const marcadorX = x(preco.horasMes);
+  // Perto das pontas o rótulo do marcador vira âncora lateral, senão ele sai
+  // do viewBox — a mesma correção que o MedidorChecagem já carregava.
+  const ancora =
+    marcadorX < 60 ? "start" : marcadorX > VB_W - 60 ? "end" : "middle";
+
+  const descricao = `${formatNumero(preco.horasMes, 0)} horas por mês caem no Tier ${
+    preco.tier.tier
+  } (${formatFaixaTier(preco.tier)}), a ${formatBRL(preco.tier.taxaHora)} por hora. Tabela completa: ${tabela.map(
+    (faixa, index) =>
+      `Tier ${faixa.tier}, ${formatFaixaTier({
+        deHoras: index === 0 ? 0 : tabela[index - 1].ateHoras + 1,
+        ateHoras: faixa.ateHoras,
+      })}, ${formatBRL(faixa.taxaHora)} por hora`,
+  ).join("; ")}.`;
 
   return (
     <div className="flex flex-col gap-3">
       <svg
-        viewBox={`0 0 ${VB_W} ${ESCADA_VB_H}`}
+        viewBox={`0 0 ${VB_W} ${TIERS_VB_H}`}
         className="w-full"
         role="img"
         aria-label={descricao}
       >
-        {segmentos.map(({ faixa, x: sx, largura, tom }, index) => (
-          <g key={index}>
+        {segmentos.map(({ faixa, de, x: sx, largura, ativo }) => (
+          <g key={faixa.tier}>
             <rect
               x={sx}
               y={barraY}
               width={Math.max(1, largura - 2)}
               height={barraH}
               rx={3}
-              fill={tom}
+              fill={ativo ? SLATE_700 : "#e2e8f0"}
             />
-            {/* Rótulo dentro do segmento só quando há espaço; senão vira
-                travessão silencioso — melhor sem rótulo que rótulo cortado. */}
-            {largura > 74 ? (
+            {/* Rótulo dentro do segmento só quando há espaço; senão some, que
+                é melhor que rótulo cortado. */}
+            {largura > 62 ? (
               <>
                 <text
                   x={sx + largura / 2 - 1}
                   y={barraY + 17}
                   textAnchor="middle"
                   fontSize={13}
-                  fontWeight={600}
-                  fill="#ffffff"
+                  fontWeight={ativo ? 700 : 600}
+                  fill={ativo ? "#ffffff" : SLATE_500}
                 >
                   {formatBRL(faixa.taxaHora)}/h
                 </text>
@@ -382,31 +253,46 @@ export function EscadaPrecoGrafico({ preco }: { preco: PrecoConta }) {
                   fontSize={12}
                   className="fill-[var(--pf-ink-faint,#64748b)]"
                 >
-                  {formatNumero(faixa.horasNaFaixa, 0)} h
+                  {formatFaixaTier({ deHoras: de, ateHoras: faixa.ateHoras }, "h")}
                 </text>
               </>
             ) : null}
-            <text
-              x={sx + largura / 2 - 1}
-              y={barraY - 8}
-              textAnchor="middle"
-              fontSize={12}
-              className="fill-[var(--pf-ink-faint,#64748b)]"
-            >
-              {largura > 74 ? `Faixa ${index + 1}` : ""}
-            </text>
           </g>
         ))}
+
+        {/* O marcador da conta. Linha inteira, não tracejada: em 26px de altura
+            o tracejado lê como sujeira (mesma razão do MedidorChecagem). */}
+        <line
+          x1={marcadorX}
+          x2={marcadorX}
+          y1={barraY - 10}
+          y2={barraY + barraH + 4}
+          stroke={SLATE_700}
+          strokeWidth={2}
+        />
+        <text
+          x={marcadorX}
+          y={barraY - 16}
+          textAnchor={ancora}
+          fontSize={12}
+          fontWeight={700}
+          fill={SLATE_700}
+        >
+          {formatNumero(preco.horasMes, 0)} h/mês
+        </text>
       </svg>
 
       <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
-        Cada faixa cobra a própria taxa, como imposto de renda:{" "}
+        A taxa do tier vale para a hora inteira, não só para as horas acima da
+        fronteira:{" "}
         <span className="font-medium text-[var(--pf-ink-soft,#475569)]">
           {formatBRL(preco.taxaCombinada, 2)}/hora
-        </span>{" "}
-        na média, {formatBRL(faixas[faixas.length - 1].taxaHora)} na próxima hora.
+        </span>
+{" "}
+        nas{" "}
+        {formatNumero(preco.horasMes, 0)} h da conta.
         {preco.pisoAplicado
-          ? ` Vale a cobrança mínima de ${formatBRL(TAXA_MINIMA)}/mês.`
+          ? ` Vale a cobrança mínima de ${formatBRL(p.taxaMinima)}/mês, acima do que a tabela cobraria neste volume.`
           : ""}
       </p>
     </div>
@@ -431,7 +317,7 @@ const MEDIDOR_TRILHO_H = 10;
 const MEDIDOR_VB_H = 52;
 
 export function MedidorChecagem({ pct }: { pct: number }) {
-  const limite = CHECAGEM_ALERTA * 100;
+  const limite = usePremissas().checagemAlerta * 100;
   const escalaMax = Math.max(limite * 1.4, pct * 1.15);
   const plotW = VB_W - 8;
   const x = (valor: number) => 4 + (Math.min(valor, escalaMax) / escalaMax) * plotW;

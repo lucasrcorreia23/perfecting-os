@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-// O cabeçalho da jornada: as quatro etapas, sempre visíveis.
+// O cabeçalho da jornada: as três etapas, sempre visíveis.
 //
 // Substitui a `TopProgress` (uma barra de 1px no topo, que dizia quanto falta
 // mas não onde você está nem como voltar) e o stepper lateral de times.
@@ -30,7 +30,13 @@ import { cn } from "@/lib/utils";
 // daquela etapa já foi vencido, não a posição do cursor). Por isso é a régua que
 // carrega agora o `aria-label` da navegação.
 
-export type EtapaId = "mensalidade" | "quiz" | "relatorio" | "exportar";
+// A etapa 04 "Exportar & FAQ" saiu em 21/08/2026 (decisão do decisor): a
+// jornada termina no relatório. O que ela carregava e não podia sumir — o
+// `ResumoVerificavel` (único bloco que a impressão enxerga) e a `EnviarBar`
+// (o envio da proposta) — desceu para o FIM da etapa 03, em `FechoRelatorio`.
+// O FAQ inline não foi junto: ele já existe no modal do cabeçalho, e era a
+// única parte da etapa que a régua duplicava.
+export type EtapaId = "mensalidade" | "quiz" | "relatorio";
 
 // Sem caixa alta no texto: a §2 é inegociável e vale para eyebrow também — a
 // caixa vem escrita, e quem faz o papel aqui é a mono e o número ao lado.
@@ -38,7 +44,6 @@ const ETAPAS: { id: EtapaId; numero: string; titulo: string }[] = [
   { id: "mensalidade", numero: "01", titulo: "Mensalidade" },
   { id: "quiz", numero: "02", titulo: "Quiz de ROI" },
   { id: "relatorio", numero: "03", titulo: "Relatório" },
-  { id: "exportar", numero: "04", titulo: "Exportar & FAQ" },
 ];
 
 /**
@@ -91,8 +96,30 @@ export function EtapasNav({
   const liberadas = etapasLiberadas(preenchimento, etapaAtual);
 
   return (
-    <div className="flex flex-col">
-      <header className="border-b border-(--pf-line)">
+    // Fragmento, e não um `<div>` em volta — é o que faz o `sticky` do
+    // cabeçalho durar a página inteira. Um elemento sticky só gruda DENTRO do
+    // próprio containing block: envolto num wrapper de ~170px, a barra
+    // descolaria depois de 170px de rolagem, que numa etapa 03 de 6.000px é o
+    // mesmo que não grudar. Sem o wrapper, o containing block passa a ser o
+    // `<main>` da jornada e a barra acompanha até o rodapé.
+    <>
+      {/* A barra do topo fica FIXA ao rolar (decisão do decisor, 20/08/2026):
+          é onde moram as três consultas da jornada — perguntas comuns,
+          glossário e a referência de fórmulas —, e num relatório de milhares
+          de pixels elas ficavam a uma rolagem inteira de distância de quem
+          topou com a dúvida.
+
+          A régua de etapas abaixo NÃO gruda junto, de propósito: no mobile ela
+          são duas fileiras de alvos de 44px, e a barra inteira comeria um
+          quarto da tela em toda a leitura.
+
+          O fundo é `--pf-canvas-top` e isso é exato, não aproximação: a rampa
+          da pele mora no `body` com `background-attachment: fixed`, então o
+          topo do viewport mostra a primeira parada do gradiente em QUALQUER
+          ponto da rolagem. A barra pinta a mesma cor que já estava ali — fica
+          opaca (o conteúdo passa por baixo sem transparecer) sem emendar num
+          degrau. Nada de blur: a §1 não abre exceção para glassmorphism. */}
+      <header className="sticky top-0 z-(--z-header) border-b border-(--pf-line) bg-(--pf-canvas-top)">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Image
@@ -117,7 +144,7 @@ export function EtapasNav({
         aria-label="Etapas da calculadora"
         className="mx-auto w-full max-w-7xl px-4 pb-2 pt-5 sm:px-6"
       >
-        <ol className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
+        <ol className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
           {ETAPAS.map((etapa) => {
             const ativo = etapa.id === etapaAtual;
             const pct = Math.round(
@@ -126,24 +153,51 @@ export function EtapasNav({
             const liberada = liberadas[etapa.id];
             const motivo = liberada ? null : motivoDaTrava(preenchimento, etapa.id);
             return (
-              <li key={etapa.id} className="flex flex-col gap-2">
-                {/* 4px, não os 3 de antes: a régua é a única leitura de
-                    progresso da tela e um fio de 3px lia como borda. E o valor
-                    volta para a grade de 4 (§3). */}
-                <span
-                  className="h-1 w-full overflow-hidden rounded-full bg-(--pf-line)"
-                  aria-hidden
-                >
+              <li
+                key={etapa.id}
+                // A grade de 2 colunas ficou de quando as etapas eram QUATRO:
+                // com três, a 03 sobrava sozinha na segunda fileira, ocupando
+                // meia largura ao lado de um vazio do mesmo tamanho — leitura
+                // de layout quebrado, não de etapa pendente. A última passa a
+                // ocupar a fileira inteira abaixo do `sm:`, onde ela já é a
+                // única. O trilho mais longo não distorce nada: cada um é uma
+                // fração de si mesmo, e é o preenchimento que informa, nunca o
+                // comprimento comparado ao do vizinho.
+                className="flex flex-col gap-2 last:col-span-2 sm:last:col-span-1"
+              >
+                {/* TRÊS estados, e nenhum depende de comparar larguras
+                    (20/08/2026, a pedido do decisor). A regra antiga era
+                    `pct >= 100 ? escuro : azul`, e ela apagava justamente a
+                    distinção que importa: a etapa em curso quase sempre está
+                    100% preenchida — o relatório está completo enquanto se lê o
+                    relatório —, então "onde estou" saía idêntico a "já fiz".
+                    Agora quem manda é `ativo`, não o preenchimento:
+
+                    · em curso  — azul da marca, trilho 6px sobre o fio de
+                                  CONTROLE, que é o que deixa a fração legível;
+                    · vencida   — cheia, tinta cheia, 4px;
+                    · à frente  — vazia sobre o fio estrutural.
+
+                    A altura é o segundo canal, para quem não separa as duas
+                    cores; o wrapper fixa 6px para que engrossar o trilho ativo
+                    não empurre o rótulo 2px para baixo e desalinhe a fita. */}
+                <span className="flex h-1.5 w-full items-center" aria-hidden>
                   <span
                     className={cn(
-                      "block h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
-                      // Etapa vencida fica cheia e escura; a que está em curso
-                      // mostra a fração em azul. São estados diferentes e a cor
-                      // é o que os separa sem exigir contar pixels de largura.
-                      pct >= 100 ? "bg-(--pf-ink)" : "bg-(--pf-brand)",
+                      "w-full overflow-hidden rounded-full",
+                      ativo
+                        ? "h-1.5 bg-(--pf-line-strong)"
+                        : "h-1 bg-(--pf-line)",
                     )}
-                    style={{ width: `${pct}%` }}
-                  />
+                  >
+                    <span
+                      className={cn(
+                        "block h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
+                        ativo ? "bg-(--pf-brand)" : "bg-(--pf-ink)",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -170,9 +224,13 @@ export function EtapasNav({
                       ? "cursor-pointer"
                       : "cursor-not-allowed text-(--pf-ink-faint)/60",
                     liberada && ativo && "text-(--pf-ink)",
+                    // Vencida em `-soft` e ainda-por-fazer em `-faint`: o
+                    // rótulo repete, na tinta, os três estados do trilho.
                     liberada &&
                       !ativo &&
-                      "text-(--pf-ink-faint) hover:text-(--pf-ink-soft)",
+                      (pct >= 100
+                        ? "text-(--pf-ink-soft) hover:text-(--pf-ink)"
+                        : "text-(--pf-ink-faint) hover:text-(--pf-ink)"),
                   )}
                 >
                   <span
@@ -192,6 +250,6 @@ export function EtapasNav({
           })}
         </ol>
       </nav>
-    </div>
+    </>
   );
 }

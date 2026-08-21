@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { calcResultadoTime, type PropostaEfetiva } from "@/lib/calculadora/calc";
-import { compararCenarios } from "@/lib/calculadora/cenarios-comparacao";
+import {
+  compararCenarios,
+  linhaDoResultado,
+} from "@/lib/calculadora/cenarios-comparacao";
+import { CENARIOS } from "@/lib/calculadora/constants";
 import { entradasVazias } from "@/lib/calculadora/estado";
 import { rateioPorTime } from "@/lib/calculadora/preco";
 import type { Cenario, EntradasTime } from "@/lib/calculadora/types";
@@ -49,8 +53,8 @@ describe("comparação de cenários (Excel, aba Scenario Comparison)", () => {
     );
     if (direto.status !== "ok") throw new Error("deveria estar completo");
     expect(linha.valorAno).toBeCloseTo(direto.valorAno, 6);
-    expect(linha.roi).toBeCloseTo(0.43206239328929, 10);
-    expect(linha.paybackMeses).toBeCloseTo(27.77376644295304, 10);
+    expect(linha.roi).toBeCloseTo(0.52514097744360866, 10);
+    expect(linha.paybackMeses).toBeCloseTo(22.851006711409415, 10);
   });
 
   it("a eficiência é invariante: deltas não tocam o contrafactual", () => {
@@ -140,5 +144,84 @@ describe("comparação de cenários (Excel, aba Scenario Comparison)", () => {
   it("devolve null enquanto o time estiver incompleto", () => {
     expect(compararCenarios(entradasVazias(), PROPOSTA, PRECO_MES, 3)).toBeNull();
     expect(compararCenarios(entradasFiesc(), PROPOSTA, 0, 3)).toBeNull();
+  });
+
+  // Cada coluna carrega os deltas EFETIVOS que a produziram: é o que a tela
+  // mostra ao lado de cada alavanca, e desde 21/08/2026 é o que o campo da
+  // coluna ativa edita. Sem eles, a comparação afirmava "só os deltas mudam"
+  // sem nunca exibir um.
+  it("cada linha carrega os deltas efetivos do próprio preset", () => {
+    for (const linha of comparar()) {
+      const preset = CENARIOS[linha.cenario];
+      expect(linha.deltas.ticketPct).toBeCloseTo(preset.ticketPct, 10);
+      expect(linha.deltas.rampaPct).toBeCloseTo(preset.rampaPct, 10);
+      expect(linha.deltas.convPp).toBeCloseTo(preset.convPp, 10);
+      // Ciclo de 60 dias: o preset em % vira dias inteiros (Engine!C52–C56).
+      expect(linha.deltas.cicloDiasMenos).toBe(Math.round(60 * preset.cicloPct));
+    }
+  });
+});
+
+// A edição na coluna ativa não pode reescrever o que os OUTROS dois cenários
+// respondem: é `compararCenarios` que alimenta o FAQ ("no Conservador o ROI é
+// X"), e essa frase deixaria de ser verdade se um ajuste vazasse para dentro
+// dela. Quem mostra os números em uso é `linhaDoResultado`, sobre o resultado
+// que o motor já devolveu.
+describe("a coluna ativa quando ela deixou de ser o preset puro", () => {
+  const AJUSTADA = {
+    modo: "personalizado" as const,
+    base: "conservador" as const,
+    // Bem acima do preset conservador (5% / 20% / +0,5 p.p. / 3 dias).
+    deltas: { ticketPct: 0.3, rampaPct: 0.8, cicloDiasMenos: 18, convPp: 5 },
+  };
+
+  it("compararCenarios continua devolvendo os três presets puros", () => {
+    const linhas = comparar();
+    for (const linha of linhas) {
+      expect(linha.deltas.ticketPct).toBeCloseTo(CENARIOS[linha.cenario].ticketPct, 10);
+    }
+    // O mesmo ROI do golden FIESC, com ou sem ajuste em curso na tela.
+    expect(linhas.find((l) => l.cenario === "conservador")!.roi).toBeCloseTo(
+      0.52514097744360866,
+      10,
+    );
+  });
+
+  it("linhaDoResultado espelha o resultado que o relatório está mostrando", () => {
+    const resultado = calcResultadoTime(
+      entradasFiesc(),
+      PROPOSTA,
+      PRECO_MES,
+      AJUSTADA,
+      3,
+    );
+    if (resultado.status !== "ok") throw new Error("deveria estar completo");
+    const linha = linhaDoResultado("conservador", resultado, 3);
+
+    expect(linha.cenario).toBe("conservador");
+    expect(linha.deltas).toEqual(resultado.deltas);
+    expect(linha.roi).toBe(resultado.roi);
+    expect(linha.valorAno).toBe(resultado.valorAno);
+    expect(linha.paybackMeses).toBe(resultado.paybackMeses);
+    expect(linha.paybackExcedeContrato).toBe(true);
+    // E ela de fato difere do preset de mesmo nome — senão o campo editaria
+    // um número que a coluna não mostra.
+    expect(linha.roi).toBeGreaterThan(
+      comparar().find((l) => l.cenario === "conservador")!.roi,
+    );
+  });
+
+  it("o prazo é quem decide o aviso, não o cenário", () => {
+    const resultado = calcResultadoTime(
+      entradasFiesc(),
+      PROPOSTA,
+      PRECO_MES,
+      AJUSTADA,
+      24,
+    );
+    if (resultado.status !== "ok") throw new Error("deveria estar completo");
+    expect(linhaDoResultado("conservador", resultado, 24).paybackExcedeContrato).toBe(
+      false,
+    );
   });
 });

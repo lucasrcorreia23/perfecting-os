@@ -10,10 +10,15 @@ import {
 import { CAMPO_DEFS } from "@/lib/calculadora/campos";
 import {
   CAMINHOS,
-  FATOR_ESCOPO_PREMISSA,
   PLANOS,
 } from "@/lib/calculadora/constants";
 import { PASSOS } from "@/lib/calculadora/estado";
+import {
+  explicarAlavanca,
+  explicarEficiencia,
+  type AlavancaId,
+  type ExplicacaoValor,
+} from "@/lib/calculadora/explicacoes";
 import {
   formatBRL,
   formatMeses,
@@ -31,6 +36,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/tooltip";
 import type { HeroIcon } from "@/components/ui/types";
+import { ExplicacaoInfo } from "./explicacao-info";
+import { usePremissas } from "./premissas-context";
 import { MedidorChecagem } from "./graficos-resultado";
 import { LinhaCompacta } from "./linha-compacta";
 import { BlocoRecolhivel } from "./secao-resultado";
@@ -385,24 +392,46 @@ export function ResultadoIncompleto({
 // grandeza, mesma classe, e mono tabular de quebra.
 function CabecalhoParcela({
   titulo,
-  ajuda,
+  explicacao,
   valor,
+  zerado = false,
   icon: Icon,
 }: {
   titulo: string;
-  ajuda: string;
+  /**
+   * Presente só na Eficiência, e a assimetria é a regra e não um esquecimento:
+   * o total da Performance é a soma das quatro linhas impressas logo abaixo
+   * dele — ali o olho faz a conta —, enquanto o da Eficiência é o MENOR entre
+   * o caminho declarado e o teto do plano, e quando o teto morde o número na
+   * tela não aparece em lugar nenhum da lista.
+   *
+   * Substituiu um `HintTooltip` que carregava só uma frase de enquadramento.
+   * Dois ícones de informação lado a lado seriam duas afordâncias para a mesma
+   * pergunta.
+   */
+  explicacao?: ExplicacaoValor;
   valor: string;
+  /**
+   * O total da parcela é ZERO — e aí ele não pode ser verde.
+   *
+   * "Verde = entra na conta" é a regra mais forte da tela, e a Eficiência chega
+   * a zero por um caminho legítimo e comum: quem declara "Nenhum treino
+   * estruturado" não tem custo a deixar de gastar. O card mostrava
+   * `+R$ 0/ano` na tinta do ganho, com sinal de mais — três afirmações de que
+   * ali havia dinheiro entrando, sobre o único número da tela que garante que
+   * não há. Zerado, a tinta volta ao neutro e o `+` sai; a linha "Caminho
+   * declarado", logo abaixo, é que responde por quê.
+   */
+  zerado?: boolean;
   icon: HeroIcon;
 }) {
   return (
-    // `relative`: o balão do HintTooltip se ancora aqui.
-    //
     // GRADE de duas trilhas, não `flex-wrap`: quem tem de quebrar é o TÍTULO,
     // dentro da própria trilha, e nunca o total. Com flex, "Performance: o que
     // passa a ser ganho" mais um valor em `pf-num-kpi` não cabiam na linha e o
     // número inteiro descia sozinho para baixo do título — a mesma correção
     // que `LinhaCompacta` já tinha levado, pelo mesmo motivo.
-    <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-[var(--pf-line-soft,#f1f5f9)] pb-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-[var(--pf-line-soft,#f1f5f9)] pb-3">
       {/* `min-w-0` + título em fluxo INLINE: o ícone e o balão de ajuda não
           podem ser itens flex irmãos do título, senão cada um quebra por conta
           própria e o ícone fica sozinho numa linha com o texto embaixo. Aqui o
@@ -417,12 +446,19 @@ function CabecalhoParcela({
           <h3 className="pf-card-title inline text-[var(--pf-ink,#334155)]">
             {titulo}
           </h3>{" "}
-          <span className="inline-flex translate-y-1">
-            <HintTooltip text={ajuda} />
-          </span>
+          {explicacao ? (
+            <span className="inline-flex translate-y-1">
+              <ExplicacaoInfo explicacao={explicacao} />
+            </span>
+          ) : null}
         </span>
       </span>
-      <span className="pf-num-kpi text-right text-trend-positive">
+      <span
+        className={cn(
+          "pf-num-kpi text-right",
+          zerado ? "text-[var(--pf-ink-soft,#475569)]" : "text-trend-positive",
+        )}
+      >
         {valor}
       </span>
     </div>
@@ -451,12 +487,13 @@ export function EficienciaCard({
   // números deste card já vêm rateados, e isso precisa estar dito na tela.
   rateio?: { gestoresDaConta: number | null; pctVendedores: number } | null;
 }) {
+  const p = usePremissas();
   const [detalhe, setDetalhe] = useState(false);
   const fator = resultado.fatorEscopo;
   const horasGestorMes = (entradas.horasTreinoGestorMes ?? 0) * (entradas.numGestoresTreino ?? 0);
   const repsCobertosHoje =
     (entradas.vendedoresPorGestorMes ?? 0) * (entradas.numGestoresTreino ?? 0);
-  const horasPlanoPorRep = PLANOS[plano].horasMes;
+  const horasPlanoPorRep = p.horasPlanos[plano];
   const repsCobriveisNaCarga =
     horasPlanoPorRep * fator.valor > 0 ? horasGestorMes / (horasPlanoPorRep * fator.valor) : 0;
   const filaHoje =
@@ -466,17 +503,28 @@ export function EficienciaCard({
   const teto = achaLinha(resultado, "teto_eficiencia");
   const tetoMordeu = resultado.eficienciaAno >= (teto?.valorAno ?? Infinity) - 0.005;
   const caminho = entradas.caminho;
+  const semEficiencia = resultado.eficienciaAno <= 0;
 
   return (
     <section className="flex flex-col gap-4">
       <CabecalhoParcela
         icon={BanknotesIcon}
         titulo="Eficiência: o que deixa de ser gasto"
-        ajuda="Projeção. O custo do caminho que você seguiria sem a Perfecting, limitado pelo valor da prática que o plano entrega."
-        valor={`+${formatBRL(resultado.eficienciaAno)}/ano`}
+        explicacao={explicarEficiencia({ resultado, entradas, plano })}
+        // Sem custo de treino declarado hoje não há nada a deixar de gastar, e
+        // o total sai zero por caminho legítimo — não por campo em branco, que
+        // o gating já barraria. Ver `zerado` em `CabecalhoParcela`.
+        zerado={semEficiencia}
+        valor={
+          semEficiencia
+            ? `${formatBRL(0)}/ano`
+            : `+${formatBRL(resultado.eficienciaAno)}/ano`
+        }
       />
 
       <dl className="flex flex-col gap-3">
+        {/* Sem ícone nas duas: o caminho declarado é um rótulo, não um valor,
+            e o teto já é o segundo operando da conta que o cabeçalho abre. */}
         <LinhaCompacta
           rotulo="Caminho declarado"
           valor={caminho ? CAMINHOS[caminho].label : "—"}
@@ -493,7 +541,7 @@ export function EficienciaCard({
         <dl className="flex flex-col gap-3">
           <LinhaCompacta
             rotulo="Custo por hora de prática"
-            valor={`gestor ${formatBRL(ancoragem?.detalhe?.custoHoraGestor ?? null, 2)} · Perfecting ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 2)}`}
+            valor={`gestor ${formatBRL(ancoragem?.detalhe?.custoHoraPraticaGestor ?? null, 2)} · Perfecting ${formatBRL(ancoragem?.detalhe?.custoHoraPerfecting ?? null, 2)}`}
           />
           <LinhaCompacta
             rotulo="Gestores que deixaria de contratar"
@@ -526,7 +574,7 @@ export function EficienciaCard({
           <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
             {fator.origem === "declarado"
               ? `Seus gestores cobrem ${formatNumero(repsCobertosHoje, 0)} vendedores por mês, com ${formatNumero(entradas.horasPraticaPorRepHoje, 1)} h de prática cada — cada hora de prática consome ${formatNumero(fator.valor, 1)} h de gestor. Na carga do plano ${PLANOS[plano].label}, as mesmas horas cobririam ${formatNumero(repsCobriveisNaCarga, 1)}.`
-              : `Seus números de treino ficaram fora da faixa de validade (0,25–6 h de gestor por hora de prática), então usamos a premissa de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h.`}
+              : `Seus números de treino ficaram fora da faixa de validade (${formatNumero(p.fatorEscopoMin, 2)}–${formatNumero(p.fatorEscopoMax, 0)} h de gestor por hora de prática), então usamos a premissa de ${formatNumero(p.fatorEscopoPremissa, 1)} h.`}
             {fator.treinoEmGrupo
               ? " Fator abaixo de 1 indica treino em grupo: a comparação por hora não captura prática coletiva."
               : ""}
@@ -561,6 +609,7 @@ export function PerformanceCard({
   resultado: ResultadoOk;
   entradas: EntradasTime;
 }) {
+  const p = usePremissas();
   const [detalhe, setDetalhe] = useState(false);
   const { parcelas, deltas } = resultado;
   const conv = entradas.conversaoPct;
@@ -583,12 +632,27 @@ export function PerformanceCard({
   const tetoFunil = resultado.tetoFunil;
   const cicloTetoCortou = !cicloTetoMordeu && tetoFunil !== null && tetoFunil.limitou;
 
+  // Uma explicação por alavanca, montada aqui para as quatro chamadas não
+  // repetirem os cinco argumentos. `explicarAlavanca` recebe deltas e parcelas
+  // SOLTOS de propósito: a comparação de cenários chama a mesma função com a
+  // linha de outro cenário, e um `ResultadoOk` cravado faria a coluna Otimista
+  // explicar o número do Conservador.
+  const explAlavanca = (alavanca: AlavancaId) =>
+    explicarAlavanca({
+      alavanca,
+      entradas,
+      cobertura: resultado.cobertura,
+      deltas,
+      parcelas,
+      tetoFunil,
+      premissas: p,
+    });
+
   return (
     <section className="flex flex-col gap-4">
       <CabecalhoParcela
         icon={ArrowTrendingUpIcon}
         titulo="Performance: o que passa a ser ganho"
-        ajuda="Projeção. Vendedores treinados vendem melhor e rampam mais rápido. Estimulamos, não controlamos; por isso o desconto de 30% em três das quatro alavancas."
         valor={`+${formatBRL(resultado.G)}/ano`}
       />
 
@@ -598,24 +662,28 @@ export function PerformanceCard({
       <dl className="flex flex-col gap-3">
         <LinhaCompacta
           rotulo="Ticket médio"
+          explicacao={explAlavanca("ticket")}
           delta={`+${formatNumero(deltas.ticketPct * 100, 0)}%`}
           valor={`+${formatBRL(parcelas.margemTicketAno)}/ano`}
           tom="positivo"
         />
         <LinhaCompacta
           rotulo="Conversão"
+          explicacao={explAlavanca("conversao")}
           delta={`+${formatNumero(deltas.convPp, 1)} p.p.`}
           valor={`+${formatBRL(parcelas.ganhoConversaoAno)}/ano`}
           tom="positivo"
         />
         <LinhaCompacta
           rotulo="Rampa"
+          explicacao={explAlavanca("rampa")}
           delta={`−${formatNumero(deltas.rampaPct * 100, 0)}%`}
           valor={`+${formatBRL(parcelas.margemRampaAno)}/ano`}
           tom="positivo"
         />
         <LinhaCompacta
           rotulo="Ciclo de venda"
+          explicacao={explAlavanca("ciclo")}
           delta={
             temFunil
               ? cicloEmDias
@@ -720,6 +788,7 @@ export function ChecagemRealidade({ resultado }: { resultado: ResultadoOk }) {
 }
 
 export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
+  const p = usePremissas();
   // Os três avisos do §4.7 — alertam sem travar edição. `fator_treino_grupo`
   // fica de fora de propósito: é ressalva metodológica sobre o que a
   // comparação por hora não captura, não incoerência de dado, e já tem lugar
@@ -736,13 +805,13 @@ export function AvisosCoerencia({ avisos }: { avisos: AvisoCoerencia[] }) {
 
   function texto(aviso: AvisoCoerencia): string {
     if (aviso.tipo === "receita_por_vendedor") {
-      return `A receita por vendedor (${formatBRL(aviso.valor)}/mês) está fora da faixa usual de R$ 5 mil a R$ 1 milhão. Confira receita e nº de vendedores.`;
+      return `A receita por vendedor (${formatBRL(aviso.valor)}/mês) está fora da faixa usual de ${formatBRL(p.receitaPorVendedorMin)} a ${formatBRL(p.receitaPorVendedorMax)}/mês. Confira receita e nº de vendedores.`;
     }
     if (aviso.tipo === "funil_fecha_mais") {
       return `Seu funil fecha mais do que chega: ${formatNumero(aviso.oportunidadesMes, 0)} oportunidades trabalhadas/mês contra ${formatNumero(aviso.leadsMes, 0)} que entram. Confira conversão e volume.`;
     }
     if (aviso.tipo === "fator_fora_faixa") {
-      return `Seus números de treino dão ${formatNumero(aviso.declarado, 1)} h de gestor por hora de prática, fora da faixa de validade de 0,25 a 6. Usamos a premissa declarada de ${formatNumero(FATOR_ESCOPO_PREMISSA, 1)} h no lugar. Confira horas de treino, gestores e vendedores cobertos.`;
+      return `Seus números de treino dão ${formatNumero(aviso.declarado, 1)} h de gestor por hora de prática, fora da faixa de validade de ${formatNumero(p.fatorEscopoMin, 2)} a ${formatNumero(p.fatorEscopoMax, 0)}. Usamos a premissa declarada de ${formatNumero(p.fatorEscopoPremissa, 1)} h no lugar. Confira horas de treino, gestores e vendedores cobertos.`;
     }
     if (aviso.tipo === "payback_excede_contrato") {
       return `O payback projetado (${formatMeses(aviso.paybackMeses)}) passa do prazo escolhido de ${aviso.prazoMeses} meses: o contrato termina antes de a conta se pagar. Um prazo maior, mais assentos ou um cenário revisto deixam a proposta defensável.`;

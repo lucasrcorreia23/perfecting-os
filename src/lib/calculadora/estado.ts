@@ -36,7 +36,7 @@ import type {
 
 const VALOR_MAX = 1e12;
 const TRAJETORIA_VALOR_MAX = 1e13;
-const NOME_MAX = 60;
+export const NOME_MAX = 60;
 const ID_MAX = 40;
 
 // As oito perguntas do quiz (etapa 02). Uma pergunta por tela, no máximo dois
@@ -44,9 +44,11 @@ const ID_MAX = 40;
 // esta tela (§8.12b: finanças, 45+, abre o link uma vez) desistia antes de
 // responder o primeiro.
 //
-// A pergunta 8 não tem `campos`: ela edita a PROPOSTA (plano, assentos, prazo,
-// cenário), que vive fora de `EntradasTime`. Array vazio ⇒ `passoCompleto`
-// devolve true por `every`, que é o certo — não há o que faltar ali.
+// A pergunta 8 não tem `campos`: ela edita a PROPOSTA (plano, prazo, cenário),
+// que vive fora de `EntradasTime`. Array vazio ⇒ `passoCompleto` devolve true
+// por `every`, que é o certo — não há o que faltar ali. Assentos ficaram de
+// fora dela (20/08/2026): vazio já vale "o time inteiro", e quem precisa de um
+// grupo menor ajusta na etapa avançada.
 export const PASSOS: {
   id: PassoId;
   titulo: string;

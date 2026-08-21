@@ -4,10 +4,7 @@ import {
   ExclamationTriangleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-import {
-  COI_FONTES,
-  COI_HORAS_COACHING_MIN,
-} from "@/lib/calculadora/constants";
+import { COI_FONTES } from "@/lib/calculadora/constants";
 import {
   formatBRL,
   formatHoras,
@@ -15,8 +12,20 @@ import {
   formatPct,
   formatX,
 } from "@/lib/calculadora/format";
-import type { DimensaoCoiId, PassoId, ResultadoCoi } from "@/lib/calculadora/types";
+import {
+  explicarCoiTotal,
+  explicarDimensaoCoi,
+  type ExplicacaoValor,
+} from "@/lib/calculadora/explicacoes";
+import type {
+  DimensaoCoiId,
+  EntradasTime,
+  PassoId,
+  ResultadoCoi,
+} from "@/lib/calculadora/types";
 import { cn } from "@/lib/utils";
+import { ExplicacaoInfo } from "./explicacao-info";
+import { usePremissas } from "./premissas-context";
 import { LinhaBarra, ListaBarras } from "./linha-barra";
 import { LinhaCompacta } from "./linha-compacta";
 import { SeloEvidencia } from "./selo-evidencia";
@@ -73,11 +82,19 @@ function CardKpiCoi({
   titulo,
   valor,
   nota,
+  explicacao,
   alerta = false,
 }: {
   titulo: string;
   valor: string;
   nota?: string;
+  /**
+   * Toda entrada do COI repete, na última linha da conta, que a lacuna NÃO se
+   * soma ao ROI. É a afirmação mais fácil de perder nesta tela — cinco números
+   * grandes em reais, um deles maior que o valor anual do programa — e o
+   * invariante 1 do V5 depende de ela chegar junto com o número.
+   */
+  explicacao?: ExplicacaoValor;
   alerta?: boolean;
 }) {
   return (
@@ -94,11 +111,12 @@ function CardKpiCoi({
     >
       <span
         className={cn(
-          "pf-panel-title",
+          "pf-panel-title flex items-center gap-1.5",
           alerta ? "text-(--pf-warn-ink)" : "text-(--pf-ink-soft)",
         )}
       >
         {titulo}
+        {explicacao ? <ExplicacaoInfo explicacao={explicacao} /> : null}
       </span>
       <span
         className={cn(
@@ -119,16 +137,22 @@ function CardKpiCoi({
 
 export function CustoInacao({
   coi,
+  entradas,
   precoAno,
   onIrParaPasso,
 }: {
   coi: ResultadoCoi;
+  // As entradas do time, para as cinco dimensões poderem abrir a cadeia de
+  // fatores que as produziu: o COI devolve o valor de cada uma, não os
+  // operandos.
+  entradas: EntradasTime;
   // Investimento anual do time. Só existe quando o resultado fechou (o COI
   // depende dele para o card "Inação × investimento") — `null` quando o
   // chamador não tem o número à mão, e o terceiro card simplesmente não nasce.
   precoAno: number | null;
   onIrParaPasso?: (passo: PassoId) => void;
 }) {
+  const p = usePremissas();
   const { cobertura, capacidade } = coi;
   const faltaSalario = coi.dimensoes.some(
     (d) => DEPENDEM_DO_SALARIO.includes(d.id) && d.valorAno === null,
@@ -140,7 +164,11 @@ export function CustoInacao({
   return (
     <section className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <CardKpiCoi titulo="Custo da inação, por ano" valor={formatBRL(coi.totalAno)} />
+        <CardKpiCoi
+          titulo="Custo da inação, por ano"
+          valor={formatBRL(coi.totalAno)}
+          explicacao={explicarCoiTotal(coi)}
+        />
         <CardKpiCoi
           titulo="Por mês / por dia"
           valor={formatBRL(coi.totalAno / 12)}
@@ -218,6 +246,21 @@ export function CustoInacao({
             <LinhaBarra
               key={d.id}
               rotulo={ROTULOS[d.id].rotulo}
+              // SÓ onde há valor. Zero é medição e a linha fica — mas um balão
+              // abrindo uma multiplicação que termina em R$ 0 não explica
+              // nada, e travessão já tem afordância própria ("Preencher no
+              // passo 3", logo abaixo da lista).
+              explicacao={
+                d.valorAno
+                  ? explicarDimensaoCoi({
+                      id: d.id,
+                      valorAno: d.valorAno,
+                      coi,
+                      entradas,
+                      premissas: p,
+                    })
+                  : undefined
+              }
               // Nota sai quando zero: "quem não pratica fecha menos" ao lado de
               // R$ 0 contradiz o próprio número.
               nota={d.valorAno ? ROTULOS[d.id].nota : undefined}
@@ -238,7 +281,7 @@ export function CustoInacao({
               {formatHoras(cobertura.horasEntreguesMes)}/mês chegam ao time contra
               as {formatHoras(cobertura.horasNecessariasMes)} que{" "}
               {formatNumero(
-                cobertura.horasNecessariasMes / COI_HORAS_COACHING_MIN,
+                cobertura.horasNecessariasMes / p.coi.horasCoachingMin,
                 0,
               )}{" "}
               vendedores precisariam — o equivalente a{" "}

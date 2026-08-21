@@ -6,18 +6,24 @@ import {
   PRAZO_COPY,
   PRAZOS_MESES,
 } from "@/lib/calculadora/constants";
-import { formatBRL, formatNumero, formatX } from "@/lib/calculadora/format";
+import {
+  formatBRL,
+  formatFaixaTier,
+  formatNumero,
+  formatX,
+} from "@/lib/calculadora/format";
 import type { TimeModelo } from "@/lib/calculadora/modelo";
 import type { PlanoId, PrecoConta } from "@/lib/calculadora/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CampoNumero } from "./campo-numero";
-import { EscadaPrecoGrafico } from "./graficos-resultado";
+import { TabelaTiersGrafico } from "./graficos-resultado";
 import { BlocoRecolhivel } from "./secao-resultado";
 import { SeloEvidencia } from "./selo-evidencia";
+import { usePremissas } from "./premissas-context";
 
 // "Quanto custa" — aqui o VISITANTE monta a proposta: plano e assentos por
-// time, prazo da conta. Tudo recalcula na hora (escada, rateio, ROI). No
+// time, prazo da conta. Tudo recalcula na hora (tier, rateio, ROI). No
 // detalhe interno o mesmo componente renderiza somente leitura: é a proposta
 // que o cliente montou e enviou.
 //
@@ -55,6 +61,7 @@ export function QuantoCusta({
   onChangeAssentos?: (timeId: string, assentos: number | null) => void;
   onChangePrazo?: (prazoMeses: number) => void;
 }) {
+  const p = usePremissas();
   const [extratoAberto, setExtratoAberto] = useState(false);
   const multiTime = times.length > 1;
   const nivel = NIVEL_COPY[preco.nivelServico];
@@ -103,7 +110,7 @@ export function QuantoCusta({
           mais uma moldura. */}
       <div className="flex flex-col gap-6">
         {times.map((time) => {
-          const horasTime = time.proposta.assentos * PLANOS[time.proposta.plano].horasMes;
+          const horasTime = time.proposta.assentos * p.horasPlanos[time.proposta.plano];
           return (
             <div
               key={time.id}
@@ -156,7 +163,7 @@ export function QuantoCusta({
                         {PLANOS[plano].label}
                       </span>
                       <span className="text-sm text-[var(--pf-ink-soft,#475569)]">
-                        {PLANOS[plano].horasMes} h de prática por vendedor/mês
+                        {p.horasPlanos[plano]} h de prática por vendedor/mês
                       </span>
                     </button>
                   );
@@ -283,7 +290,7 @@ export function QuantoCusta({
         ) : null}
       </div>
 
-      {/* Extrato da escada — detalhe sob demanda: o preço é a âncora, a
+      {/* Extrato do preço — detalhe sob demanda: o preço é a âncora, a
           decomposição fica a um clique de quem quiser conferir. */}
       {preco.horasMes > 0 ? (
         <div className="border-t border-[var(--pf-line-soft,#f1f5f9)] pt-6">
@@ -294,26 +301,33 @@ export function QuantoCusta({
             onToggle={() => setExtratoAberto((atual) => !atual)}
           >
             {/* Mesmo ritmo da tabela da oferta no Resumo: linha de conta pede
-                ar, senão as faixas da escada leem como um bloco só de texto. */}
+                ar, senão a conta lê como um bloco só de texto. */}
             <div className="flex flex-col gap-4 pt-1">
-              {/* O desenho antes da conta: a escada é o conceito que a lista
-                  de subtotais pressupõe, e ver a largura de cada faixa explica
-                  "progressiva por faixa" mais rápido que a frase. */}
-              <EscadaPrecoGrafico preco={preco} />
+              {/* O desenho antes da conta: qual tier, e o que há de cada lado
+                  dele. É a pergunta que a conta de uma linha só não responde. */}
+              <TabelaTiersGrafico preco={preco} />
               <div className="flex flex-col gap-4 border-t border-[var(--pf-line-soft,#f1f5f9)] pt-4 text-sm">
-                {preco.extrato.map((faixa, index) => (
-                  <div key={index} className="flex items-baseline justify-between gap-4">
-                    <span className="text-[var(--pf-ink-soft,#475569)]">
-                      {formatNumero(faixa.horasNaFaixa, 0)} h × {formatBRL(faixa.taxaHora)}/h
-                    </span>
-                    <span className="tabular-nums text-[var(--pf-ink,#334155)]">
-                      {formatBRL(faixa.subtotal)}
-                    </span>
-                  </div>
-                ))}
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-[var(--pf-ink-soft,#475569)]">
+                    Tier {preco.tier.tier} · {formatFaixaTier(preco.tier)}
+                  </span>
+                  <span className="tabular-nums text-[var(--pf-ink,#334155)]">
+                    {formatBRL(preco.tier.taxaHora)}/h
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-[var(--pf-ink-soft,#475569)]">
+                    {formatNumero(preco.horasMes, 0)} h × {formatBRL(preco.tier.taxaHora)}/h
+                  </span>
+                  <span className="tabular-nums text-[var(--pf-ink,#334155)]">
+                    {formatBRL(preco.bruto)}
+                  </span>
+                </div>
                 {preco.pisoAplicado ? (
                   <div className="flex items-baseline justify-between gap-4">
-                    <span className="text-[var(--pf-ink-soft,#475569)]">Cobrança mínima da conta</span>
+                    <span className="text-[var(--pf-ink-soft,#475569)]">
+                      Cobrança mínima da conta
+                    </span>
                     <span className="tabular-nums font-medium text-[var(--pf-ink,#0f172a)]">
                       {formatBRL(preco.mensal)}
                     </span>
@@ -322,8 +336,8 @@ export function QuantoCusta({
               </div>
               <p className="text-sm leading-6 text-[var(--pf-ink-soft,#475569)]">
                 {formatNumero(preco.horasMes, 0)} h de prática/mês · taxa efetiva de{" "}
-                {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais horas, menor a taxa:
-                a escada é progressiva por faixa.
+                {formatBRL(preco.taxaCombinada, 2)}/hora. Quanto mais
+                horas, menor o tier — e o tier vale para a conta inteira.
               </p>
             </div>
           </BlocoRecolhivel>

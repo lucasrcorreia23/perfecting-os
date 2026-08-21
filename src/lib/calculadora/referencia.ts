@@ -10,8 +10,9 @@
 // moram, e ele passaria a mentir no primeiro ajuste do motor. Aqui todo número
 // citado é interpolado de `constants.ts`, e `referencia.test.ts` falha se
 // algum se soltar da constante. Quando a planilha e o código divergem — e
-// divergem em três pontos, de propósito — quem manda nesta tela é o código, e
-// a divergência vem declarada na própria entrada.
+// divergem em quatro pontos do motor e do preço, de propósito, além das
+// correções do COI — quem manda nesta tela é o código, e a divergência vem
+// declarada na própria entrada.
 //
 // Módulo puro, sem JSX: a tela em `referencia-formulas.tsx` só renderiza.
 
@@ -21,7 +22,6 @@ import {
   DIAS_UTEIS_ANO,
   DIAS_UTEIS_MES,
   ENCARGOS,
-  ESCADA_PRECO,
   FATOR_ESCOPO_MAX,
   FATOR_ESCOPO_MIN,
   FATOR_ESCOPO_PREMISSA,
@@ -33,6 +33,7 @@ import {
   PCT_EVENTO_SUBSTITUIVEL,
   PLANOS,
   PRAZO_DEGRAU_SERVICO,
+  TABELA_TIERS,
   COI_CUSTO_SUBSTITUICAO,
   COI_DELTA_ATTAINMENT,
   COI_FRACAO_COACHAVEL,
@@ -52,6 +53,7 @@ import {
   TRAJETORIA_MESES,
 } from "./constants";
 import { CICLO_DIAS_MINIMO } from "./calc";
+import { formatFaixaTier } from "./format";
 
 export type SecaoId =
   | "derivados"
@@ -132,7 +134,7 @@ export const SECOES: { id: SecaoId; titulo: string; descricao: string }[] = [
   {
     id: "preco",
     titulo: "Preço",
-    descricao: "A escada progressiva sobre as horas da conta, o piso e o rateio por time.",
+    descricao: "A tabela de preços por tier sobre as horas da conta, o piso e o rateio por time.",
   },
   {
     id: "conta",
@@ -162,11 +164,17 @@ export const SECOES: { id: SecaoId; titulo: string; descricao: string }[] = [
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 const num = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-const escadaTexto = ESCADA_PRECO.map((faixa, i) => {
-  const de = i === 0 ? 0 : ESCADA_PRECO[i - 1].ateHoras;
-  const ate = Number.isFinite(faixa.ateHoras) ? num(faixa.ateHoras) : "∞";
-  return `${num(de)}–${ate} h × R$ ${num(faixa.taxaHora)}`;
-}).join("  ·  ");
+// A tabela como ela vai ao cliente: faixa, taxa e a economia contra o Tier 1
+// (a coluna E da aba, `=1-D/D7`) — é essa coluna que só faz sentido com a taxa
+// cheia, e foi ela que decidiu a leitura.
+const tiersTexto = TABELA_TIERS.map((faixa, i) => {
+  const de = i === 0 ? 0 : TABELA_TIERS[i - 1].ateHoras + 1;
+  const economia = 1 - faixa.taxaHora / TABELA_TIERS[0].taxaHora;
+  const rotulo = formatFaixaTier({ deHoras: de, ateHoras: faixa.ateHoras }, "h");
+  return `Tier ${faixa.tier}: ${rotulo} → R$ ${num(faixa.taxaHora)}/h${
+    economia > 0 ? ` (${pct(economia)} abaixo do Tier 1)` : ""
+  }`;
+}).join("\n");
 
 const planosTexto = (Object.keys(PLANOS) as (keyof typeof PLANOS)[])
   .map((id) => `${PLANOS[id].label} ${PLANOS[id].horasMes} h`)
@@ -214,7 +222,7 @@ export const REFERENCIA: EntradaReferencia[] = [
     titulo: "Horas de prática por assento/mês",
     formula: planosTexto,
     explicacao:
-      "O plano define consumo, não preço. O preço vem do volume total de horas da conta, pela escada.",
+      "O plano define consumo, não preço. O preço vem do volume total de horas da conta, pela tabela de tiers.",
     codigo: "constants.ts#PLANOS",
   },
   {
@@ -234,7 +242,7 @@ export const REFERENCIA: EntradaReferencia[] = [
     celula: "Motor!C20",
     titulo: "Horas do time por mês",
     formula: "horas_time = assentos_efetivos × horas_por_assento",
-    explicacao: "É o que entra na escada de preço da conta.",
+    explicacao: "É o que entra no volume que escolhe o tier da conta.",
     codigo: "preco.ts#horasDoTime",
   },
   {
@@ -459,22 +467,24 @@ alerta se checagem > ${pct(CHECAGEM_ALERTA)}`,
 
   // ── Preço ───────────────────────────────────────────────────────────────
   {
-    id: "escada",
+    id: "tiers",
     secao: "preco",
-    celula: "Conta!C17–C21",
-    titulo: "Escada progressiva (marginal por faixa)",
-    formula: escadaTexto,
+    celula: "Tabela de Preços por Tier!B7:E10",
+    titulo: "Tabela de preços por tier (taxa cheia)",
+    formula: tiersTexto,
     explicacao:
-      "Cada faixa cobra SÓ as horas que caem dentro dela, sobre o total de horas da conta — não sobre as horas de cada time. Quanto mais horas, menor a taxa efetiva.",
-    codigo: "preco.ts#precoEscada",
+      "O volume TOTAL de horas da conta — não as horas de cada time — escolhe um tier, e todas as horas do mês saem pela taxa cheia dele. Entrar no tier seguinte reprecifica a conta inteira.",
+    divergencia:
+      "A aba Conta da MESMA planilha cobra marginal (`C17:C20`: cada faixa cobrando só as horas dentro dela), e foi assim que o motor nasceu. As duas leituras se contradizem dentro do arquivo, e o decisor manteve o critério de 18/08/2026: vale a tabela comercial, que é a que vai ao cliente. Quem decidiu foi a coluna “Economia vs Tier 1” (`=1-D8/D7`), que só é verdade se a taxa valer para a hora inteira — no marginal, 800 h/mês saíam a R$ 85,08/h ao lado de uma tabela prometendo R$ 70. O CUSTO ACEITO É A QUEBRA DO INVARIANTE 9 do V5 (“uma hora a mais nunca reduz a receita”): 263 h custam R$ 4.110 menos que 262 h, 657 h custam R$ 7.802 menos que 656 h, e 1.244 h custam R$ 12.370 menos que 1.243 h. Os três degraus estão pinados em `preco.test.ts`.",
+    codigo: "preco.ts#precoPorTier",
   },
   {
     id: "piso",
     secao: "preco",
     celula: "Conta!C22",
     titulo: "Piso da conta",
-    formula: `mensalidade = MAX(preço da escada, R$ ${num(TAXA_MINIMA)})`,
-    explicacao: `Abaixo de ${num(Math.ceil(TAXA_MINIMA / ESCADA_PRECO[0].taxaHora))} h/mês a escada não alcança o piso, e a conta paga o mínimo. O piso é aplicado DEPOIS de qualquer desconto — piso não se desconta.`,
+    formula: `mensalidade = MAX(preço da tabela de tiers, R$ ${num(TAXA_MINIMA)})`,
+    explicacao: `Abaixo de ${num(Math.ceil(TAXA_MINIMA / TABELA_TIERS[0].taxaHora))} h/mês o Tier 1 não alcança o piso, e a conta paga o mínimo. O piso é aplicado DEPOIS de qualquer desconto — piso não se desconta.`,
     codigo: "preco.ts#precoConta",
   },
   {
@@ -485,7 +495,7 @@ alerta se checagem > ${pct(CHECAGEM_ALERTA)}`,
     formula:
       "preço_time = mensalidade da conta × (horas do time ÷ horas da conta)",
     explicacao:
-      "Rateio por HORAS, não por assentos: é a hora que a escada cobra. O arredondamento vai a R$ 0,01 e o último time absorve a diferença, para a soma fechar exatamente a mensalidade.",
+      "Rateio por HORAS, não por assentos: é a hora que o tier cobra. O arredondamento vai a R$ 0,01 e o último time absorve a diferença, para a soma fechar exatamente a mensalidade.",
     codigo: "preco.ts#rateioPorTime",
   },
   {

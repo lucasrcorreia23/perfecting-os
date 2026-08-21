@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { etapasLiberadas, type EtapaId } from "./etapas-nav";
 
-// A trava de navegação entre as quatro etapas (decisão de 20/08/2026). Ela tem
+// A trava de navegação entre as três etapas (decisão de 20/08/2026; a etapa
+// 04 saiu em 21/08). Ela tem
 // duas pontas — o botão `aria-disabled` em `EtapasNav` e a checagem em
 // `irParaEtapa` — e as duas leem ESTA função. É por isso que ela vale um teste
 // próprio: uma regra lida de dois lugares, se for reescrita num só, diverge.
@@ -9,7 +10,7 @@ import { etapasLiberadas, type EtapaId } from "./etapas-nav";
 function preenchimento(
   parcial: Partial<Record<EtapaId, number>>,
 ): Record<EtapaId, number> {
-  return { mensalidade: 0, quiz: 0, relatorio: 0, exportar: 0, ...parcial };
+  return { mensalidade: 0, quiz: 0, relatorio: 0, ...parcial };
 }
 
 describe("etapasLiberadas", () => {
@@ -19,7 +20,6 @@ describe("etapasLiberadas", () => {
       mensalidade: true,
       quiz: false,
       relatorio: false,
-      exportar: false,
     });
   });
 
@@ -27,7 +27,6 @@ describe("etapasLiberadas", () => {
     const liberadas = etapasLiberadas(preenchimento({ mensalidade: 1 }), "mensalidade");
     expect(liberadas.quiz).toBe(true);
     expect(liberadas.relatorio).toBe(false);
-    expect(liberadas.exportar).toBe(false);
   });
 
   // O ponto que a decisão preserva: a trava é contra o pulo para frente, não
@@ -43,21 +42,23 @@ describe("etapasLiberadas", () => {
 
   it("etapa incompleta barra todas as seguintes, não só a próxima", () => {
     const liberadas = etapasLiberadas(
-      preenchimento({ mensalidade: 1, quiz: 0.9 }),
-      "quiz",
+      preenchimento({ mensalidade: 1, quiz: 0.5 }),
+      "mensalidade",
     );
+    expect(liberadas.quiz).toBe(true);
     expect(liberadas.relatorio).toBe(false);
-    expect(liberadas.exportar).toBe(false);
   });
 
-  // `exportar` só vale 1 depois do envio. Se a trava olhasse o preenchimento da
-  // PRÓPRIA etapa, a última nunca abriria — e não há como enviar sem entrar.
+  // A regra olha só para TRÁS. O relatório abre com o quiz completo, mesmo com
+  // o preenchimento dele em zero — olhar para si mesma faria a última etapa da
+  // régua não abrir nunca, e era assim que a antiga etapa 04 (que só valia 1
+  // depois do envio) ficaria inalcançável.
   it("depende das anteriores, nunca do preenchimento da própria etapa", () => {
     const liberadas = etapasLiberadas(
-      preenchimento({ mensalidade: 1, quiz: 1, relatorio: 1, exportar: 0 }),
-      "relatorio",
+      preenchimento({ mensalidade: 1, quiz: 1, relatorio: 0 }),
+      "quiz",
     );
-    expect(liberadas.exportar).toBe(true);
+    expect(liberadas.relatorio).toBe(true);
   });
 
   // Estado restaurado de um link salvo pode pousar numa etapa cujas anteriores
@@ -71,8 +72,8 @@ describe("etapasLiberadas", () => {
 
   it("com tudo completo, todas abrem", () => {
     const liberadas = etapasLiberadas(
-      preenchimento({ mensalidade: 1, quiz: 1, relatorio: 1, exportar: 1 }),
-      "exportar",
+      preenchimento({ mensalidade: 1, quiz: 1, relatorio: 1 }),
+      "relatorio",
     );
     expect(Object.values(liberadas).every(Boolean)).toBe(true);
   });
