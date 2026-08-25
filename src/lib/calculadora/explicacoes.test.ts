@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calcResultadoTime, type PropostaEfetiva } from "./calc";
 import {
@@ -174,18 +175,34 @@ describe("explicações — integridade estrutural", () => {
     }
   });
 
-  it.each(CASOS)("%s: toda explicação tem título, conta e fonte", (_, c) => {
+  it.each(CASOS)("%s: toda explicação tem título, conta e referência", (_, c) => {
+    const vivos = new Set(REFERENCIA.map((e) => e.id));
     for (const [chave, expl] of Object.entries(todasAs(c))) {
       expect(expl.titulo.length, chave).toBeGreaterThan(0);
       expect(expl.conta.length, `${chave}: conta vazia`).toBeGreaterThan(0);
       for (const linha of expl.conta) {
         expect(linha.trim().length, `${chave}: linha vazia na conta`).toBeGreaterThan(0);
       }
-      // Sem fonte o balão vira afirmação sem lastro, que é o oposto do que ele
-      // existe para fazer. `fonteDe` devolve vazio quando o id não casa — é
-      // assim que um id errado aparece aqui, e não na tela do visitante.
-      expect(expl.fonte, `${chave}: sem fonte`).toMatch(/·\s[a-z-]+\.ts#\w+$/);
+      // O id não vai à tela (célula de planilha e arquivo.ts#símbolo são
+      // endereços da auditoria interna), mas continua tendo de casar com
+      // referencia.ts: é o que impede o balão e a referência de fórmulas de se
+      // soltarem um do outro.
+      expect(vivos.has(expl.referenciaId), `${chave}: id fora de referencia.ts`).toBe(true);
     }
+  });
+
+  it("o balão não renderiza o endereço da auditoria interna", () => {
+    // Teste de FONTE, no caráter de design-tokens.test.ts. A célula da planilha
+    // e o `arquivo.ts#símbolo` respondem a pergunta de quem audita o motor, não
+    // a de quem lê o próprio relatório — e a tela do visitante não é o lugar
+    // deles. O campo `referenciaId` existe só para casar com referencia.ts (o
+    // teste acima); se ele reaparecer no componente, isto reprova.
+    const componente = readFileSync(
+      new URL("../../components/calculadora/explicacao-info.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(componente).not.toContain("referenciaId");
+    expect(componente).not.toContain("explicacao.fonte");
   });
 
   it.each(CASOS)("%s: todo termo citado existe no glossário", (_, c) => {
@@ -375,11 +392,12 @@ describe("explicações — as cinco dimensões do custo da inação", () => {
     }
   });
 
-  it.each(CASOS)("%s: as cinco têm título próprio e fonte da aba do COI", (_, c) => {
+  it.each(CASOS)("%s: as cinco têm título próprio e referência na aba do COI", (_, c) => {
+    const porId = new Map(REFERENCIA.map((e) => [e.id, e]));
     const titulos = new Set<string>();
     for (const id of IDS) {
       const expl = explicarDimensaoCoi({ id, valorAno: 1, coi: c.coi, entradas: c.entradas });
-      expect(expl.fonte, id).toContain("Custo da Inação!");
+      expect(porId.get(expl.referenciaId)?.celula, id).toContain("Custo da Inação!");
       titulos.add(expl.titulo);
     }
     // Cinco títulos distintos: um rótulo repetido significaria que uma

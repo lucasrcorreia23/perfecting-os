@@ -57,7 +57,6 @@ import {
 } from "./format";
 import type { TermoId } from "./glossario";
 import { PREMISSAS_PADRAO, type PremissasRacional } from "./premissas";
-import { REFERENCIA } from "./referencia";
 import type {
   DimensaoCoiId,
   EntradasTime,
@@ -83,23 +82,24 @@ export type ExplicacaoValor = {
   nota?: string;
   /** No máximo um termo do glossário, e só se a conta precisar dele. */
   termo?: TermoId;
-  /** "Motor!C72 · calc.ts#calcResultadoTime". */
-  fonte: string;
+  /**
+   * Id da entrada de `referencia.ts` que esta explicação traduz.
+   *
+   * NÃO É RENDERIZADO, e não deve voltar a ser: célula de planilha e
+   * `arquivo.ts#símbolo` são endereços da auditoria INTERNA, e no balão do
+   * visitante eles não respondem pergunta nenhuma — quem abre o ícone quer a
+   * conta dos próprios números, não o caminho até o código. O caminho continua
+   * aberto onde ele serve: `/calculadoras/referencia`, atrás de `requireInterno`.
+   *
+   * O campo sobrevive porque `explicacoes.test.ts` o casa com `referencia.ts`:
+   * é ele que impede o balão e a referência de fórmulas de se soltarem.
+   */
+  referenciaId: string;
 };
 
 // ---------------------------------------------------------------------------
 // A ponte com a referência de fórmulas
 // ---------------------------------------------------------------------------
-
-const POR_ID = new Map(REFERENCIA.map((entrada) => [entrada.id, entrada]));
-
-// Não lança: o balão é renderizado na tela do visitante, e um id errado não
-// pode virar tela branca. O que ele vira é um rodapé vazio — e
-// `explicacoes.test.ts` reprova antes de chegar lá.
-function fonteDe(id: string): string {
-  const entrada = POR_ID.get(id);
-  return entrada ? `${entrada.celula} · ${entrada.codigo}` : "";
-}
 
 /** Os ids de `referencia.ts` que este módulo cita. O teste os confere. */
 export const REFERENCIAS_CITADAS = [
@@ -202,7 +202,7 @@ export function explicarInvestimentoMes(args: {
     nota: preco.pisoAplicado
       ? `Contas pequenas pagam o piso de ${formatBRL(p.taxaMinima)}: é ele que vale neste volume, não a tabela.`
       : "O preço vem do volume de horas da conta, não do plano — e o tier vale para a hora inteira, não só para as acima da fronteira.",
-    fonte: fonteDe(rateado ? "rateio-preco" : preco.pisoAplicado ? "piso" : "tiers"),
+    referenciaId: rateado ? "rateio-preco" : preco.pisoAplicado ? "piso" : "tiers",
   };
 }
 
@@ -240,7 +240,7 @@ export function explicarValorAno(args: {
     conta,
     nota: `Em margem, nunca em receita — e rampa, conversão e ciclo já entram com ${pctSimples(1 - p.haircut)} de desconto.`,
     termo: "margem-contribuicao",
-    fonte: fonteDe("valor-ano"),
+    referenciaId: "valor-ano",
   };
 }
 
@@ -267,7 +267,7 @@ export function explicarRoi(args: {
     nota: args.ponderado
       ? "Com vários times é Σ valor ÷ Σ investimento: a média dos ROIs daria outro número."
       : "A janela do cálculo é sempre o ano, mesmo quando o contrato é de outro tamanho.",
-    fonte: fonteDe(args.ponderado ? "consolidado" : "roi-payback"),
+    referenciaId: args.ponderado ? "consolidado" : "roi-payback",
   };
 }
 
@@ -296,7 +296,7 @@ export function explicarPayback(args: {
         ? `Passa dos ${args.prazoMeses} meses de contrato: ele termina antes de a conta se pagar.`
         : `Dentro dos ${args.prazoMeses} meses de contrato escolhidos.`,
     termo: "payback",
-    fonte: fonteDe("roi-payback"),
+    referenciaId: "roi-payback",
   };
 }
 
@@ -331,7 +331,7 @@ export function explicarEficiencia(args: {
     nota: tetoMordeu
       ? "O teto definiu a parcela: a economia não pode passar do valor da prática que o plano entrega."
       : "A economia nunca passa do que a empresa de fato gasta hoje, nem do valor da prática contratada.",
-    fonte: fonteDe("eficiencia-ano"),
+    referenciaId: "eficiencia-ano",
   };
 }
 
@@ -400,7 +400,7 @@ export function explicarAlavanca(args: {
       ],
       nota: "A única alavanca sem haircut: o ticket sobe na receita que já existe, sem depender de mais volume.",
       termo: "cobertura",
-      fonte: fonteDe("ganho-ticket"),
+      referenciaId: "ganho-ticket",
     };
   }
 
@@ -415,7 +415,7 @@ export function explicarAlavanca(args: {
       ],
       nota: "Não é folha economizada: é a mesma folha rendendo antes.",
       termo: "rampa",
-      fonte: fonteDe("ganho-rampa"),
+      referenciaId: "ganho-rampa",
     };
   }
 
@@ -430,7 +430,7 @@ export function explicarAlavanca(args: {
       ],
       nota: "Sobre as mesmas oportunidades: não pressupõe mais leads. E p.p. não é %: de 20% para 22% são +2 p.p.",
       termo: "oportunidades-trabalhadas",
-      fonte: fonteDe("ganho-conversao"),
+      referenciaId: "ganho-conversao",
     };
   }
 
@@ -445,7 +445,7 @@ export function explicarAlavanca(args: {
       // aqui o motivo é outro — o funil não foi preenchido. Colar a definição
       // certa no caso errado é o tipo de imprecisão que a tela não pode pagar.
       nota: "Nunca estimamos por default: sem os dois números, a parcela não existe.",
-      fonte: fonteDe("ganho-ciclo"),
+      referenciaId: "ganho-ciclo",
     };
   }
 
@@ -466,7 +466,7 @@ export function explicarAlavanca(args: {
       ? "O teto de funil definiu a parcela: fechar mais rápido só vira receita se houver oportunidade sobrando."
       : "Fechar mais rápido só vira receita até onde o funil consegue alimentar a capacidade liberada.",
     termo: "teto-funil",
-    fonte: fonteDe(limitou ? "ciclo-teto-funil" : "ganho-ciclo"),
+    referenciaId: limitou ? "ciclo-teto-funil" : "ganho-ciclo",
   };
 }
 
@@ -499,7 +499,7 @@ export function explicarCoiTotal(coi: ResultadoCoi): ExplicacaoValor {
       igual(`${formatBRL(coi.totalAno)}/ano`),
     ],
     nota: "Esta lacuna NÃO se soma ao ROI: o ROI mede o que o programa devolve, ela mede o que vaza sem ele.",
-    fonte: fonteDe("coi-total"),
+    referenciaId: "coi-total",
   };
 }
 
@@ -568,7 +568,7 @@ export function explicarDimensaoCoi(args: {
         fecho,
       ],
       nota: "Só sobre quem não recebe a prática mínima hoje: quem já recebe não entra nesta conta.",
-      fonte: fonteDe(COI_REF.subperformance),
+      referenciaId: COI_REF.subperformance,
     };
   }
 
@@ -583,7 +583,7 @@ export function explicarDimensaoCoi(args: {
       ],
       nota: "Incide só sobre quem entra no ano, não sobre o time todo — e vendedor em rampa produz, só que metade.",
       termo: "rampa",
-      fonte: fonteDe(COI_REF.rampa_estendida),
+      referenciaId: COI_REF.rampa_estendida,
     };
   }
 
@@ -598,7 +598,7 @@ export function explicarDimensaoCoi(args: {
       ],
       nota: "Duas travas: só quem não é atendido corre risco, e ninguém perde mais gente do que repõe no ano.",
       termo: "encargos",
-      fonte: fonteDe(COI_REF.turnover),
+      referenciaId: COI_REF.turnover,
     };
   }
 
@@ -612,7 +612,7 @@ export function explicarDimensaoCoi(args: {
         fecho,
       ],
       nota: `A maioria das perdas B2B não vai para o concorrente, vai para o status quo. Os ${pctSimples(c.fracaoCoachavel)} são o haircut desta linha.`,
-      fonte: fonteDe(COI_REF.no_decision),
+      referenciaId: COI_REF.no_decision,
     };
   }
 
@@ -625,6 +625,6 @@ export function explicarDimensaoCoi(args: {
       fecho,
     ],
     nota: "Folha, não receita: é produtividade perdida de quem espera, não venda que deixou de acontecer.",
-    fonte: fonteDe(COI_REF.fila),
+    referenciaId: COI_REF.fila,
   };
 }

@@ -279,12 +279,6 @@ export function ExplicacaoInfo({
                   {termo.definicao}
                 </p>
               ) : null}
-
-              {explicacao.fonte ? (
-                <p className="text-[11px] leading-4 text-[var(--pf-ink-faint,#64748b)]">
-                  {explicacao.fonte}
-                </p>
-              ) : null}
             </div>,
             document.body,
           )
