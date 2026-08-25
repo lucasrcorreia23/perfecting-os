@@ -138,7 +138,7 @@ export function AppShell({
     <div className="min-h-[100dvh]">
       {/* Barra superior flutuante (§10: z-header) — sem barra branca/stroke; fundo
           cor-da-página (opaco, esconde conteúdo ao rolar) e nav em pill flutuante. */}
-      <header className="fixed inset-x-0 top-0 z-(--z-header) grid py-4 h-11 grid-cols-[1fr_auto_1fr] items-center gap-4 bg-[#f3f6fc] px-4 sm:px-6">
+      <header className="fixed inset-x-0 top-0 z-(--z-header) grid py-4 h-11 grid-cols-[1fr_auto_1fr] items-center gap-4 bg-[#f9f9f9] px-4 sm:px-6">
         {/* Esquerda: menu mobile + logo */}
         <div className="flex items-center gap-2 justify-self-start">
           <button
