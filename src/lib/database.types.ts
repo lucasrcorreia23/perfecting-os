@@ -325,6 +325,211 @@ export type Database = {
         };
         Relationships: [];
       };
+      desafio_categorias: {
+        Row: {
+          arquivada: boolean;
+          cor: string;
+          created_at: string;
+          descricao: string | null;
+          id: string;
+          nome: string;
+          ordem: number;
+          updated_at: string;
+        };
+        Insert: {
+          arquivada?: boolean;
+          cor?: string;
+          created_at?: string;
+          descricao?: string | null;
+          id?: string;
+          nome: string;
+          ordem?: number;
+          updated_at?: string;
+        };
+        Update: {
+          arquivada?: boolean;
+          cor?: string;
+          created_at?: string;
+          descricao?: string | null;
+          id?: string;
+          nome?: string;
+          ordem?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      desafio_fluxos: {
+        Row: {
+          arquivado: boolean;
+          cor: string;
+          created_at: string;
+          descricao: string | null;
+          id: string;
+          nome: string;
+          ordem: number;
+          updated_at: string;
+        };
+        Insert: {
+          arquivado?: boolean;
+          cor?: string;
+          created_at?: string;
+          descricao?: string | null;
+          id?: string;
+          nome: string;
+          ordem?: number;
+          updated_at?: string;
+        };
+        Update: {
+          arquivado?: boolean;
+          cor?: string;
+          created_at?: string;
+          descricao?: string | null;
+          id?: string;
+          nome?: string;
+          ordem?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      desafio_ocorrencias: {
+        Row: {
+          ambiente: string | null;
+          created_at: string;
+          desafio_id: string;
+          falhas: number;
+          id: string;
+          nota: string | null;
+          ocorrido_em: string;
+          registrado_por: string | null;
+          tentativas: number;
+        };
+        Insert: {
+          ambiente?: string | null;
+          created_at?: string;
+          desafio_id: string;
+          falhas?: number;
+          id?: string;
+          nota?: string | null;
+          ocorrido_em?: string;
+          registrado_por?: string | null;
+          tentativas?: number;
+        };
+        Update: {
+          ambiente?: string | null;
+          created_at?: string;
+          desafio_id?: string;
+          falhas?: number;
+          id?: string;
+          nota?: string | null;
+          ocorrido_em?: string;
+          registrado_por?: string | null;
+          tentativas?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "desafio_ocorrencias_desafio_id_fkey";
+            columns: ["desafio_id"];
+            isOneToOne: false;
+            referencedRelation: "desafios";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      desafios: {
+        Row: {
+          ambiente: string | null;
+          categoria_id: string | null;
+          // `codigo` é `generated always as identity`: só sai, nunca entra.
+          // Por isso não aparece em Insert nem em Update — declará-lo ali
+          // deixaria alguém escrever .insert({ codigo: 5 }) e descobrir o erro
+          // em produção.
+          codigo: number;
+          created_at: string;
+          created_by: string | null;
+          descricao: string | null;
+          esperado: string | null;
+          evidencia_url: string | null;
+          falhas: number;
+          fluxo_id: string | null;
+          id: string;
+          obtido: string | null;
+          observacoes: string | null;
+          passos: string | null;
+          resolucao: string | null;
+          resolvido_em: string | null;
+          rota: string | null;
+          severidade: Database["public"]["Enums"]["desafio_severidade"];
+          status: Database["public"]["Enums"]["desafio_status"];
+          tentativas: number;
+          tipo: Database["public"]["Enums"]["desafio_tipo"];
+          titulo: string;
+          updated_at: string;
+        };
+        Insert: {
+          ambiente?: string | null;
+          categoria_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          descricao?: string | null;
+          esperado?: string | null;
+          evidencia_url?: string | null;
+          falhas?: number;
+          fluxo_id?: string | null;
+          id?: string;
+          obtido?: string | null;
+          observacoes?: string | null;
+          passos?: string | null;
+          resolucao?: string | null;
+          resolvido_em?: string | null;
+          rota?: string | null;
+          severidade?: Database["public"]["Enums"]["desafio_severidade"];
+          status?: Database["public"]["Enums"]["desafio_status"];
+          tentativas?: number;
+          tipo?: Database["public"]["Enums"]["desafio_tipo"];
+          titulo: string;
+          updated_at?: string;
+        };
+        Update: {
+          ambiente?: string | null;
+          categoria_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          descricao?: string | null;
+          esperado?: string | null;
+          evidencia_url?: string | null;
+          falhas?: number;
+          fluxo_id?: string | null;
+          id?: string;
+          obtido?: string | null;
+          observacoes?: string | null;
+          passos?: string | null;
+          resolucao?: string | null;
+          resolvido_em?: string | null;
+          rota?: string | null;
+          severidade?: Database["public"]["Enums"]["desafio_severidade"];
+          status?: Database["public"]["Enums"]["desafio_status"];
+          tentativas?: number;
+          tipo?: Database["public"]["Enums"]["desafio_tipo"];
+          titulo?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "desafios_categoria_id_fkey";
+            columns: ["categoria_id"];
+            isOneToOne: false;
+            referencedRelation: "desafio_categorias";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "desafios_fluxo_id_fkey";
+            columns: ["fluxo_id"];
+            isOneToOne: false;
+            referencedRelation: "desafio_fluxos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           actor_id: string | null;
@@ -678,6 +883,14 @@ export type Database = {
       canal_comunicacao: "email" | "whatsapp" | "os" | "meet" | "presencial";
       client_status: "ativo" | "em_risco" | "pausado" | "encerrado";
       criticidade: "baixa" | "media" | "alta";
+      desafio_severidade: "critica" | "alta" | "media" | "baixa";
+      desafio_status:
+        | "aberto"
+        | "em_analise"
+        | "resolvido"
+        | "nao_reproduz"
+        | "descartado";
+      desafio_tipo: "bug" | "atrito" | "lacuna";
       funnel_status: "rascunho" | "publicado" | "arquivado";
       lead_qualificacao: "frio" | "morno" | "quente";
       lead_status:

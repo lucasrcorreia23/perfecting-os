@@ -12,6 +12,9 @@ export type PostStatus = Enums<"post_status">;
 export type FunnelStatus = Enums<"funnel_status">;
 export type LeadStatus = Enums<"lead_status">;
 export type LeadQualificacao = Enums<"lead_qualificacao">;
+export type DesafioTipo = Enums<"desafio_tipo">;
+export type DesafioSeveridade = Enums<"desafio_severidade">;
+export type DesafioStatus = Enums<"desafio_status">;
 
 // Contato público da Perfecting: rodapé da calculadora encaminhada, onde
 // quem preenche não tem login nem canal aberto com o time.
@@ -233,6 +236,86 @@ export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
 // SLA por etapa (Preferências > Fluxo de trabalho) — fixo para todos os clientes.
 export const DEFAULT_PRAZO_ETAPA_DIAS = 25;
+
+// =============================================================================
+// Desafios
+// =============================================================================
+
+// `tipo` mantém o eixo CATEGORIA limpo: sem ele, "bug" viraria categoria e o
+// cruzamento categoria × fluxo passaria a misturar dois eixos. Rosa/âmbar/
+// violeta e NUNCA o vermelho de tendência — o §1 reserva o vermelho para
+// atraso e queda, e pintá-lo num tipo desfaria essa semântica.
+export const DESAFIO_TIPOS: Record<
+  DesafioTipo,
+  { label: string; color: string }
+> = {
+  bug: { label: "Bug", color: PALETA.rosa },
+  atrito: { label: "Atrito", color: PALETA.ambar },
+  lacuna: { label: "Lacuna", color: PALETA.violeta },
+};
+
+export const DESAFIO_TIPO_ORDER: DesafioTipo[] = ["bug", "atrito", "lacuna"];
+
+// Escala própria (não o `criticidade` das atividades): bug precisa de `critica`,
+// e "trava todo mundo" não é o mesmo que "alta". A tinta segue o degrau de
+// CRITICIDADES — o topo usa o vermelho de tendência, que aqui é alerta de
+// verdade.
+export const DESAFIO_SEVERIDADES: Record<
+  DesafioSeveridade,
+  { label: string; color: string }
+> = {
+  critica: { label: "Crítica", color: TREND.negativo },
+  alta: { label: "Alta", color: PALETA.rosa },
+  media: { label: "Média", color: PALETA.ambar },
+  baixa: { label: "Baixa", color: PALETA_FALLBACK },
+};
+
+export const DESAFIO_SEVERIDADE_ORDER: DesafioSeveridade[] = [
+  "critica",
+  "alta",
+  "media",
+  "baixa",
+];
+
+// `nao_reproduz` é desfecho, não descarte. Âmbar fica de fora: em
+// ACTIVITY_STATUSES ele já significa "bloqueada", e repetir a cor com outro
+// sentido é o que a semântica do §1 existe para impedir.
+export const DESAFIO_STATUSES: Record<
+  DesafioStatus,
+  { label: string; color: string }
+> = {
+  aberto: { label: "Aberto", color: PALETA.azul },
+  em_analise: { label: "Em análise", color: PALETA.ciano },
+  resolvido: { label: "Resolvido", color: PALETA.verde },
+  nao_reproduz: { label: "Não reproduz", color: PALETA.grafite },
+  descartado: { label: "Descartado", color: PALETA_FALLBACK },
+};
+
+export const DESAFIO_STATUS_ORDER: DesafioStatus[] = [
+  "aberto",
+  "em_analise",
+  "resolvido",
+  "nao_reproduz",
+  "descartado",
+];
+
+// Os oito swatches do §1 como opções de <Select>, para o seletor de cor da
+// taxonomia. O CHECK da migration valida só a FORMA do hex; o conjunto vive
+// aqui, e é este seletor que o impõe.
+export const CORES_TAXONOMIA: { value: string; label: string }[] = [
+  { value: PALETA.azul, label: "Azul" },
+  { value: PALETA.violeta, label: "Violeta" },
+  { value: PALETA.verde, label: "Verde" },
+  { value: PALETA.ambar, label: "Âmbar" },
+  { value: PALETA.rosa, label: "Rosa" },
+  { value: PALETA.ciano, label: "Ciano" },
+  { value: PALETA.magenta, label: "Magenta" },
+  { value: PALETA.grafite, label: "Grafite" },
+];
+
+// Amostra mínima para um desafio entrar no ranking de mais recorrentes. Um
+// 1 de 1 (100%) no topo da lista é a mentira clássica do n pequeno.
+export const MIN_TENTATIVAS_PARA_RANQUEAR = 3;
 
 // Padrão de acento do guideline (§1): fundo alpha .08, borda alpha .35,
 // texto/dot na cor cheia.

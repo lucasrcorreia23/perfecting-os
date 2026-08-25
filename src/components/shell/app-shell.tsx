@@ -6,6 +6,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import {
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
+  BugAntIcon,
   HomeIcon,
   MegaphoneIcon,
   UserCircleIcon,
@@ -39,6 +40,7 @@ function navItems(role: UserRole, clientId: string | null): NavItem[] {
     { href: "/workflow", label: "Workflow", icon: ViewColumnsIcon },
     { href: "/clientes", label: "Clientes", icon: UserGroupIcon },
     { href: "/marketing", label: "Marketing", icon: MegaphoneIcon },
+    { href: "/desafios", label: "Desafios", icon: BugAntIcon },
   ];
 }
 
