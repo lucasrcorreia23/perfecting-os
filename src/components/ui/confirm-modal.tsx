@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -25,6 +26,7 @@ export function ConfirmModal({
   tone = "primary",
   title,
   description,
+  children,
   confirmLabel,
   cancelLabel = "Cancelar",
   loading = false,
@@ -35,6 +37,9 @@ export function ConfirmModal({
   tone?: Tone;
   title: string;
   description?: string;
+  // Conteúdo extra abaixo da descrição, em largura cheia — fora da linha do
+  // ícone de propósito: uma lista espremida ao lado dele quebraria a cada item.
+  children?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
   loading?: boolean;
@@ -57,6 +62,7 @@ export function ConfirmModal({
           <p className="text-sm text-slate-600">{description}</p>
         ) : null}
       </div>
+      {children}
       <div className="flex items-center justify-end gap-3 pt-1">
         <Button variant="secondary" onClick={onClose} disabled={loading}>
           {cancelLabel}

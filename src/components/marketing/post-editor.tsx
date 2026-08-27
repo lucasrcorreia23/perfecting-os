@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import {
   publishPost,
@@ -15,6 +15,7 @@ import {
   SEO_DESCRIPTION_MAX,
   SEO_TITLE_MAX,
 } from "@/lib/marketing-post";
+import { reviewPost } from "@/lib/marketing-post-review";
 import { slugify } from "@/lib/marketing-slug";
 import { cn } from "@/lib/utils";
 import { ActionBar } from "@/components/ui/action-bar";
@@ -28,6 +29,7 @@ import { PostStateChip } from "@/components/ui/post-state-chip";
 import { Tabs } from "@/components/ui/tabs";
 import { CoverUploader } from "./cover-uploader";
 import { MarkdownEditor } from "./markdown-editor";
+import { RevisaoEditorial } from "./revisao-editorial";
 import { SeoPreview } from "./seo-preview";
 
 type Post = Tables<"marketing_posts">;
@@ -102,6 +104,17 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
   const dirty = JSON.stringify(values) !== JSON.stringify(initial);
   const slugLocked = state !== "rascunho" && !slugUnlocked;
   const publicUrl = `${siteUrl}/blog/${values.slug}`;
+
+  const achados = useMemo(
+    () =>
+      reviewPost({
+        title: values.title,
+        cover_path: coverPath,
+        cover_alt: values.cover_alt,
+        body_md: values.body_md,
+      }),
+    [values.title, coverPath, values.cover_alt, values.body_md],
+  );
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -275,7 +288,7 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
                   />
                   <Field
                     label="Texto alternativo da capa"
-                    help="Descreve a imagem para leitores de tela e para o SEO."
+                    help="Escreva o assunto do post, não a cena da imagem. É o que leitores de tela e redes sociais leem."
                     htmlFor="post-cover-alt"
                   >
                     <Input
@@ -284,6 +297,11 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
                       onChange={(event) => set("cover_alt", event.target.value)}
                     />
                   </Field>
+                  <RevisaoEditorial
+                    findings={achados}
+                    onFix={(valor) => set("cover_alt", valor)}
+                    disabled={saving}
+                  />
                 </FormSection>
 
                 <FormSection title="Busca">
@@ -466,7 +484,8 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
             ? "O post será publicado na data e hora agendadas. Alterações não salvas serão salvas junto."
             : "O post ficará disponível no site imediatamente. Alterações não salvas serão salvas junto."
         }
-        confirmLabel="Publicar"
+        confirmLabel={achados.length > 0 ? "Publicar assim" : "Publicar"}
+        cancelLabel={achados.length > 0 ? "Revisar" : "Cancelar"}
         loading={acting}
         onConfirm={() => {
           setError(null);
@@ -497,7 +516,9 @@ export function PostEditor({ post, siteUrl }: { post: Post; siteUrl: string }) {
             setConfirming(null);
           });
         }}
-      />
+      >
+        <RevisaoEditorial findings={achados} />
+      </ConfirmModal>
 
       <ConfirmModal
         open={confirming === "despublicar"}

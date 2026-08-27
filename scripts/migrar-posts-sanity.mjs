@@ -339,7 +339,9 @@ async function main() {
         status: "publicado",
         published_at: post.publishedAt,
         cover_path: capaEnviada,
-        cover_alt: post.cover?.alt ?? null,
+        // `.trim()` porque o editor também trima: sem ele, um alt com espaço
+        // à frente entra por aqui e chega intacto à meta tag do site.
+        cover_alt: post.cover?.alt?.trim() || null,
         seo_title: seoTitle,
         seo_description: post.seo?.metaDescription ?? null,
         canonical_url: null,
