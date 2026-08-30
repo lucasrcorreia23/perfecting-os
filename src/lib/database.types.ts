@@ -863,6 +863,165 @@ export type Database = {
           },
         ];
       };
+      teste_achados: {
+        Row: {
+          categoria_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          desafio_codigo: number | null;
+          desafio_id: string | null;
+          fluxo_id: string | null;
+          id: string;
+          pergunta_id: string | null;
+          resumo: string;
+          severidade: Database["public"]["Enums"]["desafio_severidade"];
+          status: Database["public"]["Enums"]["teste_achado_status"];
+          sessao_id: string;
+          tipo: Database["public"]["Enums"]["desafio_tipo"];
+          trecho: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          categoria_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          desafio_codigo?: number | null;
+          desafio_id?: string | null;
+          fluxo_id?: string | null;
+          id?: string;
+          pergunta_id?: string | null;
+          resumo: string;
+          severidade?: Database["public"]["Enums"]["desafio_severidade"];
+          status?: Database["public"]["Enums"]["teste_achado_status"];
+          sessao_id: string;
+          tipo?: Database["public"]["Enums"]["desafio_tipo"];
+          trecho?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          categoria_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          desafio_codigo?: number | null;
+          desafio_id?: string | null;
+          fluxo_id?: string | null;
+          id?: string;
+          pergunta_id?: string | null;
+          resumo?: string;
+          severidade?: Database["public"]["Enums"]["desafio_severidade"];
+          status?: Database["public"]["Enums"]["teste_achado_status"];
+          sessao_id?: string;
+          tipo?: Database["public"]["Enums"]["desafio_tipo"];
+          trecho?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "teste_achados_sessao_id_fkey";
+            columns: ["sessao_id"];
+            isOneToOne: false;
+            referencedRelation: "teste_sessoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "teste_achados_desafio_id_fkey";
+            columns: ["desafio_id"];
+            isOneToOne: false;
+            referencedRelation: "desafios";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "teste_achados_categoria_id_fkey";
+            columns: ["categoria_id"];
+            isOneToOne: false;
+            referencedRelation: "desafio_categorias";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "teste_achados_fluxo_id_fkey";
+            columns: ["fluxo_id"];
+            isOneToOne: false;
+            referencedRelation: "desafio_fluxos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      teste_sessoes: {
+        Row: {
+          // `codigo` é `generated always as identity`: só sai, nunca entra.
+          // Por isso não aparece em Insert nem em Update — declará-lo ali
+          // deixaria alguém escrever .insert({ codigo: 5 }) e descobrir o erro
+          // em produção. Mesma nota de `desafios`.
+          codigo: number;
+          created_at: string;
+          created_by: string | null;
+          fluxo: Database["public"]["Enums"]["teste_fluxo"];
+          id: string;
+          observacoes: string | null;
+          origem: Database["public"]["Enums"]["teste_origem"];
+          perfil: Database["public"]["Enums"]["teste_perfil"];
+          realizado_em: string;
+          respostas: Json;
+          roteiro_versao: number;
+          updated_at: string;
+          varejo: boolean;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          fluxo: Database["public"]["Enums"]["teste_fluxo"];
+          id?: string;
+          observacoes?: string | null;
+          origem?: Database["public"]["Enums"]["teste_origem"];
+          perfil: Database["public"]["Enums"]["teste_perfil"];
+          realizado_em: string;
+          respostas?: Json;
+          roteiro_versao: number;
+          updated_at?: string;
+          varejo?: boolean;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          fluxo?: Database["public"]["Enums"]["teste_fluxo"];
+          id?: string;
+          observacoes?: string | null;
+          origem?: Database["public"]["Enums"]["teste_origem"];
+          perfil?: Database["public"]["Enums"]["teste_perfil"];
+          realizado_em?: string;
+          respostas?: Json;
+          roteiro_versao?: number;
+          updated_at?: string;
+          varejo?: boolean;
+        };
+        Relationships: [];
+      };
+      teste_transcricoes: {
+        Row: {
+          created_at: string;
+          sessao_id: string;
+          texto: string;
+        };
+        Insert: {
+          created_at?: string;
+          sessao_id: string;
+          texto: string;
+        };
+        Update: {
+          created_at?: string;
+          sessao_id?: string;
+          texto?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "teste_transcricoes_sessao_id_fkey";
+            columns: ["sessao_id"];
+            isOneToOne: true;
+            referencedRelation: "teste_sessoes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -901,6 +1060,15 @@ export type Database = {
         | "convertido";
       post_status: "rascunho" | "publicado" | "arquivado";
       responsavel_categoria: "cliente" | "perfecting" | "ambos";
+      teste_achado_status: "aberto" | "virou_desafio" | "descartado";
+      teste_fluxo:
+        | "configuracao"
+        | "preparacao"
+        | "pre_chamada"
+        | "chamada"
+        | "feedback";
+      teste_origem: "ficha" | "transcricao" | "manual";
+      teste_perfil: "gestor" | "vendedor";
       user_role: "interno" | "cliente";
       workflow_stage:
         | "diagnosticar"

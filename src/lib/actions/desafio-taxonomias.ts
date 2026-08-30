@@ -154,15 +154,26 @@ export async function deleteTaxonomia(
   // o erro genérico. Contar antes é o que permite dizer o número — molde exato
   // de deleteFunnel. Apagar não é opção: destruiria o cruzamento de N
   // registros em silêncio, o oposto do que o módulo existe para fazer.
-  const { count } = await supabase
-    .from("desafios")
-    .select("id", { count: "exact", head: true })
-    .eq(config.coluna, id);
+  const [desafiosRes, achadosRes] = await Promise.all([
+    supabase.from("desafios").select("id", { count: "exact", head: true }).eq(config.coluna, id),
+    // Achados de teste de usabilidade também referenciam a taxonomia com
+    // `on delete restrict`. Contar só desafios faria esta frase mentir: ela
+    // diria "tem 0 desafio(s)", o DELETE falharia com 23503 por causa dos
+    // achados, e a pessoa veria o erro genérico sem saber o que a segura.
+    supabase.from("teste_achados").select("id", { count: "exact", head: true }).eq(`${config.coluna}`, id),
+  ]);
 
-  if ((count ?? 0) > 0) {
+  const desafios = desafiosRes.count ?? 0;
+  const achados = achadosRes.count ?? 0;
+
+  if (desafios + achados > 0) {
+    const partes = [
+      desafios > 0 ? `${desafios} desafio(s)` : null,
+      achados > 0 ? `${achados} achado(s) de teste` : null,
+    ].filter(Boolean);
     return {
       ok: false,
-      error: `${config.artigo} tem ${count} desafio(s). Arquive em vez de excluir.`,
+      error: `${config.artigo} tem ${partes.join(" e ")}. Arquive em vez de excluir.`,
     };
   }
 

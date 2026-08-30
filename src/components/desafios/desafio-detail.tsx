@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowTopRightOnSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 import {
@@ -62,11 +62,18 @@ export function DesafioDetail({
   categorias,
   fluxos,
   codigo,
+  origem,
 }: {
   desafio: DesafioRow;
   categorias: TaxonomiaOption[];
   fluxos: TaxonomiaOption[];
   codigo: string;
+  // Slot para o card de procedência em testes de usabilidade. É um Server
+  // Component passado como ReactNode: a leitura é derivada de `teste_achados`,
+  // e trazê-la para dentro deste componente cliente exigiria uma segunda
+  // consulta ou uma coluna nova em `desafios` — que seria a segunda fonte da
+  // verdade que o vínculo de aresta única existe para evitar.
+  origem?: ReactNode;
 }) {
   const router = useRouter();
   const [initial, setInitial] = useState(() => toValues(desafio));
@@ -307,6 +314,8 @@ export function DesafioDetail({
         </div>
 
         <div className="flex flex-col gap-6">
+          {origem}
+
           <RecorrenciaCard
             tentativas={values.tentativas}
             falhas={values.falhas}

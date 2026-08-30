@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const SECTIONS = [
   { href: "/desafios", label: "Desafios" },
   { href: "/desafios/dashboard", label: "Dashboard" },
+  { href: "/desafios/usabilidade", label: "Usabilidade" },
   { href: "/desafios/taxonomias", label: "Categorias e fluxos" },
 ];
 

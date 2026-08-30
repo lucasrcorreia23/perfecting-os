@@ -15,6 +15,10 @@ export type LeadQualificacao = Enums<"lead_qualificacao">;
 export type DesafioTipo = Enums<"desafio_tipo">;
 export type DesafioSeveridade = Enums<"desafio_severidade">;
 export type DesafioStatus = Enums<"desafio_status">;
+export type TestePerfil = Enums<"teste_perfil">;
+export type TesteFluxo = Enums<"teste_fluxo">;
+export type TesteOrigem = Enums<"teste_origem">;
+export type TesteAchadoStatus = Enums<"teste_achado_status">;
 
 // Contato público da Perfecting: rodapé da calculadora encaminhada, onde
 // quem preenche não tem login nem canal aberto com o time.
@@ -312,6 +316,71 @@ export const CORES_TAXONOMIA: { value: string; label: string }[] = [
   { value: PALETA.magenta, label: "Magenta" },
   { value: PALETA.grafite, label: "Grafite" },
 ];
+
+// =============================================================================
+// Testes de usabilidade
+// =============================================================================
+
+// Perfil e fluxo são os únicos campos de escolha do Bloco 0 que viram coluna, e
+// por isso os únicos com enum: o primeiro decide qual metade do roteiro se
+// aplica, o segundo é o eixo de cruzamento. Dispositivo, sistema operacional e
+// navegador vivem em `respostas` e têm os labels em
+// src/lib/usabilidade/roteiro.ts — acrescentar um navegador é uma linha lá.
+export const TESTE_PERFIS: Record<TestePerfil, { label: string; color: string }> = {
+  gestor: { label: "Gestor", color: PALETA.violeta },
+  vendedor: { label: "Vendedor", color: PALETA.ciano },
+};
+
+export const TESTE_PERFIL_ORDER: TestePerfil[] = ["gestor", "vendedor"];
+
+// A ordem é a da JORNADA (configurar → preparar → falar → receber feedback),
+// não o volume — mesma razão pela qual o eixo de fluxos da matriz de desafios
+// segue `ordem` e não a contagem: reordenar a cada sessão nova embaralharia a
+// leitura de uma sequência que é temporal.
+export const TESTE_FLUXOS: Record<TesteFluxo, { label: string; color: string }> = {
+  configuracao: { label: "Configuração", color: PALETA.azul },
+  preparacao: { label: "Preparação", color: PALETA.ciano },
+  pre_chamada: { label: "Pré-chamada", color: PALETA.violeta },
+  chamada: { label: "Chamada", color: PALETA.magenta },
+  feedback: { label: "Feedback", color: PALETA.verde },
+};
+
+export const TESTE_FLUXO_ORDER: TesteFluxo[] = [
+  "configuracao",
+  "preparacao",
+  "pre_chamada",
+  "chamada",
+  "feedback",
+];
+
+export const TESTE_ORIGENS: Record<TesteOrigem, { label: string; color: string }> = {
+  ficha: { label: "Ficha", color: PALETA.azul },
+  transcricao: { label: "Transcrição", color: PALETA.ciano },
+  manual: { label: "Digitada", color: PALETA_FALLBACK },
+};
+
+// `virou_desafio` é verde porque é o desfecho que o módulo existe para produzir.
+// `descartado` é a decisão de NÃO promover, e precisa ser distinguível de
+// `aberto`: sem ela, a lista de pendentes nunca encolhe.
+export const TESTE_ACHADO_STATUSES: Record<
+  TesteAchadoStatus,
+  { label: string; color: string }
+> = {
+  aberto: { label: "Aberto", color: PALETA.azul },
+  virou_desafio: { label: "Virou desafio", color: PALETA.verde },
+  descartado: { label: "Descartado", color: PALETA_FALLBACK },
+};
+
+export const TESTE_ACHADO_STATUS_ORDER: TesteAchadoStatus[] = [
+  "aberto",
+  "virou_desafio",
+  "descartado",
+];
+
+// Amostra mínima para uma média entrar num ranking. Irmã de
+// MIN_TENTATIVAS_PARA_RANQUEAR: "realismo 10,0" no topo, vindo de UMA resposta,
+// é a mesma mentira do 1 de 1 = 100%.
+export const MIN_RESPOSTAS_PARA_RANQUEAR = 3;
 
 // Amostra mínima para um desafio entrar no ranking de mais recorrentes. Um
 // 1 de 1 (100%) no topo da lista é a mentira clássica do n pequeno.

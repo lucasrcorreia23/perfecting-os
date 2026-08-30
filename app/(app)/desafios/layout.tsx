@@ -16,8 +16,8 @@ export default async function DesafiosLayout({
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-slate-900">Desafios</h1>
           <p className="text-xs text-slate-500">
-            Bugs, atritos e lacunas do produto — com recorrência e cruzamento por
-            categoria e fluxo.
+            Bugs, atritos e lacunas do produto — com recorrência, cruzamento por
+            categoria e fluxo, e os testes de usabilidade que os originam.
           </p>
         </div>
         <DesafiosNav />
